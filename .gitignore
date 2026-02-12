@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.output/
+.nuxt/
+.vite/
+*.local
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+Untitled
+
+# Logs and cache
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.cache/
+.turbo/
+
+# Test
+coverage/
+.nyc_output/
+
+# Agent-only docs (not for the repo; local context only)
+.cursor/
+
+# Reference only; do not commit (implement in apps/packages)
+_integrate/

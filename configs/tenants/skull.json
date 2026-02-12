@@ -1,0 +1,121 @@
+{
+  "id": "skull-bones",
+  "slug": "skull",
+  "name": "Skull & Bones",
+  "description": "Skull & Bones trading hub",
+  "branding": {
+    "logo": "https://skullnbones.xyz/assets/img/snb_icon.jpg",
+    "name": "Skull & Bones",
+    "shortName": "[S&B]",
+    "theme": {
+      "colors": {
+        "primary": {
+          "main": "#4a5568",
+          "hover": "#5a6578",
+          "light": "#718096",
+          "dark": "#2d3748"
+        },
+        "secondary": {
+          "main": "#a0aec0",
+          "hover": "#9099a8",
+          "light": "#cbd5e0",
+          "dark": "#718096"
+        },
+        "accent": {
+          "main": "#e2e8f0",
+          "hover": "#cbd5e0"
+        },
+        "background": {
+          "primary": "#1a202c",
+          "secondary": "#2d3748",
+          "card": "#2d3748"
+        },
+        "text": {
+          "primary": "#f7fafc",
+          "secondary": "#e2e8f0",
+          "muted": "#a0aec0"
+        },
+        "border": {
+          "default": "#4a5568",
+          "light": "#718096"
+        },
+        "status": {
+          "success": "#48bb78",
+          "error": "#fc8181",
+          "warning": "#ecc94b",
+          "info": "#63b3ed"
+        },
+        "trade": {
+          "buy": "#48bb78",
+          "buyHover": "#38a169",
+          "buyLight": "#68d391",
+          "sell": "#fc8181",
+          "sellHover": "#f56565",
+          "sellLight": "#feb2b2",
+          "trade": "#b794f4",
+          "tradeHover": "#9f7aea",
+          "tradeLight": "#d6bcfa"
+        },
+        "window": {
+          "background": "#2d3748",
+          "border": "#4a5568",
+          "header": "#2d3748"
+        }
+      },
+      "borderRadius": {
+        "sm": "0",
+        "md": "0",
+        "lg": "0",
+        "xl": "0",
+        "full": "0"
+      },
+      "fontSize": {
+        "xs": "0.75rem",
+        "sm": "0.875rem",
+        "base": "1rem",
+        "lg": "1.125rem",
+        "xl": "1.25rem",
+        "2xl": "1.5rem",
+        "3xl": "1.875rem",
+        "4xl": "2.25rem",
+        "5xl": "3rem"
+      },
+      "spacing": {
+        "xs": "0.5rem",
+        "sm": "0.75rem",
+        "md": "1rem",
+        "lg": "1.5rem",
+        "xl": "2rem",
+        "2xl": "3rem"
+      },
+      "borderWidth": {
+        "thin": "1px",
+        "medium": "2px",
+        "thick": "4px"
+      },
+      "shadows": {
+        "glow": "0 0 20px rgba(74, 85, 104, 0.3)",
+        "glowHover": "0 0 40px rgba(74, 85, 104, 0.6)",
+        "card": "0 8px 32px rgba(0, 0, 0, 0.4)"
+      },
+      "gradients": {
+        "primary": "linear-gradient(135deg, #4a5568 0%, #718096 50%, #2d3748 100%)",
+        "secondary": "linear-gradient(135deg, #a0aec0 0%, #718096 100%)",
+        "accent": "linear-gradient(135deg, #4a5568 0%, #a0aec0 100%)"
+      },
+      "fonts": {
+        "primary": ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        "mono": ["JetBrains Mono", "Fira Code", "monospace"]
+      }
+    }
+  },
+  "modules": [
+    {
+      "id": "admin",
+      "enabled": true
+    }
+  ],
+  "admins": ["7zuv53HX1K85EUYY6SrJ3vChYda1nue3q2GwjUXFXVWH"],
+  "createdAt": "2025-02-10T00:00:00.000Z",
+  "updatedAt": "2025-02-10T00:00:00.000Z"
+}

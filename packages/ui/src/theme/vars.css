@@ -1,0 +1,103 @@
+/**
+ * Theme CSS variables for DecentraGuild.
+ * Import in app: @import '@decentraguild/ui/theme/vars.css';
+ * Values match C2C theme.js defaults.
+ */
+
+:root {
+  /* Primary */
+  --theme-primary: #00951a;
+  --theme-primary-hover: #00b820;
+  --theme-primary-light: #00cc22;
+  --theme-primary-dark: #007a14;
+
+  /* Secondary */
+  --theme-secondary: #cf0000;
+  --theme-secondary-hover: #b30000;
+  --theme-secondary-light: #ff3333;
+  --theme-secondary-dark: #990000;
+
+  /* Accent */
+  --theme-accent: #8b5cf6;
+  --theme-accent-hover: #7c3aed;
+
+  /* Background */
+  --theme-bg-primary: #0a0a0f;
+  --theme-bg-secondary: #141420;
+  --theme-bg-card: #1a1a2e;
+
+  /* Text */
+  --theme-text-primary: #ffffff;
+  --theme-text-secondary: #a0a0b3;
+  --theme-text-muted: #6b6b80;
+
+  /* Border */
+  --theme-border: #2a2a3e;
+  --theme-border-light: #3a3a4e;
+
+  /* Status */
+  --theme-success: #00951a;
+  --theme-error: #cf0000;
+  --theme-warning: #ff6b35;
+  --theme-info: #00d4ff;
+
+  /* Trade */
+  --theme-trade-buy: #00ff00;
+  --theme-trade-buy-hover: #00cc00;
+  --theme-trade-buy-light: #33ff33;
+  --theme-trade-sell: #ff0000;
+  --theme-trade-sell-hover: #cc0000;
+  --theme-trade-sell-light: #ff3333;
+  --theme-trade-trade: #ffaa00;
+  --theme-trade-trade-hover: #cc8800;
+  --theme-trade-trade-light: #ffbb33;
+  --theme-trade-swap: #6366f1;
+  --theme-trade-swap-hover: #4f46e5;
+  --theme-trade-swap-light: #818cf8;
+
+  /* Window */
+  --theme-window-bg: #1a1a2e;
+  --theme-window-border: #2a2a3e;
+  --theme-window-header: #141420;
+
+  /* Font sizes */
+  --theme-font-xs: 0.75rem;
+  --theme-font-sm: 0.875rem;
+  --theme-font-base: 1rem;
+  --theme-font-lg: 1.125rem;
+  --theme-font-xl: 1.25rem;
+  --theme-font-2xl: 1.5rem;
+  --theme-font-3xl: 1.875rem;
+  --theme-font-4xl: 2.25rem;
+  --theme-font-5xl: 3rem;
+
+  /* Spacing */
+  --theme-space-xs: 0.5rem;
+  --theme-space-sm: 0.75rem;
+  --theme-space-md: 1rem;
+  --theme-space-lg: 1.5rem;
+  --theme-space-xl: 2rem;
+  --theme-space-2xl: 3rem;
+
+  /* Border radius */
+  --theme-radius-sm: 0.5rem;
+  --theme-radius-md: 0.75rem;
+  --theme-radius-lg: 1rem;
+  --theme-radius-xl: 1.25rem;
+  --theme-radius-full: 9999px;
+
+  /* Border width */
+  --theme-border-thin: 1px;
+  --theme-border-medium: 2px;
+  --theme-border-thick: 4px;
+
+  /* Shadows */
+  --theme-shadow-glow: 0 0 20px rgba(0, 149, 26, 0.3);
+  --theme-shadow-glow-hover: 0 0 40px rgba(0, 149, 26, 0.6);
+  --theme-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  /* Gradients */
+  --theme-gradient-primary: linear-gradient(135deg, #00951a 0%, #00cc22 50%, #007a14 100%);
+  --theme-gradient-secondary: linear-gradient(135deg, #ff6b35 0%, #f59e0b 100%);
+  --theme-gradient-accent: linear-gradient(135deg, #00951a 0%, #cf0000 100%);
+}

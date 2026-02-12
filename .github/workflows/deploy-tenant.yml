@@ -1,0 +1,34 @@
+name: Deploy Tenant
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build tenant
+        run: pnpm --filter tenant generate
+        env:
+          NUXT_PUBLIC_API_URL: ${{ secrets.NUXT_PUBLIC_API_BASE_URL || 'https://api.decentraguild.com' }}
+          NUXT_PUBLIC_HELIUS_RPC: ${{ secrets.NUXT_PUBLIC_HELIUS_RPC }}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/tenant/.output/public
