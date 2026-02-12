@@ -1,3 +1,5 @@
+import { useAuth } from '@decentraguild/auth'
+
 export default defineNuxtRouteMiddleware(async () => {
   if (import.meta.server) return
   const auth = useAuth()

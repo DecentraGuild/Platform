@@ -1,0 +1,25 @@
+{
+  "name": "@decentraguild/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin.client": "./src/plugin.client.ts"
+  },
+  "scripts": {
+    "build": "echo 'source-only package'",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@decentraguild/ui": "workspace:*",
+    "@decentraguild/web3": "workspace:*"
+  },
+  "peerDependencies": {
+    "nuxt": "^3.0.0",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

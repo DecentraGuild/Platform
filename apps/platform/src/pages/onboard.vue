@@ -33,6 +33,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '@decentraguild/auth'
 import { PageSection, Card, TextInput, Button, ConnectWalletModal } from '@decentraguild/ui/components'
 import type { WalletConnectorId } from '@solana/connector/headless'
 

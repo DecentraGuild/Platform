@@ -1,3 +1,5 @@
+import { useAuth } from './useAuth'
+
 export default defineNuxtPlugin(() => {
   if (import.meta.server) return
   const auth = useAuth()

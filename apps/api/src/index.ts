@@ -89,6 +89,9 @@ async function main() {
     return { status: 'ok', tenantConfigPath: tenantConfigPath ?? null, tenantConfigOk }
   })
   app.get('/api/v1/debug/tenant-config', async (request, reply) => {
+    if (process.env.NODE_ENV === 'production') {
+      return reply.code(404).send({ error: 'Not found' })
+    }
     const slug = new URL(request.url, 'http://localhost').searchParams.get('slug') ?? 'skull'
     return reply.send(await loadTenantBySlugDiagnostic(slug))
   })

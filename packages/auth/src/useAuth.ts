@@ -1,3 +1,5 @@
+import { ref } from 'vue'
+import { useRuntimeConfig } from 'nuxt/app'
 import {
   getConnectorState,
   connectWallet as web3ConnectWallet,
@@ -61,18 +63,6 @@ export function useAuth() {
     }
   }
 
-  async function signIn(connectorId: WalletConnectorId) {
-    error.value = null
-    const result = await signInWithWallet(apiUrl, connectorId)
-    if (!result.ok) {
-      error.value = result.error
-      return false
-    }
-    await fetchMe()
-    refreshConnectorState()
-    return true
-  }
-
   async function signOut() {
     await web3SignOut(apiUrl)
     wallet.value = null
@@ -88,7 +78,6 @@ export function useAuth() {
     fetchMe,
     refreshConnectorState,
     connectAndSignIn,
-    signIn,
     signOut,
   }
 }

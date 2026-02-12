@@ -57,6 +57,9 @@ importers:
 
   apps/platform:
     dependencies:
+      '@decentraguild/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@decentraguild/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -78,9 +81,6 @@ importers:
       vue:
         specifier: ^3.4.0
         version: 3.5.28(typescript@5.9.3)
-      vue-router:
-        specifier: ^4.0.0
-        version: 4.6.4(vue@3.5.28(typescript@5.9.3))
     devDependencies:
       '@nuxtjs/tailwindcss':
         specifier: ^6.12.0
@@ -91,6 +91,9 @@ importers:
 
   apps/tenant:
     dependencies:
+      '@decentraguild/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@decentraguild/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -112,13 +115,29 @@ importers:
       vue:
         specifier: ^3.4.0
         version: 3.5.28(typescript@5.9.3)
-      vue-router:
-        specifier: ^4.0.0
-        version: 4.6.4(vue@3.5.28(typescript@5.9.3))
     devDependencies:
       '@nuxtjs/tailwindcss':
         specifier: ^6.12.0
         version: 6.14.0(magicast@0.5.2)(tsx@4.21.0)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/auth:
+    dependencies:
+      '@decentraguild/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@decentraguild/web3':
+        specifier: workspace:*
+        version: link:../web3
+      nuxt:
+        specifier: ^3.0.0
+        version: 3.21.1(@parcel/watcher@2.5.6)(@types/node@20.19.33)(@vue/compiler-sfc@3.5.28)(bufferutil@4.1.0)(cac@6.7.14)(commander@13.1.0)(db0@0.3.4)(ioredis@5.9.2)(magicast@0.5.2)(rollup@4.57.1)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@20.19.33)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2)
+      vue:
+        specifier: ^3.4.0
+        version: 3.5.28(typescript@5.9.3)
+    devDependencies:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3

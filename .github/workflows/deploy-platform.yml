@@ -21,6 +21,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Build packages
+        run: pnpm exec turbo run build --filter=./packages/*
+
       - name: Build platform
         run: pnpm --filter platform generate
         env:

@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { AuthWidget, useAuth } from '@decentraguild/auth'
 import {
   AppShell,
   AppHeader,

@@ -25,8 +25,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import { Button, ConnectWalletModal } from '@decentraguild/ui/components'
 import type { WalletConnectorId } from '@solana/connector/headless'
+import { useAuth } from './useAuth'
 
 const auth = useAuth()
 const { wallet, loading, error, connectorState, fetchMe, refreshConnectorState, connectAndSignIn, signOut } = auth

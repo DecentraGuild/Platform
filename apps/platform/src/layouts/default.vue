@@ -14,7 +14,9 @@
   </div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { AuthWidget } from '@decentraguild/auth'
+</script>
 
 <style scoped>
 .platform-layout {
