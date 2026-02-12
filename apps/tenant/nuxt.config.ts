@@ -5,6 +5,12 @@ import { fileURLToPath } from 'node:url'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const uiVarsCss = path.resolve(dirname, '../../packages/ui/src/theme/vars.css')
 
+// In dev without NUXT_PUBLIC_API_URL: use same-origin + proxy (no CORS, no localhost in prod). In prod: use live API URL.
+const apiUrl =
+  process.env.NUXT_PUBLIC_API_URL ??
+  (import.meta.dev ? '' : 'https://api.dguild.org')
+const apiProxyTarget = process.env.NUXT_PUBLIC_API_PROXY_TARGET ?? 'https://api.dguild.org'
+
 export default defineNuxtConfig({
   srcDir: 'src',
   compatibilityDate: '2025-02-10',
@@ -16,9 +22,16 @@ export default defineNuxtConfig({
   devServer: {
     port: 3002,
   },
+  routeRules: {
+    '/api/v1/**': {
+      proxy: {
+        to: `${apiProxyTarget}/api/v1/**`,
+      },
+    },
+  },
   runtimeConfig: {
     public: {
-      apiUrl: process.env.NUXT_PUBLIC_API_URL ?? 'http://localhost:3001',
+      apiUrl,
       heliusRpc: process.env.NUXT_PUBLIC_HELIUS_RPC ?? '',
     },
   },

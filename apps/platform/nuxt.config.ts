@@ -4,6 +4,12 @@ import { fileURLToPath } from 'node:url'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const uiVarsCss = path.resolve(dirname, '../../packages/ui/src/theme/vars.css')
 
+// In dev without NUXT_PUBLIC_API_URL: use same-origin + proxy (no CORS, no localhost in prod). In prod: use live API URL.
+const apiUrl =
+  process.env.NUXT_PUBLIC_API_URL ??
+  (import.meta.dev ? '' : 'https://api.dguild.org')
+const apiProxyTarget = process.env.NUXT_PUBLIC_API_PROXY_TARGET ?? 'https://api.dguild.org'
+
 export default defineNuxtConfig({
   srcDir: 'src',
   compatibilityDate: '2025-02-10',
@@ -15,19 +21,17 @@ export default defineNuxtConfig({
   devServer: {
     port: 3000,
   },
-  // Proxy API requests so browser talks to same-origin `/api`
-  // and Nuxt/Nitro forwards to the backend at :3001.
+  // Proxy API so browser uses same-origin /api (no CORS, no localhost in prod CORS). Target: live API or local.
   routeRules: {
     '/api/v1/**': {
       proxy: {
-        to: 'http://localhost:3001/api/v1/**',
+        to: `${apiProxyTarget}/api/v1/**`,
       },
     },
   },
   runtimeConfig: {
     public: {
-      // Empty in dev so browser uses same-origin /api (proxied to API). Set NUXT_PUBLIC_API_URL in production.
-      apiUrl: process.env.NUXT_PUBLIC_API_URL ?? '',
+      apiUrl,
       heliusRpc: process.env.NUXT_PUBLIC_HELIUS_RPC ?? '',
     },
   },

@@ -74,10 +74,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return { wallet: payload.wallet }
   })
 
-  app.post('/api/v1/auth/logout', async (_request, reply) => {
+  app.post('/api/v1/auth/logout', async (request, reply) => {
     const cookieName = getCookieName()
+    const secure = request.headers['x-forwarded-proto'] === 'https'
+    const opts = { path: '/', sameSite: (secure ? 'none' : 'lax') as const, secure }
     return reply
-      .clearCookie(cookieName, { path: '/' })
+      .clearCookie(cookieName, opts)
       .send({ ok: true })
   })
 }

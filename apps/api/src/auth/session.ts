@@ -57,7 +57,7 @@ export function getCookieOptions(secure: boolean): {
 } {
   return {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: secure ? 'none' : 'lax',
     secure,
     path: '/',
     maxAge: DEFAULT_MAX_AGE_SEC,

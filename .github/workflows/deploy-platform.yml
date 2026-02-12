@@ -24,7 +24,7 @@ jobs:
       - name: Build platform
         run: pnpm --filter platform generate
         env:
-          NUXT_PUBLIC_API_URL: ${{ secrets.NUXT_PUBLIC_API_BASE_URL || 'https://api.decentraguild.com' }}
+          NUXT_PUBLIC_API_URL: ${{ secrets.NUXT_PUBLIC_API_BASE_URL || 'https://api.dguild.org' }}
           NUXT_PUBLIC_HELIUS_RPC: ${{ secrets.NUXT_PUBLIC_HELIUS_RPC }}
 
       - name: Deploy to GitHub Pages
