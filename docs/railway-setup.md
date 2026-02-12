@@ -47,10 +47,12 @@ This guide walks through setting up the DecentraGuild API and Postgres database 
 
    | Variable        | Value                                                                 |
    |-----------------|-----------------------------------------------------------------------|
-   | `DATABASE_URL`  | Paste the Postgres `DATABASE_URL` from Step 2 (or use Railway’s reference) |
-| `PORT`          | Railway sets this automatically; only add if you need an override   |
-| `NODE_ENV`      | `production`                                                          |
-| `HELIUS_RPC_URL`| Full Helius RPC URL for server-side Solana/DAS (optional for now)   |
+   | `DATABASE_URL`   | Add Reference -> Postgres `DATABASE_URL` (Add Reference -> Postgres service ->’s reference) |
+   | `SESSION_SECRET` | Generate with `openssl rand -base64 32` (min 32 chars; required for auth) |
+   | `CORS_ORIGIN`    | Comma-separated origins, e.g. `https://skull.decentraguild.com,https://dguild.org` |
+   | `PORT`           | Railway sets this automatically; only add if you need an override      |
+   | `NODE_ENV`       | `production`                                                          |
+   | `HELIUS_RPC_URL` | Full Helius RPC URL for server-side Solana/DAS (optional for now)     |
 
 4. **Link the database** (optional but recommended):
    - In the API service, open **Variables**.
@@ -109,10 +111,14 @@ If you prefer to run migrations manually:
 | Variable            | Required | Used by | Description                                        |
 |---------------------|----------|---------|----------------------------------------------------|
 | `DATABASE_URL`      | Yes*     | API     | Postgres connection string. Required for DB and PATCH. |
+| `SESSION_SECRET`    | Yes**    | API     | Min 32 chars for JWT signing. Generate: `openssl rand -base64 32`. |
+| `CORS_ORIGIN`       | Yes**    | API     | Comma-separated origins for tenant/platform (e.g. `https://skull.decentraguild.com`). |
 | `PORT`              | No       | API     | Railway sets this.                                 |
 | `TENANT_CONFIG_PATH`| No       | API     | Path to `configs/tenants`. Fallback when no DB.   |
 
 \* Without `DATABASE_URL`, the API runs in file-only mode: tenant config is read from JSON files; PATCH and POST tenants return 503.
+
+\*\* Required for production auth; without them, wallet sign-in and admin save fail.
 
 ---
 
