@@ -30,15 +30,15 @@
 
 ## Deployment
 
-- **Platform**: Static build → Netlify (dguild.org). Uses `netlify.toml`.
-- **Tenant**: Static build → Netlify (*.dguild.org). Uses `netlify-tenant.toml` — set "Config file path" to `netlify-tenant.toml` in Netlify Build settings.
+- **Platform**: Static build → Netlify (dguild.org). Config: `apps/platform/netlify.toml`.
+- **Tenant**: Static build → Netlify (*.dguild.org). Config: `apps/tenant/netlify.toml`.
 - **API**: Railway.
 - **Subdomains**: `{slug}.dguild.org` → tenant slug.
 
 ### Netlify setup
 
 1. Create two Netlify sites from the same repo.
-2. **Platform site**: Netlify uses `netlify.toml` by default. `base = "."` forces repo root (overrides any UI setting).
-3. **Tenant site**: In Build settings, set **Config file path** to `netlify-tenant.toml`.
+2. **Platform site**: Build settings → **Package directory** = `apps/platform`. Leave Base directory empty.
+3. **Tenant site**: Build settings → **Package directory** = `apps/tenant`. Leave Base directory empty.
 4. Add env vars (Build settings > Environment): `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_HELIUS_RPC`.
-5. Node version: `.nvmrc` (20) and `NODE_VERSION` in netlify.toml.
+5. Node version: `.nvmrc` (20) and `NODE_VERSION` in each app’s netlify.toml. See `docs/netlify-deploy.md` for full steps.
