@@ -1,0 +1,9 @@
+# Platform app (dguild.org)
+# Use this config for the platform Netlify site (default when no config path is set)
+
+[build]
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm exec turbo run build --filter=./packages/* && pnpm --filter platform generate"
+  publish = "apps/platform/.output/public"
+
+[build.environment]
+  NODE_VERSION = "20"

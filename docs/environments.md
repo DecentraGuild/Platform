@@ -30,6 +30,14 @@
 
 ## Deployment
 
-- **Tenant + platform**: Static build → GitHub Pages.
+- **Platform**: Static build → Netlify (dguild.org). Uses `netlify.toml`.
+- **Tenant**: Static build → Netlify (*.dguild.org). Uses `netlify-tenant.toml` — set "Config file path" to `netlify-tenant.toml` in Netlify Build settings.
 - **API**: Railway.
-- **Subdomains**: `{slug}.decentraguild.com` → tenant slug.
+- **Subdomains**: `{slug}.dguild.org` → tenant slug.
+
+### Netlify setup
+
+1. Create two Netlify sites from the same repo.
+2. **Platform site**: Base directory empty (repo root). Netlify uses `netlify.toml` by default.
+3. **Tenant site**: Base directory empty. In Build settings, set **Config file path** to `netlify-tenant.toml`.
+4. Add env vars (Build settings > Environment): `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_HELIUS_RPC`.

@@ -1,0 +1,9 @@
+# Tenant app (*.dguild.org)
+# Set "Config file path" to "netlify-tenant.toml" in Netlify Site settings > Build & deploy > Build settings
+
+[build]
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm exec turbo run build --filter=./packages/* && pnpm --filter tenant generate"
+  publish = "apps/tenant/.output/public"
+
+[build.environment]
+  NODE_VERSION = "20"
