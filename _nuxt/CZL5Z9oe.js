@@ -1,1 +1,0 @@
-import{_ as s,o as c,c as o,s as a}from"./BQj3mjND.js";const r={},t={class:"card"};function n(e,d){return c(),o("div",t,[a(e.$slots,"default",{},void 0)])}const f=s(r,[["render",n],["__scopeId","data-v-ac27e643"]]);export{f as C};

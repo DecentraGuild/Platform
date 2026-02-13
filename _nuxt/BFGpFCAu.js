@@ -1,0 +1,1 @@
+import{R as s,S as u,h as i,L as n}from"./Bz1q9w36.js";const d=s(async()=>{const a=u(),t=i();if(!t.tenant||!t.slug)return n("/");const e=a.wallet.value;if(!e)return n("/");if(!(t.tenant.admins??[]).includes(e))return n("/")});export{d as default};
