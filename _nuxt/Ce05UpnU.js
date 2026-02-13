@@ -1,1 +1,0 @@
-import{e as a,o as t,c as o,t as c,f as n,r as i,_ as r}from"./CSXcdl4R.js";const _={class:"page-section"},l={key:0,class:"page-section__title"},p=a({__name:"PageSection",props:{title:{}},setup(e){return(s,d)=>(t(),o("section",_,[e.title?(t(),o("h2",l,c(e.title),1)):n("",!0),i(s.$slots,"default",{},void 0)]))}}),f=r(p,[["__scopeId","data-v-66e27cf4"]]);export{f as P};
