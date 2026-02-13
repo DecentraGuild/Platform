@@ -14,7 +14,7 @@
 | `NUXT_PUBLIC_HELIUS_RPC` | tenant, platform | Helius RPC for client (wallet, DAS). |
 | `DATABASE_URL` | API | Postgres. Railway provides via Add Reference. |
 | `SESSION_SECRET` | API | Min 32 chars. Generate: `openssl rand -base64 32`. |
-| `CORS_ORIGIN` | API | Comma-separated origins. Include localhost for local dev. |
+| `CORS_ORIGIN` | API | Comma-separated origins. Include platform domain and **every** tenant subdomain (e.g. `https://dapp.dguild.org`, `https://skull.dguild.org`) plus localhost for dev. |
 
 ### Local tenant resolution
 

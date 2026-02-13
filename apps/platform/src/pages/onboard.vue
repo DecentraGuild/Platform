@@ -71,7 +71,8 @@ async function submit() {
   saving.value = true
   error.value = null
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/v1/tenants`, {
+    const apiBase = (config.public.apiUrl ?? '').toString().replace(/\/$/, '')
+    const res = await fetch(`${apiBase}/api/v1/tenants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

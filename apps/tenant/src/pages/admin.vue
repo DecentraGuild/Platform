@@ -136,7 +136,8 @@ async function save() {
       ...m,
       enabled: form.modulesById[m.id] ?? m.enabled,
     }))
-    const res = await fetch(`${config.public.apiUrl}/api/v1/tenant/${slug.value}/settings`, {
+    const apiBase = (config.public.apiUrl ?? '').toString().replace(/\/$/, '')
+    const res = await fetch(`${apiBase}/api/v1/tenant/${slug.value}/settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

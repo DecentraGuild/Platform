@@ -9,9 +9,13 @@ import {
 } from '@decentraguild/web3'
 import type { WalletConnectorId } from '@solana/connector/headless'
 
+function normalizeApiBase(url: string): string {
+  return (url ?? '').replace(/\/$/, '')
+}
+
 export function useAuth() {
   const config = useRuntimeConfig()
-  const apiUrl = config.public.apiUrl as string
+  const apiUrl = normalizeApiBase(config.public.apiUrl as string)
 
   const wallet = ref<string | null>(null)
   const loading = ref(false)

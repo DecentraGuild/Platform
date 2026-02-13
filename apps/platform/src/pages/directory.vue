@@ -35,7 +35,8 @@ const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/api/v1/tenants`)
+    const apiBase = (config.public.apiUrl ?? '').toString().replace(/\/$/, '')
+    const res = await fetch(`${apiBase}/api/v1/tenants`)
     if (!res.ok) throw new Error('Failed to fetch')
     const data = await res.json()
     tenants.value = data.tenants ?? []

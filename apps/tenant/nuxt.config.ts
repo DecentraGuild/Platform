@@ -22,7 +22,8 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiUrl: process.env.NUXT_PUBLIC_API_URL ?? 'https://api.dguild.org',
+      // No trailing slash so concatenation with /api/v1/... never produces //
+      apiUrl: (process.env.NUXT_PUBLIC_API_URL ?? 'https://api.dguild.org').replace(/\/$/, ''),
       heliusRpc: process.env.NUXT_PUBLIC_HELIUS_RPC ?? '',
     },
   },

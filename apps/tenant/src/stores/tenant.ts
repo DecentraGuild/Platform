@@ -15,9 +15,8 @@ export const useTenantStore = defineStore('tenant', () => {
     slug.value = slugParam
 
     const config = useRuntimeConfig()
-    const apiUrl = config.public.apiUrl
-
-    const url = `${apiUrl}/api/v1/tenant-context?slug=${slugParam}`
+    const apiBase = (config.public.apiUrl ?? '').toString().replace(/\/$/, '')
+    const url = `${apiBase}/api/v1/tenant-context?slug=${slugParam}`
     try {
       const res = await fetch(url)
       if (!res.ok) {
