@@ -1,0 +1,1 @@
+import{e as a,o as t,c as s,t as c,h as n,s as i,_ as r}from"./BQj3mjND.js";const _={class:"page-section"},l={key:0,class:"page-section__title"},p=a({__name:"PageSection",props:{title:{}},setup(e){return(o,d)=>(t(),s("section",_,[e.title?(t(),s("h2",l,c(e.title),1)):n("",!0),i(o.$slots,"default",{},void 0)]))}}),f=r(p,[["__scopeId","data-v-66e27cf4"]]);export{f as P};
