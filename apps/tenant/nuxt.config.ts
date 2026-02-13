@@ -11,6 +11,9 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt'],
   css: [uiVarsCss],
   plugins: ['@decentraguild/auth/plugin.client'],
+  nitro: {
+    preset: 'static',
+  },
   build: {
     transpile: ['@decentraguild/ui', '@decentraguild/auth'],
   },

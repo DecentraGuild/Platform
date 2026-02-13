@@ -38,6 +38,7 @@
 ### Netlify setup
 
 1. Create two Netlify sites from the same repo.
-2. **Platform site**: Base directory empty (repo root). Netlify uses `netlify.toml` by default.
-3. **Tenant site**: Base directory empty. In Build settings, set **Config file path** to `netlify-tenant.toml`.
+2. **Platform site**: Netlify uses `netlify.toml` by default. `base = "."` forces repo root (overrides any UI setting).
+3. **Tenant site**: In Build settings, set **Config file path** to `netlify-tenant.toml`.
 4. Add env vars (Build settings > Environment): `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_HELIUS_RPC`.
+5. Node version: `.nvmrc` (20) and `NODE_VERSION` in netlify.toml.

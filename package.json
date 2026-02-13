@@ -5,7 +5,9 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "build:platform": "pnpm exec turbo run build --filter=./packages/* && pnpm --filter platform generate",
+    "build:tenant": "pnpm exec turbo run build --filter=./packages/* && pnpm --filter tenant generate"
   },
   "devDependencies": {
     "turbo": "^2.3.0"

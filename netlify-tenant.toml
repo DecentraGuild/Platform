@@ -1,8 +1,12 @@
 # Tenant app (*.dguild.org)
 # Set "Config file path" to "netlify-tenant.toml" in Netlify Site settings > Build & deploy > Build settings
+#
+# Monorepo: build runs from repo root. Publish path is relative to base (root).
+# If Netlify set base/package dir in UI, base="." here overrides to force root.
 
 [build]
-  command = "corepack enable && pnpm install --frozen-lockfile && pnpm exec turbo run build --filter=./packages/* && pnpm --filter tenant generate"
+  base = "."
+  command = "pnpm run build:tenant"
   publish = "apps/tenant/.output/public"
 
 [build.environment]
