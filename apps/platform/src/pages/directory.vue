@@ -47,7 +47,7 @@ onMounted(async () => {
 })
 
 function tenantUrl(slug: string) {
-  return `https://${slug}.decentraguild.com`
+  return `https://${slug}.dguild.org`
 }
 </script>
 
