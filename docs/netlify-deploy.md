@@ -50,10 +50,10 @@ If DNS is correct but you get Netlify’s **“Site not found”** / **“Looks 
 - **Double slash (e.g. `https://api.dguild.org//api/v1/...`):** Caused by `NUXT_PUBLIC_API_URL` having a trailing slash. The app normalizes at build time and at runtime; set the env var in Netlify to `https://api.dguild.org` with **no** trailing slash. After redeploy, requests use a single slash.
 - **404 on `/api/v1/tenant-context?slug=skull` (or `slug=dapp`):** The API returns 404 when that tenant slug is not found (no DB row and no file under `configs/tenants/<slug>.json`). On Railway, ensure the API has tenant config (e.g. `TENANT_CONFIG_PATH` or DB seeded). For `dapp.dguild.org` the slug is `dapp`; if you only have a `skull` tenant, use `dapp.dguild.org/?tenant=skull` or add a tenant config for `dapp`.
 
-## CORS (API): add every front-end origin
+## CORS (API): dynamic tenant subdomains
 
-If the browser shows **"blocked by CORS policy: No 'Access-Control-Allow-Origin' header"** when calling the API from `skull.dguild.org` (or another subdomain), the API’s `CORS_ORIGIN` does not include that origin.
+Set **CORS_ORIGIN** on the API to platform and localhost only; tenant subdomains are allowed dynamically. If you see **"blocked by CORS policy: No 'Access-Control-Allow-Origin' header"** check that the request origin has no trailing slash and matches the tenant domain.
 
-- On **Railway** (or wherever the API runs), set **CORS_ORIGIN** to a comma-separated list of **every** URL that hosts the platform or tenant app: platform (e.g. `https://dguild.org`), and **each** tenant subdomain (e.g. `https://dapp.dguild.org`, `https://skull.dguild.org`). No trailing slashes.
-- Example: `https://dguild.org,https://dapp.dguild.org,https://skull.dguild.org,http://localhost:3000,http://localhost:3002`
-- After changing CORS_ORIGIN, redeploy or restart the API.
+- On **Railway**, set **CORS_ORIGIN** to platform and localhost only, e.g. `https://dguild.org,http://localhost:3000,http://localhost:3002`. No need to add each tenant subdomain.
+- If you use a different tenant base domain, set **CORS_TENANT_DOMAIN** (e.g. `.decentraguild.com`) so it matches the tenant app resolver.
+- If the browser still shows a CORS error, ensure the request origin is exactly `https://<slug>.dguild.org` (no trailing slash) and that the tenant domain matches.

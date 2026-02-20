@@ -27,8 +27,9 @@
   },
   "dependencies": {
     "@decentraguild/core": "workspace:*",
+    "@decentraguild/display": "workspace:^",
     "@iconify/vue": "^4.1.2",
-    "pinia": "^2.1.0",
+    "pinia": "^3.0.0",
     "vue": "^3.4.0"
   },
   "devDependencies": {

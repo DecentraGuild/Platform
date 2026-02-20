@@ -6,26 +6,30 @@ import {
   signInWithWallet,
   signOut as web3SignOut,
   type ConnectorStateSnapshot,
-} from '@decentraguild/web3'
+} from '@decentraguild/web3/wallet'
 import type { WalletConnectorId } from '@solana/connector/headless'
 
 function normalizeApiBase(url: string): string {
   return (url ?? '').replace(/\/$/, '')
 }
 
+// Shared state so layout, AuthWidget and plugin all see the same wallet (e.g. Admin in sidebar).
+const wallet = ref<string | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
+const connectorState = ref<ConnectorStateSnapshot>({
+  connected: false,
+  account: null,
+  connectorId: null,
+  connectors: [],
+})
+
+/** When set true, AuthWidget should open the connect modal. Reset by AuthWidget after opening. */
+export const openConnectModalRequested = ref(false)
+
 export function useAuth() {
   const config = useRuntimeConfig()
   const apiUrl = normalizeApiBase(config.public.apiUrl as string)
-
-  const wallet = ref<string | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-  const connectorState = ref<ConnectorStateSnapshot>({
-    connected: false,
-    account: null,
-    connectorId: null,
-    connectors: [],
-  })
 
   async function fetchMe() {
     loading.value = true
@@ -74,6 +78,10 @@ export function useAuth() {
     refreshConnectorState()
   }
 
+  function openConnectModal() {
+    openConnectModalRequested.value = true
+  }
+
   return {
     wallet,
     loading,
@@ -83,5 +91,6 @@ export function useAuth() {
     refreshConnectorState,
     connectAndSignIn,
     signOut,
+    openConnectModal,
   }
 }

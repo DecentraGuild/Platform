@@ -1,4 +1,4 @@
-import { getConnectorState, signMessageForAuth, connectWallet, disconnectWallet } from './connector.js'
+import { getConnectorState, signMessageForAuth, disconnectWallet } from './connector.js'
 import type { WalletConnectorId } from '@solana/connector/headless'
 
 export interface AuthSignInResult {
@@ -16,7 +16,7 @@ export interface AuthSignInError {
  */
 export async function signInWithWallet(
   apiBaseUrl: string,
-  _connectorId: WalletConnectorId
+  _connectorId: WalletConnectorId // Required by caller API; used for future multi-wallet
 ): Promise<AuthSignInResult | AuthSignInError> {
   const state = getConnectorState()
   if (!state.connected || !state.account) {

@@ -4,26 +4,39 @@ import { fileURLToPath } from 'node:url'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const uiVarsCss = path.resolve(dirname, '../../packages/ui/src/theme/vars.css')
+const anchorBrowser = path.resolve(dirname, '../../node_modules/@coral-xyz/anchor/dist/browser/index.js')
 
 export default defineNuxtConfig({
   srcDir: 'src',
   compatibilityDate: '2025-02-10',
+  experimental: { clientNodeCompat: true },
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt'],
   css: [uiVarsCss],
-  plugins: ['@decentraguild/auth/plugin.client'],
+  plugins: ['~/plugins/buffer.server', '~/plugins/tenant.server', '~/plugins/buffer.client', '~/plugins/tenant.client', '@decentraguild/auth/plugin.client'],
   nitro: {
     preset: 'static',
   },
   build: {
-    transpile: ['@decentraguild/ui', '@decentraguild/auth'],
+    transpile: ['@decentraguild/ui', '@decentraguild/auth', '@decentraguild/web3', '@decentraguild/contracts'],
+  },
+  vite: {
+    resolve: {
+      alias: { '@coral-xyz/anchor': anchorBrowser },
+    },
+    optimizeDeps: {
+      include: ['buffer'],
+    },
+    ssr: {
+      noExternal: ['buffer'],
+    },
   },
   devServer: {
     port: 3002,
   },
   runtimeConfig: {
     public: {
-      // No trailing slash so concatenation with /api/v1/... never produces //
-      apiUrl: (process.env.NUXT_PUBLIC_API_URL ?? 'https://api.dguild.org').replace(/\/$/, ''),
+      // In dev, default to local API so CORS and auth work without setting env. No trailing slash.
+      apiUrl: (process.env.NUXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === 'production' ? 'https://api.dguild.org' : 'http://localhost:3001')).replace(/\/$/, ''),
       heliusRpc: process.env.NUXT_PUBLIC_HELIUS_RPC ?? '',
     },
   },

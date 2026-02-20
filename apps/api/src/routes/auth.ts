@@ -30,9 +30,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     if (!wallet || typeof wallet !== 'string') {
       return reply.status(400).send({ error: 'wallet (base58 public key) required' })
     }
-    const nonce = randomBytes(NONCE_BYTES).toString('base64')
-    setNonce(wallet, nonce)
-    return { nonce }
+    const code = randomBytes(NONCE_BYTES).toString('base64')
+    const message = `Sign in to DecentraGuild.\n\nYour one-time code: ${code}`
+    setNonce(wallet, message)
+    return { nonce: message }
   })
 
   app.post<{

@@ -8,13 +8,31 @@
       class="select-wrap__field"
       @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
     >
-      <option
-        v-for="opt in options"
-        :key="opt.value"
-        :value="opt.value"
-      >
-        {{ opt.label }}
-      </option>
+      <template v-if="optionGroups?.length">
+        <option value="">{{ placeholder }}</option>
+        <optgroup
+          v-for="(grp, gi) in optionGroups"
+          :key="gi"
+          :label="grp.groupLabel"
+        >
+          <option
+            v-for="opt in grp.options"
+            :key="opt.value"
+            :value="opt.value"
+          >
+            {{ opt.label }}
+          </option>
+        </optgroup>
+      </template>
+      <template v-else>
+        <option
+          v-for="opt in options"
+          :key="opt.value"
+          :value="opt.value"
+        >
+          {{ opt.label }}
+        </option>
+      </template>
     </select>
   </div>
 </template>
@@ -22,12 +40,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-defineProps<{
-  modelValue?: string
-  label?: string
-  options: { value: string; label: string }[]
-  disabled?: boolean
-}>()
+withDefaults(
+  defineProps<{
+    modelValue?: string
+    label?: string
+    options?: { value: string; label: string }[]
+    optionGroups?: { groupLabel: string; options: { value: string; label: string }[] }[]
+    placeholder?: string
+    disabled?: boolean
+  }>(),
+  { options: () => [], placeholder: '', optionGroups: undefined }
+)
 
 defineEmits<{
   'update:modelValue': [value: string]
@@ -66,5 +89,11 @@ const id = computed(() => `select-${Math.random().toString(36).slice(2)}`)
 .select-wrap__field:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.select-wrap__field optgroup {
+  font-weight: 600;
+  color: var(--theme-text-secondary);
+  padding: var(--theme-space-xs) 0;
 }
 </style>

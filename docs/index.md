@@ -2,7 +2,7 @@
 
 **Start here.** If this file exists, read it at the beginning of every task. Do not assume; ask for clarification when something is unclear.
 
-**This folder (`docs/`) is gitignored.** Contents are for the agent only and are not in the repo.
+**Context:** Many files in `docs/` are in the repo (e.g. architecture, deploy guides). Use them for setup and reference.
 
 ---
 
@@ -96,7 +96,7 @@ DecentraGuild/
     ui/                 # Shared Vue components, design system
     web3/               # Wallet + Solana / contract helpers
     contracts/          # Solana programs (e.g. Anchor), IDLs
-  docs/                 # Agent-only (gitignored): index.md, monorepo.md
+  docs/                 # Architecture, deploy, and reference docs
   turbo.json            # Turborepo config
 ```
 
@@ -115,6 +115,5 @@ DecentraGuild/
 
 ## What we are not doing yet
 
-- Backend is chosen, but implementation is not started yet.  
 - Public showcase of tenants is a later detail.  
 - More Cursor rules will be added over time when Jordi asks for them.

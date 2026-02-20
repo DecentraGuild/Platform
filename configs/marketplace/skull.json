@@ -1,0 +1,33 @@
+{
+  "tenantSlug": "skull",
+  "tenantId": "skull-bones",
+  "collectionMints": [
+    {
+      "mint": "CL2m6JiuV8H7X6cqzMqHNGWbJncj7HZ2BFXd8sQYStQ3",
+      "name": "Year 2 NFT",
+      "image": "https://ssfuazfoieojutfpat665fz4uld7fvshfa3eei72ea32s3pm52iq.arweave.net/lItAZK5BHJpMrwT97pc8osfy1kcoNkIj-iA3qW3s7pE?ext=png",
+      "sellerFeeBasisPoints": 1000,
+      "groupPath": ["Year 2"]
+    },
+    {
+      "mint": "6LomcBw8DVUE3T1XBLK1PZDiRyHYtFYo9E6v9UXeqjHE",
+      "name": "Year 3 NFT",
+      "image": "https://node1.irys.xyz/Yzy6JBBf7_bkTR2dZqKIDRAYYuEYg2vRj78uPoSjmHI",
+      "sellerFeeBasisPoints": 1000,
+      "groupPath": ["Year 3"]
+    }
+  ],
+  "currencyMints": [
+    { "mint": "So11111111111111111111111111111111111111112", "name": "Wrapped SOL", "symbol": "SOL", "decimals": 9, "image": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png" },
+    { "mint": "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh", "name": "Wrapped Bitcoin (Portal)", "symbol": "WBTC", "decimals": 8, "image": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh/logo.png" },
+    { "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "name": "USD Coin", "symbol": "USDC", "decimals": 6, "image": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png" },
+    { "mint": "ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx", "name": "Atlas", "symbol": "ATLAS", "decimals": 8, "image": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx/logo.png" },
+    { "mint": "poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk", "name": "Polis", "symbol": "POLIS", "decimals": 8, "image": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk/logo.png" }
+  ],
+  "splAssetMints": [
+    { "mint": "C1FxQEMa7ZPmzpP8ak5PYg8iMdYaxZVNHF7pfaAcCx3D", "name": "DAOBloon", "symbol": "DAOB", "decimals": 8, "image": "https://skullnbonesdao.github.io/tokens.skullnbones/DAOB/DAOB.gif", "sellerFeeBasisPoints": 0 },
+    { "mint": "4WN4y9zxqRrYtUTFkB3svJsYFVg2zo24tLTouLErnq9q", "name": "DACBloon", "symbol": "DACB", "decimals": 8, "image": "https://skullnbonesdao.github.io/tokens.skullnbones/DACB/DACB.gif", "sellerFeeBasisPoints": 0 }
+  ],
+  "whitelist": { "programId": "whi5uDPWK4rAE9Sus6hdxdHwsG1hjDBn6kXM6pyqwTn", "account": "" },
+  "shopFee": { "wallet": "HmAwHhCw3aPEYmx2dgfoQUWJ2y1LFqTdyMQPYebo9TeE", "makerFlatFee": 0, "takerFlatFee": 0, "makerPercentFee": 0, "takerPercentFee": 0 }
+}

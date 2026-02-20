@@ -6,7 +6,8 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { TenantConfig } from './types.js'
+import type { TenantConfig, TenantModulesMap } from './types.js'
+import { normalizeModules } from './types.js'
 
 const DEFAULT_CONFIG_PATH = 'configs/tenants'
 
@@ -36,9 +37,10 @@ export async function loadTenantConfig(slug: string): Promise<TenantConfig | nul
   try {
     const raw = await readFile(filePath, 'utf-8')
     const config = JSON.parse(raw) as TenantConfig
-    if (!config.id || !config.slug || !config.name || !config.modules) {
-      return null
-    }
+    if (!config.id || !config.slug || !config.name) return null
+    config.modules = normalizeModules(
+      config.modules as TenantModulesMap | Array<{ id: string; enabled?: boolean }> | null | undefined
+    )
     return config
   } catch {
     return null

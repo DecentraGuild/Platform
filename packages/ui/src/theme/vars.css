@@ -100,4 +100,33 @@
   --theme-gradient-primary: linear-gradient(135deg, #00951a 0%, #00cc22 50%, #007a14 100%);
   --theme-gradient-secondary: linear-gradient(135deg, #ff6b35 0%, #f59e0b 100%);
   --theme-gradient-accent: linear-gradient(135deg, #00951a 0%, #cf0000 100%);
+
+  /* Scrollbar (thumb / track) */
+  --theme-scrollbar-thumb: var(--theme-border);
+  --theme-scrollbar-thumb-hover: var(--theme-border-light);
+  --theme-scrollbar-track: var(--theme-bg-secondary);
+}
+
+/* Global scrollbar styling. Applies to any overflow: auto/scroll element. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-scrollbar-thumb) var(--theme-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--theme-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--theme-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-scrollbar-thumb-hover);
 }

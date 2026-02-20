@@ -1,12 +1,13 @@
 /**
- * Tenant config registry: read {slug}.json from TENANT_CONFIG_PATH.
+ * Tenant config registry: read/write {slug}.json from TENANT_CONFIG_PATH.
  * Single source for static configs when DB is empty or slug not in DB.
  */
 
 import { existsSync } from 'node:fs'
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { TenantConfig } from '@decentraguild/core'
+import { normalizeModules, type TenantConfig } from '@decentraguild/core'
+import { isValidTenantSlug } from '../validate-slug.js'
 
 export function getTenantConfigDir(): string | null {
   const dir = process.env.TENANT_CONFIG_PATH
@@ -17,9 +18,10 @@ export function getTenantConfigDir(): string | null {
 function parseAndValidate(raw: string): { config: TenantConfig; error: null } | { config: null; error: string } {
   try {
     const config = JSON.parse(raw) as TenantConfig
-    if (!config.id || !config.slug || !config.name || !Array.isArray(config.modules)) {
-      return { config: null, error: 'Config missing required fields: id, slug, name, or modules' }
+    if (!config.id || !config.slug || !config.name) {
+      return { config: null, error: 'Config missing required fields: id, slug, or name' }
     }
+    config.modules = normalizeModules(config.modules as unknown)
     if (!Array.isArray(config.admins)) config.admins = []
     return { config, error: null }
   } catch (e) {
@@ -28,6 +30,7 @@ function parseAndValidate(raw: string): { config: TenantConfig; error: null } | 
 }
 
 export async function loadTenantBySlug(slug: string): Promise<TenantConfig | null> {
+  if (!isValidTenantSlug(slug)) return null
   const dir = getTenantConfigDir()
   if (!dir) return null
   const filePath = path.join(dir, `${slug}.json`)
@@ -50,6 +53,9 @@ export interface TenantConfigDiagnostic {
 
 /** For debugging: path, exists, error, and config if load succeeded. */
 export async function loadTenantBySlugDiagnostic(slug: string): Promise<TenantConfigDiagnostic> {
+  if (!isValidTenantSlug(slug)) {
+    return { tenantConfigPath: null, filePath: null, fileExists: false, error: 'Invalid slug', config: null }
+  }
   const tenantConfigPath = getTenantConfigDir()
   if (!tenantConfigPath) {
     return { tenantConfigPath: null, filePath: null, fileExists: false, error: 'TENANT_CONFIG_PATH not set', config: null }
@@ -81,4 +87,17 @@ export async function listTenantSlugs(): Promise<string[]> {
   } catch {
     return []
   }
+}
+
+/**
+ * Write tenant config to {slug}.json under TENANT_CONFIG_PATH.
+ * Used when DATABASE_URL is not set (local dev) so admin save still persists.
+ */
+export async function writeTenantBySlug(slug: string, config: TenantConfig): Promise<void> {
+  if (!isValidTenantSlug(slug)) throw new Error('Invalid tenant slug')
+  const dir = getTenantConfigDir()
+  if (!dir) throw new Error('TENANT_CONFIG_PATH not set')
+  const filePath = path.join(dir, `${slug}.json`)
+  const payload = JSON.stringify(config, null, 2)
+  await writeFile(filePath, payload, 'utf-8')
 }

@@ -1,5 +1,5 @@
 <template>
-  <RouterLink
+  <NuxtLink
     v-if="to"
     :to="to"
     class="nav-link"
@@ -8,7 +8,7 @@
   >
     <Icon v-if="icon" :icon="icon" class="nav-link__icon" />
     <span class="nav-link__label"><slot /></span>
-  </RouterLink>
+  </NuxtLink>
   <a
     v-else-if="href"
     :href="href"
@@ -22,10 +22,10 @@
 
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { RouterLink } from 'vue-router'
 
 defineProps<{
-  to?: string
+  /** Route path (string) or location object accepted by NuxtLink. */
+  to?: string | { path?: string; query?: Record<string, string> }
   href?: string
   icon?: string
   isActive?: boolean

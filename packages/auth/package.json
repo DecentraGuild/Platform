@@ -16,7 +16,7 @@
     "@decentraguild/web3": "workspace:*"
   },
   "peerDependencies": {
-    "nuxt": "^3.0.0",
+    "nuxt": "^3.0.0 || ^4.0.0",
     "vue": "^3.4.0"
   },
   "devDependencies": {

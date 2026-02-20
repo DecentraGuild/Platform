@@ -1,7 +1,7 @@
 import * as jose from 'jose'
 
 const COOKIE_NAME = 'dg_session'
-const DEFAULT_MAX_AGE_SEC = 7 * 24 * 60 * 60 // 7 days
+const SESSION_MAX_AGE_SEC = 12 * 60 * 60 // 12 hours (token validity; cookie is session-only)
 
 export interface SessionPayload {
   wallet: string
@@ -20,13 +20,11 @@ export function getSessionSecret(): Uint8Array {
   return new TextEncoder().encode(secret)
 }
 
-export function createSessionToken(wallet: string, maxAgeSec = DEFAULT_MAX_AGE_SEC): Promise<string> {
+export function createSessionToken(wallet: string, maxAgeSec = SESSION_MAX_AGE_SEC): Promise<string> {
   const secret = getSessionSecret()
   const now = Math.floor(Date.now() / 1000)
   return new jose.SignJWT({ wallet })
     .setProtectedHeader({ alg: 'HS256' })
-    // `setExpirationTime` expects an absolute timestamp or time expression,
-    // not just a max-age value. Use unix time + maxAgeSec.
     .setExpirationTime(now + maxAgeSec)
     .setIssuedAt()
     .sign(secret)
@@ -53,13 +51,11 @@ export function getCookieOptions(secure: boolean): {
   sameSite: 'lax' | 'strict' | 'none'
   secure: boolean
   path: string
-  maxAge: number
 } {
   return {
     httpOnly: true,
     sameSite: secure ? 'none' : 'lax',
     secure,
     path: '/',
-    maxAge: DEFAULT_MAX_AGE_SEC,
   }
 }

@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     modelValue?: string
     label?: string

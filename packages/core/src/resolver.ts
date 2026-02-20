@@ -4,7 +4,7 @@
  * For localhost, use ?tenant=slug. ?tenant= overrides host when present.
  */
 
-const TENANT_DOMAIN = '.dguild.org'
+export const TENANT_DOMAIN = '.dguild.org'
 
 function getSlugFromHost(host: string): string | null {
   const hostLower = host.toLowerCase()

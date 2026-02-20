@@ -28,15 +28,14 @@
 import { PageSection, Card, Button } from '@decentraguild/ui/components'
 import type { TenantConfig } from '@decentraguild/core'
 
-const config = useRuntimeConfig()
+const apiBase = useApiBase()
 const tenants = ref<TenantConfig[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    const apiBase = (config.public.apiUrl ?? '').toString().replace(/\/$/, '')
-    const res = await fetch(`${apiBase}/api/v1/tenants`)
+    const res = await fetch(`${apiBase.value}/api/v1/tenants`)
     if (!res.ok) throw new Error('Failed to fetch')
     const data = await res.json()
     tenants.value = data.tenants ?? []

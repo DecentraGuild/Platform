@@ -49,7 +49,7 @@ This guide walks through setting up the DecentraGuild API and Postgres database 
    |-----------------|-----------------------------------------------------------------------|
    | `DATABASE_URL`   | Add Reference -> Postgres `DATABASE_URL` (Add Reference -> Postgres service ->’s reference) |
    | `SESSION_SECRET` | Generate with `openssl rand -base64 32` (min 32 chars; required for auth) |
-   | `CORS_ORIGIN`    | Comma-separated origins, e.g. `https://skull.decentraguild.com,https://dguild.org` |
+   | `CORS_ORIGIN`    | Platform + localhost for dev, e.g. `https://dguild.org,http://localhost:3000,http://localhost:3002`. Tenant subdomains are allowed dynamically. |
    | `PORT`           | Railway sets this automatically; only add if you need an override      |
    | `NODE_ENV`       | `production`                                                          |
    | `HELIUS_RPC_URL` | Full Helius RPC URL for server-side Solana/DAS (optional for now)     |
@@ -112,9 +112,10 @@ If you prefer to run migrations manually:
 |---------------------|----------|---------|----------------------------------------------------|
 | `DATABASE_URL`      | Yes*     | API     | Postgres connection string. Required for DB and PATCH. |
 | `SESSION_SECRET`    | Yes**    | API     | Min 32 chars for JWT signing. Generate: `openssl rand -base64 32`. |
-| `CORS_ORIGIN`       | Yes**    | API     | Comma-separated origins for tenant/platform (e.g. `https://skull.decentraguild.com`). |
+| `CORS_ORIGIN`       | Yes**    | API     | Explicit origins: platform + localhost. Tenant subdomains (`https://*.dguild.org`) allowed dynamically. |
 | `PORT`              | No       | API     | Railway sets this.                                 |
-| `TENANT_CONFIG_PATH`| No       | API     | Path to `configs/tenants`. Fallback when no DB.   |
+| `TENANT_CONFIG_PATH` | No       | API     | Path to directory containing `{slug}.json` tenant configs. Required for file-based loading and seed when DB is empty. Set in production so health and tenant-context work. |
+| `CORS_TENANT_DOMAIN` | No       | API     | Tenant base domain for CORS (e.g. `.dguild.org`). Must match `packages/core` resolver. Default: `.dguild.org`. Only set if you use a different tenant domain. |
 
 \* Without `DATABASE_URL`, the API runs in file-only mode: tenant config is read from JSON files; PATCH and POST tenants return 503.
 

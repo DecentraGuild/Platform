@@ -1,6 +1,6 @@
 <template>
   <div class="auth-widget">
-    <template v-if="wallet">
+    <template v-if="showAuthState && wallet">
       <span class="auth-widget__address">{{ truncatedAddress }}</span>
       <Button variant="secondary" @click="handleSignOut">
         Sign out
@@ -11,6 +11,7 @@
         Connect wallet
       </Button>
       <ConnectWalletModal
+        v-if="showAuthState"
         :open="showConnectModal"
         title="Connect wallet"
         description="Choose a wallet to sign in."
@@ -25,15 +26,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Button, ConnectWalletModal } from '@decentraguild/ui/components'
 import type { WalletConnectorId } from '@solana/connector/headless'
-import { useAuth } from './useAuth'
+import { subscribeToConnectorState } from '@decentraguild/web3'
+import { useAuth, openConnectModalRequested } from './useAuth'
 
 const auth = useAuth()
 const { wallet, loading, error, connectorState, fetchMe, refreshConnectorState, connectAndSignIn, signOut } = auth
 
 const showConnectModal = ref(false)
+/** Only show wallet/connect state after mount so server and client first paint match (avoids hydration mismatch). */
+const showAuthState = ref(false)
+
+watch(openConnectModalRequested, (v) => {
+  if (v) {
+    showConnectModal.value = true
+    openConnectModalRequested.value = false
+  }
+})
 
 const truncatedAddress = computed(() => {
   const w = wallet.value
@@ -41,9 +52,17 @@ const truncatedAddress = computed(() => {
   return `${w.slice(0, 4)}...${w.slice(-4)}`
 })
 
-onMounted(() => {
-  fetchMe()
+let unsubscribeConnector: (() => void) | null = null
+onMounted(async () => {
+  await fetchMe()
   refreshConnectorState()
+  unsubscribeConnector = subscribeToConnectorState(() => {
+    refreshConnectorState()
+  })
+  showAuthState.value = true
+})
+onUnmounted(() => {
+  unsubscribeConnector?.()
 })
 
 async function handleConnect(connectorId: WalletConnectorId) {

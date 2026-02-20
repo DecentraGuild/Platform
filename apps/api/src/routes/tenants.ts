@@ -1,12 +1,13 @@
 import type { FastifyInstance } from 'fastify'
-import type { TenantConfig } from '@decentraguild/core'
+import { type TenantConfig, normalizeModules } from '@decentraguild/core'
 import { getPool, query } from '../db/client.js'
 import { getTenantBySlug, rowToTenantConfig, upsertTenant } from '../db/tenant.js'
 import { getWalletFromRequest } from './auth.js'
 import { listTenantSlugs, loadTenantBySlug } from '../config/registry.js'
+import { normalizeTenantSlug } from '../validate-slug.js'
 
 export async function registerTenantsRoutes(app: FastifyInstance) {
-  app.get('/api/v1/tenants', async (_request, reply) => {
+  app.get('/api/v1/tenants', async (_request, _reply) => {
     let tenants: TenantConfig[] = []
 
     if (getPool()) {
@@ -40,19 +41,31 @@ export async function registerTenantsRoutes(app: FastifyInstance) {
     if (!body?.slug || !body?.name) {
       return reply.status(400).send({ error: 'slug and name required' })
     }
-    const id = body.id ?? body.slug
+    const slug = normalizeTenantSlug(body.slug)
+    if (!slug) {
+      return reply.status(400).send({ error: 'Invalid slug: use only lowercase letters, numbers, and hyphens (1–64 chars)' })
+    }
+    const existingDb = await getTenantBySlug(slug)
+    if (existingDb) {
+      return reply.status(409).send({ error: 'Tenant slug already taken', slug })
+    }
+    const existingFile = await loadTenantBySlug(slug)
+    if (existingFile) {
+      return reply.status(409).send({ error: 'Tenant slug already taken', slug })
+    }
+    const id = body.id ?? slug
     const config: TenantConfig = {
       id,
-      slug: body.slug,
-      name: body.name,
-      description: body.description,
+      slug,
+      name: body.name.trim(),
+      description: body.description?.trim(),
       branding: body.branding ?? {},
-      modules: body.modules ?? [{ id: 'admin', enabled: true }],
+      modules: normalizeModules(body.modules ?? [{ id: 'admin', enabled: true }]),
       admins: [wallet],
-      treasury: body.treasury,
+      treasury: body.treasury?.trim(),
     }
     await upsertTenant(config)
-    const tenant = await getTenantBySlug(body.slug)
+    const tenant = await getTenantBySlug(slug)
     return { tenant }
   })
 }

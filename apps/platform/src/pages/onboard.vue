@@ -38,7 +38,7 @@ import { PageSection, Card, TextInput, Button, ConnectWalletModal } from '@decen
 import type { WalletConnectorId } from '@solana/connector/headless'
 
 const auth = useAuth()
-const config = useRuntimeConfig()
+const apiBase = useApiBase()
 const router = useRouter()
 const showConnectModal = ref(false)
 
@@ -71,8 +71,8 @@ async function submit() {
   saving.value = true
   error.value = null
   try {
-    const apiBase = (config.public.apiUrl ?? '').toString().replace(/\/$/, '')
-    const res = await fetch(`${apiBase}/api/v1/tenants`, {
+    const base = apiBase.value
+    const res = await fetch(`${base}/api/v1/tenants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

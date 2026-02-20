@@ -4,6 +4,7 @@ export type {
   TenantTheme,
   TenantThemeColors,
   TenantBranding,
-  TenantModuleRef,
+  TenantModuleEntry,
+  TenantModulesMap,
 } from './types.js'
 export { getTenantSlugFromHost } from './resolver.js'

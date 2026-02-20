@@ -1,3 +1,5 @@
+import { PublicKey } from '@solana/web3.js'
+import type { Transaction, VersionedTransaction } from '@solana/web3.js'
 import {
   ConnectorClient,
   getDefaultConfig,
@@ -8,6 +10,7 @@ import {
   type Wallet,
   type WalletAccount,
 } from '@solana/connector/headless'
+import type { Wallet as EscrowWallet } from './escrow/types.js'
 
 export interface ConnectorStateSnapshot {
   connected: boolean
@@ -70,7 +73,7 @@ export async function disconnectWallet(): Promise<void> {
   await client.disconnectWallet()
 }
 
-function getWalletAndAccount(client: ConnectorClient): { wallet: Wallet; account: WalletAccount } | null {
+export function getWalletAndAccount(client: ConnectorClient): { wallet: Wallet; account: WalletAccount } | null {
   const state = client.getSnapshot()
   const walletStatus = state.wallet
   if (!isConnected(walletStatus)) return null
@@ -109,4 +112,41 @@ export async function signMessageForAuth(message: string): Promise<{ signature: 
       ? btoa(String.fromCharCode(...signatureBytes))
       : String(signatureBytes)
   return { signature, message }
+}
+
+/**
+ * Build an Anchor-compatible Wallet for escrow transactions from the connector.
+ * Returns null when not connected or no account selected.
+ * Uses the connector's signTransaction/signAllTransactions (Wallet Standard API).
+ */
+export function getEscrowWalletFromConnector(): EscrowWallet | null {
+  const client = getClient()
+  const pair = getWalletAndAccount(client)
+  if (!pair) return null
+  const signer = createTransactionSigner({
+    wallet: pair.wallet,
+    account: pair.account,
+  })
+  if (
+    !signer ||
+    typeof signer.signTransaction !== 'function' ||
+    typeof signer.signAllTransactions !== 'function'
+  ) {
+    return null
+  }
+  const address = pair.account.address
+  const publicKey = typeof address === 'string' ? new PublicKey(address) : address
+  const signTransaction = async <T extends Transaction | VersionedTransaction>(tx: T): Promise<T> => {
+    const signed = await signer.signTransaction(tx)
+    return signed as T
+  }
+  const signAllTransactions = async <T extends Transaction | VersionedTransaction>(txs: T[]): Promise<T[]> => {
+    const signed = await signer.signAllTransactions(txs)
+    return signed as T[]
+  }
+  return {
+    publicKey,
+    signTransaction,
+    signAllTransactions,
+  }
 }

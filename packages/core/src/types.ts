@@ -3,10 +3,33 @@
  * Aligned with C2C example-theme.json and skull-bones.json structure.
  */
 
-export interface TenantModuleRef {
-  id: string
-  enabled: boolean
-  configRef?: string
+/** Per-module state: active, optional deactivate date (for payment/entitlement), optional settings. */
+export interface TenantModuleEntry {
+  active: boolean
+  deactivatedate?: string | null
+  settingsjson?: Record<string, unknown>
+}
+
+/** Modules keyed by module id. */
+export type TenantModulesMap = Record<string, TenantModuleEntry>
+
+/** Normalize legacy array format to TenantModulesMap. Accepts already-normalized object as-is. */
+export function normalizeModules(
+  raw: TenantModulesMap | Array<{ id: string; enabled?: boolean }> | null | undefined
+): TenantModulesMap {
+  if (raw == null) return {}
+  if (Array.isArray(raw)) {
+    const map: TenantModulesMap = {}
+    for (const m of raw) {
+      map[m.id] = {
+        active: m.enabled ?? true,
+        deactivatedate: null,
+        settingsjson: {},
+      }
+    }
+    return map
+  }
+  return raw as TenantModulesMap
 }
 
 export interface TenantThemeColors {
@@ -62,7 +85,8 @@ export interface TenantConfig {
   name: string
   description?: string
   branding: TenantBranding
-  modules: TenantModuleRef[]
+  /** Modules keyed by id. Use normalizeModules() when reading from JSON that may be legacy array. */
+  modules: TenantModulesMap
   admins: string[]
   treasury?: string
   createdAt?: string

@@ -1,36 +1,14 @@
 <template>
   <PageSection title="Admin">
     <div class="admin">
-      <ul class="admin__tabs">
-        <li>
-          <button
-            :class="{ active: tab === 'general' }"
-            @click="tab = 'general'"
-          >
-            General
-          </button>
-        </li>
-        <li>
-          <button
-            :class="{ active: tab === 'branding' }"
-            @click="tab = 'branding'"
-          >
-            Branding
-          </button>
-        </li>
-        <li>
-          <button
-            :class="{ active: tab === 'modules' }"
-            @click="tab = 'modules'"
-          >
-            Modules
-          </button>
-        </li>
-      </ul>
-
       <div v-if="tab === 'general'" class="admin__panel">
         <Card>
           <h3>General</h3>
+          <TextInput
+            :model-value="slug ?? ''"
+            label="Slug"
+            disabled
+          />
           <TextInput
             v-model="form.name"
             label="Name"
@@ -42,36 +20,34 @@
         </Card>
       </div>
 
-      <div v-else-if="tab === 'branding'" class="admin__panel">
-        <Card>
-          <h3>Branding</h3>
-          <TextInput
-            v-model="form.branding.logo"
-            label="Logo URL"
-          />
-          <TextInput
-            v-model="form.branding.primaryColor"
-            label="Primary color (hex)"
-          />
-          <TextInput
-            v-model="form.branding.secondaryColor"
-            label="Secondary color (hex)"
-          />
-        </Card>
+      <div v-else-if="tab === 'theming'" class="admin__panel">
+        <AdminThemeSettings :branding="form.branding" />
       </div>
 
       <div v-else-if="tab === 'modules'" class="admin__panel">
         <Card>
           <h3>Modules</h3>
           <div
-            v-for="mod in tenant?.modules ?? []"
-            :key="mod.id"
+            v-for="id in moduleIds"
+            :key="id"
             class="admin__module"
           >
-            <span>{{ MODULE_ROUTES[mod.id]?.label ?? mod.id }}</span>
-            <Toggle v-model="form.modulesById[mod.id]" :label="mod.enabled ? 'On' : 'Off'" />
+            <span>{{ MODULE_NAV[id]?.label ?? id }}</span>
+            <Toggle
+              :model-value="form.modulesById[id]"
+              :label="form.modulesById[id] ? 'On' : 'Off'"
+              @update:model-value="onModuleToggle(id, $event)"
+            />
           </div>
         </Card>
+      </div>
+
+      <div v-else-if="tab === 'marketplace'" class="admin__panel">
+        <AdminMarketplaceSettings
+          :slug="slug ?? ''"
+          :settings="marketplaceSettings"
+          @saved="onMarketplaceSaved"
+        />
       </div>
 
       <div class="admin__actions">
@@ -81,47 +57,127 @@
         <p v-if="saveError" class="admin__error">{{ saveError }}</p>
       </div>
     </div>
+
+    <AdminMarketplaceOnboardingModal
+      v-model="showMarketplaceOnboarding"
+    />
   </PageSection>
 </template>
 
 <script setup lang="ts">
 definePageMeta({ middleware: 'admin-auth' })
 import { PageSection, Card, TextInput, Toggle, Button } from '@decentraguild/ui/components'
-import { useThemeStore } from '@decentraguild/ui'
+import { useThemeStore, mergeTheme, DEFAULT_TENANT_THEME } from '@decentraguild/ui'
 import { useTenantStore } from '~/stores/tenant'
-import { MODULE_ROUTES } from '~/config/modules'
+import { MODULE_NAV, MODULE_SUBNAV } from '~/config/modules'
+import type { MarketplaceSettings } from '~/stores/tenant'
+import AdminMarketplaceSettings from '~/components/AdminMarketplaceSettings.vue'
+import AdminMarketplaceOnboardingModal from '~/components/AdminMarketplaceOnboardingModal.vue'
+import AdminThemeSettings from '~/components/AdminThemeSettings.vue'
 
+const route = useRoute()
 const tenantStore = useTenantStore()
-const config = useRuntimeConfig()
+const apiBase = useApiBase()
 const tenant = computed(() => tenantStore.tenant)
 const slug = computed(() => tenantStore.slug)
 
-const tab = ref<'general' | 'branding' | 'modules'>('general')
+const moduleIds = computed(() => Object.keys(MODULE_NAV))
+
+const VALID_TABS = new Set(MODULE_SUBNAV.admin?.map((t) => t.id) ?? ['general', 'modules', 'theming', 'marketplace'])
+
+const showMarketplaceOnboarding = ref(false)
+const marketplaceSettings = computed(() => {
+  const s = tenantStore.marketplaceSettings
+  if (!s) return null
+  return {
+    collectionMints: s.collectionMints,
+    splAssetMints: s.splAssetMints ?? [],
+    currencyMints: s.currencyMints,
+    whitelist: s.whitelist,
+    shopFee: s.shopFee,
+  }
+})
+
+function onModuleToggle(id: string, value: boolean) {
+  if (id === 'marketplace' && value) {
+    showMarketplaceOnboarding.value = true
+  }
+  form.modulesById[id] = value
+}
+
+function onMarketplaceSaved(settings: Record<string, unknown>) {
+  const s = settings as {
+    collectionMints?: unknown[]
+    splAssetMints?: unknown[]
+    currencyMints?: unknown[]
+    whitelist?: { programId?: string; account?: string }
+    shopFee?: unknown
+  }
+  tenantStore.setMarketplaceSettings(
+    s
+      ? {
+          collectionMints: s.collectionMints ?? [],
+          splAssetMints: (s.splAssetMints as Array<{ mint: string; name?: string; symbol?: string }>) ?? [],
+          currencyMints: (s.currencyMints as Array<{ mint: string; name: string; symbol: string }>) ?? [],
+          whitelist: s.whitelist,
+          shopFee: (s.shopFee as MarketplaceSettings['shopFee']) ?? {
+            wallet: '',
+            makerFlatFee: 0,
+            takerFlatFee: 0,
+            makerPercentFee: 0,
+            takerPercentFee: 0,
+          },
+        }
+      : null
+  )
+}
+const tab = computed(() => {
+  const q = route.query.tab
+  return typeof q === 'string' && VALID_TABS.has(q) ? q : 'general'
+})
+
+onMounted(() => {
+  const q = route.query.tab
+  if (typeof q !== 'string' || !VALID_TABS.has(q)) {
+    navigateTo({
+      path: route.path,
+      query: { ...route.query, tab: 'general' },
+      replace: true,
+    })
+  }
+})
 const saving = ref(false)
 const saveError = ref<string | null>(null)
+
+function buildBrandingForm(tenant: { branding?: { logo?: string; theme?: unknown } } | null) {
+  const theme = mergeTheme(DEFAULT_TENANT_THEME, (tenant?.branding?.theme ?? {}) as Parameters<typeof mergeTheme>[1])
+  return {
+    logo: tenant?.branding?.logo ?? '',
+    theme,
+  }
+}
 
 const form = reactive({
   name: '',
   description: '',
-  branding: {
-    logo: '',
-    primaryColor: '',
-    secondaryColor: '',
-  },
+  branding: buildBrandingForm(null),
   modulesById: {} as Record<string, boolean>,
 })
 
 watch(
   tenant,
   (t) => {
-    if (!t) return
+    if (!t) {
+      form.modulesById = Object.fromEntries(moduleIds.value.map((id) => [id, false]))
+      form.branding = buildBrandingForm(null)
+      return
+    }
     form.name = t.name ?? ''
     form.description = t.description ?? ''
-    form.branding.logo = t.branding?.logo ?? ''
-    form.branding.primaryColor = t.branding?.theme?.colors?.primary?.main ?? ''
-    form.branding.secondaryColor = t.branding?.theme?.colors?.secondary?.main ?? ''
+    form.branding = buildBrandingForm(t)
+    const mods = t.modules ?? {}
     form.modulesById = Object.fromEntries(
-      (t.modules ?? []).map((m) => [m.id, m.enabled])
+      moduleIds.value.map((id) => [id, mods[id]?.active ?? false])
     )
   },
   { immediate: true }
@@ -132,12 +188,18 @@ async function save() {
   saving.value = true
   saveError.value = null
   try {
-    const modules = (tenant.value?.modules ?? []).map((m) => ({
-      ...m,
-      enabled: form.modulesById[m.id] ?? m.enabled,
-    }))
-    const apiBase = (config.public.apiUrl ?? '').toString().replace(/\/$/, '')
-    const res = await fetch(`${apiBase}/api/v1/tenant/${slug.value}/settings`, {
+    const prevMods = tenant.value?.modules ?? {}
+    const modules: Record<string, { active: boolean; deactivatedate: null; settingsjson: Record<string, unknown> }> = {}
+    for (const id of moduleIds.value) {
+      const prev = prevMods[id]
+      modules[id] = {
+        active: form.modulesById[id] ?? false,
+        deactivatedate: prev?.deactivatedate ?? null,
+        settingsjson: prev?.settingsjson ?? {},
+      }
+    }
+    const base = apiBase.value
+    const res = await fetch(`${base}/api/v1/tenant/${slug.value}/settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -146,19 +208,15 @@ async function save() {
         description: form.description,
         branding: {
           logo: form.branding.logo,
-          theme: {
-            colors: {
-              primary: form.branding.primaryColor ? { main: form.branding.primaryColor } : undefined,
-              secondary: form.branding.secondaryColor ? { main: form.branding.secondaryColor } : undefined,
-            },
-          },
+          theme: form.branding.theme,
         },
         modules,
       }),
     })
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      throw new Error(data.error ?? 'Failed to save')
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      const msg = data.error ?? (res.status === 503 ? 'API cannot persist (set DATABASE_URL or TENANT_CONFIG_PATH).' : 'Failed to save')
+      throw new Error(msg)
     }
     const data = await res.json()
     tenantStore.setTenant(data.tenant)
@@ -175,29 +233,6 @@ async function save() {
 </script>
 
 <style scoped>
-.admin__tabs {
-  display: flex;
-  gap: var(--theme-space-sm);
-  margin-bottom: var(--theme-space-lg);
-  list-style: none;
-  padding: 0;
-}
-
-.admin__tabs button {
-  padding: var(--theme-space-sm) var(--theme-space-md);
-  background: transparent;
-  color: var(--theme-text-secondary);
-  border: none;
-  cursor: pointer;
-  border-radius: var(--theme-radius-md);
-}
-
-.admin__tabs button:hover,
-.admin__tabs button.active {
-  color: var(--theme-primary);
-  background: var(--theme-bg-card);
-}
-
 .admin__panel {
   margin-bottom: var(--theme-space-lg);
 }

@@ -8,7 +8,7 @@ import { ref, computed } from 'vue'
 import type { TenantTheme, TenantBranding } from '@decentraguild/core'
 import { DEFAULT_TENANT_THEME } from '../theme/defaults'
 
-function mergeTheme(base: TenantTheme, override: Partial<TenantTheme>): TenantTheme {
+export function mergeTheme(base: TenantTheme, override: Partial<TenantTheme>): TenantTheme {
   const colors: NonNullable<TenantTheme['colors']> = {
     primary: { ...base.colors?.primary, ...override.colors?.primary, main: (override.colors?.primary?.main ?? base.colors?.primary?.main ?? '#00951a') as string },
     secondary: { ...base.colors?.secondary, ...override.colors?.secondary, main: (override.colors?.secondary?.main ?? base.colors?.secondary?.main ?? '#cf0000') as string },
@@ -34,7 +34,7 @@ function mergeTheme(base: TenantTheme, override: Partial<TenantTheme>): TenantTh
   }
 }
 
-function themeToCssVars(theme: TenantTheme): Record<string, string> {
+export function themeToCssVars(theme: TenantTheme): Record<string, string> {
   const colors = theme.colors ?? {}
   const fontSize = theme.fontSize ?? {}
   const spacing = theme.spacing ?? {}
@@ -133,6 +133,7 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function applyThemeToDocument() {
+    if (typeof document === 'undefined') return
     const root = document.documentElement
     const vars = themeToCssVars(currentTheme.value)
     for (const [prop, value] of Object.entries(vars)) {

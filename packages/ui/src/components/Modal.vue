@@ -52,10 +52,11 @@ function onClose() {
 </script>
 
 <style scoped>
+/* Higher than other overlays (e.g. escrow/trade modals) so connect-wallet and dialogs always on top */
 .modal {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
