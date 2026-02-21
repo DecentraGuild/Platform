@@ -12,13 +12,14 @@ export interface ModuleNavEntry {
 export const MODULE_NAV: Record<string, ModuleNavEntry> = {
   admin: { path: '/admin', label: 'Admin', icon: 'mdi:cog' },
   marketplace: { path: '/market', label: 'Market', icon: 'mdi:store' },
+  discord: { path: '/discord', label: 'Discord', icon: 'mdi:discord' },
   raffles: { path: '/raffle', label: 'Raffle', icon: 'mdi:ticket' },
   whitelist: { path: '/whitelist', label: 'Whitelist', icon: 'mdi:format-list-checks' },
   minting: { path: '/mint', label: 'Mint', icon: 'mdi:brush' },
 }
 
 /** Modules that are implemented and can be shown in nav */
-export const IMPLEMENTED_MODULES = new Set(['admin', 'marketplace'])
+export const IMPLEMENTED_MODULES = new Set(['admin', 'marketplace', 'discord'])
 
 /** Sub-nav (topbar tabs) per module. Key = module id. */
 export interface ModuleSubnavTab {
@@ -34,11 +35,13 @@ export const MODULE_SUBNAV: Record<string, ModuleSubnavTab[]> = {
     { id: 'modules', label: 'Modules' },
     { id: 'theming', label: 'Theming' },
     { id: 'marketplace', label: 'Marketplace' },
+    { id: 'discord', label: 'Discord' },
   ],
   marketplace: [
     { id: 'browse', label: 'Browse' },
     { id: 'open-trades', label: 'My Trades' },
   ],
+  discord: [],
 }
 
 /** Tenant module shape for subnav filtering */
@@ -58,8 +61,10 @@ export function getModuleSubnavForPath(
   const tabs = (moduleId && MODULE_SUBNAV[moduleId]) ?? null
   if (!tabs || moduleId !== 'admin' || !tenant?.modules) return tabs
   const marketplaceActive = tenant.modules.marketplace?.active
-  if (!marketplaceActive) {
-    return tabs.filter((t) => t.id !== 'marketplace')
-  }
-  return tabs
+  const discordActive = tenant.modules.discord?.active
+  return tabs.filter((t) => {
+    if (t.id === 'marketplace' && !marketplaceActive) return false
+    if (t.id === 'discord' && !discordActive) return false
+    return true
+  })
 }

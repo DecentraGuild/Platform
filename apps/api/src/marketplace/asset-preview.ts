@@ -6,6 +6,7 @@
 import { Connection } from '@solana/web3.js'
 import { fetchAsset, fetchAssetsByGroup, getDasRpcUrl } from '@decentraguild/web3'
 import { fetchMintMetadataFromChain } from '@decentraguild/web3'
+import { traitsFromDasAsset } from './das-traits.js'
 
 export interface SplAssetPreview {
   mint: string
@@ -21,6 +22,7 @@ export interface CollectionAssetPreview {
   name: string | null
   symbol: string | null
   image: string | null
+  sellerFeeBasisPoints: number | null
   collectionSize: number
   uniqueTraitCount: number
   traitTypes: string[]
@@ -61,6 +63,9 @@ export async function fetchCollectionPreview(mint: string): Promise<CollectionAs
   const image = asset.content?.links?.image ?? null
   const name = meta?.name ?? null
   const symbol = meta?.symbol ?? null
+  const bps = meta?.seller_fee_basis_points
+  const sellerFeeBasisPoints =
+    typeof bps === 'number' && bps >= 0 && bps <= 10000 ? bps : null
 
   let collectionSize = 0
   const traitTypesSet = new Set<string>()
@@ -82,10 +87,9 @@ export async function fetchCollectionPreview(mint: string): Promise<CollectionAs
       }
       itemCount += items.length
       for (const item of items) {
-        const attrs = item.content?.metadata?.attributes ?? []
-        for (const a of attrs) {
-          const t = a.trait_type?.trim()
-          if (t) traitTypesSet.add(t)
+        for (const t of traitsFromDasAsset(item)) {
+          const key = t.trait_type?.trim()
+          if (key) traitTypesSet.add(key)
         }
       }
       hasMore = items.length >= limit
@@ -104,6 +108,7 @@ export async function fetchCollectionPreview(mint: string): Promise<CollectionAs
     name,
     symbol,
     image,
+    sellerFeeBasisPoints,
     collectionSize,
     uniqueTraitCount: traitTypesSet.size,
     traitTypes: Array.from(traitTypesSet).sort(),

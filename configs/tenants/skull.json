@@ -41,7 +41,8 @@
     "marketplace": { "active": true, "deactivatedate": null, "settingsjson": {} },
     "raffles": { "active": false, "deactivatedate": null, "settingsjson": {} },
     "whitelist": { "active": false, "deactivatedate": null, "settingsjson": {} },
-    "minting": { "active": false, "deactivatedate": null, "settingsjson": {} }
+    "minting": { "active": false, "deactivatedate": null, "settingsjson": {} },
+    "discord": { "active": true, "deactivatedate": null, "settingsjson": {} }
   },
   "admins": ["89s4gjt2STRy83XQrxmYrWRkQBH3CL228BRVs6Qbed2Q"],
   "createdAt": "2025-02-10T00:00:00.000Z",

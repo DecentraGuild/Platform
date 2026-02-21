@@ -28,6 +28,7 @@
 import { PageSection, Card, Button } from '@decentraguild/ui/components'
 import type { TenantConfig } from '@decentraguild/core'
 
+const config = useRuntimeConfig()
 const apiBase = useApiBase()
 const tenants = ref<TenantConfig[]>([])
 const loading = ref(true)
@@ -47,7 +48,8 @@ onMounted(async () => {
 })
 
 function tenantUrl(slug: string) {
-  return `https://${slug}.dguild.org`
+  const baseDomain = config.public.tenantBaseDomain as string
+  return `https://${slug}.${baseDomain}`
 }
 </script>
 

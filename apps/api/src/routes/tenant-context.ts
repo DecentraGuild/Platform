@@ -20,7 +20,11 @@ export async function registerTenantContextRoutes(app: FastifyInstance) {
     const host = request.headers.host ?? ''
     const debug = searchParams.get('debug') === '1' || searchParams.get('debug') === 'true'
 
-    const rawSlug = slugParam ?? getTenantSlugFromHost(host, searchParams)
+    // In production, use Host only (no ?slug=) to avoid enumerating tenant configs by slug.
+    const rawSlug =
+      process.env.NODE_ENV === 'production'
+        ? getTenantSlugFromHost(host) ?? null
+        : (slugParam ?? getTenantSlugFromHost(host, searchParams))
     const slug = rawSlug ? normalizeTenantSlug(rawSlug) : null
 
     if (!slug) {
@@ -40,7 +44,9 @@ export async function registerTenantContextRoutes(app: FastifyInstance) {
       const body: { error: string; diagnostic?: TenantConfigDiagnostic } = {
         error: 'Tenant not found',
       }
-      if (debug) body.diagnostic = await loadTenantBySlugDiagnostic(slug)
+      if (debug && process.env.NODE_ENV !== 'production') {
+        body.diagnostic = await loadTenantBySlugDiagnostic(slug)
+      }
       return reply.status(404).send(body)
     }
 

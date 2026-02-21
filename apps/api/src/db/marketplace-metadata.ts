@@ -1,5 +1,18 @@
 import { query, getPool } from './client.js'
 
+/**
+ * Mint metadata (including traits) is the single source of truth for asset display and filtering.
+ * Marketplace browse/scope and Discord rule builder both read and write here; same mints are
+ * not stored twice. Trait extraction from chain is centralised in marketplace/das-traits.ts.
+ */
+
+/** Strip null bytes so PostgreSQL UTF-8 text columns accept the value. */
+function sanitizeText(s: string | null | undefined): string | null {
+  if (s == null || typeof s !== 'string') return null
+  const out = s.replace(/\0/g, '')
+  return out.length ? out : null
+}
+
 export interface MintTrait {
   trait_type: string
   value: string | number
@@ -71,7 +84,10 @@ export async function upsertMintMetadata(
   mint: string,
   data: Partial<Pick<MintMetadata, 'name' | 'symbol' | 'image' | 'decimals' | 'traits' | 'sellerFeeBasisPoints'>>
 ): Promise<void> {
-  const traitsJson = data.traits ? JSON.stringify(data.traits) : null
+  const name = sanitizeText(data.name ?? null)
+  const symbol = sanitizeText(data.symbol ?? null)
+  const image = sanitizeText(data.image ?? null)
+  const traitsJson = data.traits ? JSON.stringify(data.traits).replace(/\0/g, '') : null
   await query(
     `INSERT INTO mint_metadata (mint, name, symbol, image, decimals, traits, seller_fee_basis_points, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, NOW())
@@ -85,9 +101,9 @@ export async function upsertMintMetadata(
        updated_at = NOW()`,
     [
       mint,
-      data.name ?? null,
-      data.symbol ?? null,
-      data.image ?? null,
+      name,
+      symbol,
+      image,
       data.decimals ?? null,
       traitsJson,
       data.sellerFeeBasisPoints ?? null,

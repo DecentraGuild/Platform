@@ -5,8 +5,10 @@ import { getTenantBySlug, rowToTenantConfig, upsertTenant } from '../db/tenant.j
 import { getWalletFromRequest } from './auth.js'
 import { listTenantSlugs, loadTenantBySlug } from '../config/registry.js'
 import { normalizeTenantSlug } from '../validate-slug.js'
+import { tenantCreateRateLimit } from '../rate-limit-strict.js'
 
 export async function registerTenantsRoutes(app: FastifyInstance) {
+  // Public for discovery (e.g. platform app directory). No auth required.
   app.get('/api/v1/tenants', async (_request, _reply) => {
     let tenants: TenantConfig[] = []
 
@@ -29,7 +31,7 @@ export async function registerTenantsRoutes(app: FastifyInstance) {
 
   app.post<{
     Body: Partial<TenantConfig> & { slug: string; name: string }
-  }>('/api/v1/tenants', async (request, reply) => {
+  }>('/api/v1/tenants', { preHandler: [tenantCreateRateLimit] }, async (request, reply) => {
     const wallet = await getWalletFromRequest(request)
     if (!wallet) {
       return reply.status(401).send({ error: 'Authentication required to create an org' })

@@ -205,6 +205,17 @@ flowchart TB
 | `marketplace_settings` | Marketplace config per tenant (collections, currencies, shopFee) |
 | `marketplace_mint_scope` | Which mints are in scope per tenant (mint, source, collection_mint) |
 | `mint_metadata` | Cached metadata (name, symbol, image, decimals, traits) |
+| Discord tables | `discord_servers`, `discord_role_rules`, `discord_role_conditions`, `discord_verify_sessions`, `wallet_discord_links`, `discord_holder_snapshots`, `discord_audit_log`, etc. |
+
+**Migrations:** `apps/api/src/db/migrations/*.sql`, run on API startup when `DATABASE_URL` is set. Add new file `0NN_name.sql` with idempotent DDL. See [Environments](environments.md#migrations).
+
+---
+
+## Deploy targets
+
+- **API:** Railway. Build/start and env: [Environments](environments.md#deploy).
+- **Platform / Tenant:** Netlify (two sites). Subdomains = custom domains on the **tenant** site. [Environments](environments.md#deploy).
+- **Discord:** API (rules, sync, verify); bot `apps/discord-bot` (server-to-server auth); tenant app (admin + verify page). [Environments](environments.md#discord-module-reference).
 
 ---
 

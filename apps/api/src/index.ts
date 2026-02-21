@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Fastify from 'fastify'
@@ -12,9 +12,16 @@ import { registerMarketplaceScopeRoutes } from './routes/marketplace-scope.js'
 import { registerMarketplaceEscrowsRoutes } from './routes/marketplace-escrows.js'
 import { registerTenantsRoutes } from './routes/tenants.js'
 import { registerAuthRoutes } from './routes/auth.js'
-import { initPool, query } from './db/client.js'
+import { registerDiscordBotRoutes } from './routes/discord-bot.js'
+import { registerDiscordVerifyRoutes } from './routes/discord-verify.js'
+import { registerDiscordServerRoutes } from './routes/discord-server.js'
+import { registerDiscordRulesRoutes } from './routes/discord-rules.js'
+import { registerDiscordSyncRoutes } from './routes/discord-sync.js'
+import { initPool, getPool } from './db/client.js'
+import { syncAllLinkedGuilds } from './discord/holder-sync.js'
+import { runMigrations } from './db/run-migrations.js'
 import { upsertTenant } from './db/tenant.js'
-import { getTenantConfigDir, loadTenantBySlug, loadTenantBySlugDiagnostic } from './config/registry.js'
+import { getTenantConfigDir, loadTenantBySlug, loadTenantBySlugDiagnostic, listTenantSlugs } from './config/registry.js'
 import { loadMarketplaceBySlug, listMarketplaceSlugs } from './config/marketplace-registry.js'
 import { upsertMarketplace } from './db/marketplace-settings.js'
 import { upsertMintMetadata } from './db/marketplace-metadata.js'
@@ -27,8 +34,10 @@ function ensureConfigPaths(): void {
   if (!process.env.TENANT_CONFIG_PATH) {
     const tenantConfigs = path.join(repoRoot, 'configs/tenants')
     try {
-      readFileSync(path.join(tenantConfigs, 'skull.json'), 'utf-8')
-      process.env.TENANT_CONFIG_PATH = tenantConfigs
+      const files = readdirSync(tenantConfigs)
+      if (files.some((f) => f.endsWith('.json'))) {
+        process.env.TENANT_CONFIG_PATH = tenantConfigs
+      }
     } catch {
       // not in monorepo or configs missing
     }
@@ -36,8 +45,10 @@ function ensureConfigPaths(): void {
   if (!process.env.MARKETPLACE_CONFIG_PATH) {
     const marketplaceConfigs = path.join(repoRoot, 'configs/marketplace')
     try {
-      readFileSync(path.join(marketplaceConfigs, 'skull.json'), 'utf-8')
-      process.env.MARKETPLACE_CONFIG_PATH = marketplaceConfigs
+      const files = readdirSync(marketplaceConfigs)
+      if (files.some((f) => f.endsWith('.json'))) {
+        process.env.MARKETPLACE_CONFIG_PATH = marketplaceConfigs
+      }
     } catch {
       // not in monorepo or configs missing
     }
@@ -46,74 +57,6 @@ function ensureConfigPaths(): void {
 ensureConfigPaths()
 
 const app = Fastify({ logger: true })
-
-const MIGRATION_005 = `
-ALTER TABLE mint_metadata ADD COLUMN IF NOT EXISTS traits JSONB DEFAULT NULL;
-`
-
-const MIGRATION_006 = `
-ALTER TABLE mint_metadata ADD COLUMN IF NOT EXISTS seller_fee_basis_points INTEGER DEFAULT NULL;
-`
-
-const MIGRATION_004 = `
-CREATE TABLE IF NOT EXISTS marketplace_mint_scope (
-  tenant_slug TEXT NOT NULL,
-  mint TEXT NOT NULL,
-  source TEXT NOT NULL,
-  collection_mint TEXT,
-  PRIMARY KEY (tenant_slug, mint)
-);
-CREATE INDEX IF NOT EXISTS idx_mint_scope_tenant ON marketplace_mint_scope(tenant_slug);
-CREATE INDEX IF NOT EXISTS idx_mint_scope_collection ON marketplace_mint_scope(tenant_slug, collection_mint) WHERE collection_mint IS NOT NULL;
-`
-
-const MIGRATION_003 = `
-CREATE TABLE IF NOT EXISTS marketplace_settings (
-  tenant_slug TEXT PRIMARY KEY,
-  tenant_id TEXT,
-  settings JSONB DEFAULT '{}',
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_marketplace_settings_tenant_slug ON marketplace_settings(tenant_slug);
-`
-
-const MIGRATION_002 = `
-CREATE TABLE IF NOT EXISTS mint_metadata (
-  mint TEXT PRIMARY KEY,
-  name TEXT,
-  symbol TEXT,
-  image TEXT,
-  decimals INTEGER,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_mint_metadata_updated_at ON mint_metadata(updated_at);
-`
-
-const MIGRATION_001 = `
-CREATE TABLE IF NOT EXISTS tenant_config (
-  id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-  branding JSONB DEFAULT '{}',
-  modules JSONB DEFAULT '[]',
-  admins JSONB DEFAULT '[]',
-  treasury TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_tenant_config_slug ON tenant_config(slug);
-`
-
-async function runMigrations() {
-  for (const sql of [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006]) {
-    try {
-      await query(sql)
-    } catch (e) {
-      app.log.warn({ err: e }, 'Migration skipped (table may exist)')
-    }
-  }
-}
 
 /** Known decimals for common currency mints (local seed fallback) */
 const KNOWN_DECIMALS: Record<string, number> = {
@@ -125,7 +68,15 @@ const KNOWN_DECIMALS: Record<string, number> = {
   poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk: 6,
 }
 
-async function seedMintMetadataFromConfig(config: MarketplaceConfig): Promise<void> {
+type SeedLog = { warn: (obj: unknown, msg?: string) => void }
+
+async function seedMintMetadataFromConfig(
+  config: MarketplaceConfig,
+  log?: SeedLog
+): Promise<void> {
+  const onUpsertFail = (err: unknown, mint: string) => {
+    if (log) log.warn({ err, mint }, 'Mint metadata upsert skipped')
+  }
   for (const { mint, name, image, sellerFeeBasisPoints } of config.collectionMints) {
     if (!mint?.trim()) continue
     await upsertMintMetadata(mint.trim(), {
@@ -133,7 +84,7 @@ async function seedMintMetadataFromConfig(config: MarketplaceConfig): Promise<vo
       symbol: null,
       image: image ?? null,
       sellerFeeBasisPoints: sellerFeeBasisPoints ?? null,
-    }).catch(() => {})
+    }).catch((e) => onUpsertFail(e, mint.trim()))
   }
   for (const c of config.currencyMints) {
     const { mint, name, symbol, image, decimals, sellerFeeBasisPoints } = c
@@ -144,7 +95,7 @@ async function seedMintMetadataFromConfig(config: MarketplaceConfig): Promise<vo
       image: image ?? null,
       decimals: decimals ?? KNOWN_DECIMALS[mint] ?? null,
       sellerFeeBasisPoints: sellerFeeBasisPoints ?? null,
-    }).catch(() => {})
+    }).catch((e) => onUpsertFail(e, mint.trim()))
   }
   for (const s of config.splAssetMints ?? []) {
     const { mint, name, symbol, image, decimals, sellerFeeBasisPoints } = s
@@ -155,37 +106,33 @@ async function seedMintMetadataFromConfig(config: MarketplaceConfig): Promise<vo
       image: image ?? null,
       decimals: decimals ?? null,
       sellerFeeBasisPoints: sellerFeeBasisPoints ?? null,
-    }).catch(() => {})
+    }).catch((e) => onUpsertFail(e, mint.trim()))
   }
 }
 
-async function seedSkull(app: { log: { warn: (obj: unknown, msg?: string) => void } }) {
-  const skull = await loadTenantBySlug('skull')
-  if (skull) await upsertTenant(skull)
-  const marketplace = await loadMarketplaceBySlug('skull')
-  if (marketplace) {
-    await upsertMarketplace('skull', marketplace.tenantId, marketplace)
-    try {
-      await seedMintMetadataFromConfig(marketplace)
-    } catch (e) {
-      app.log.warn({ err: e }, 'Mint metadata seed failed')
-    }
-    try {
-      await expandAndSaveScope('skull', marketplace, app.log)
-    } catch (e) {
-      app.log.warn({ err: e }, 'Scope expansion failed during seed')
-    }
+/** Seed all tenants and marketplace configs from registry (DB + metadata + scope). */
+async function seedDefaultTenants(app: { log: { warn: (obj: unknown, msg?: string) => void } }) {
+  const tenantSlugs = await listTenantSlugs()
+  for (const slug of tenantSlugs) {
+    const tenant = await loadTenantBySlug(slug)
+    if (tenant) await upsertTenant(tenant)
   }
-  const slugs = await listMarketplaceSlugs()
-  for (const slug of slugs) {
-    if (slug === 'skull') continue
+  const marketplaceSlugs = await listMarketplaceSlugs()
+  for (const slug of marketplaceSlugs) {
     const config = await loadMarketplaceBySlug(slug)
-    if (config) {
-      try {
-        await seedMintMetadataFromConfig(config)
-      } catch (e) {
-        app.log.warn({ err: e, slug }, 'Mint metadata seed failed')
-      }
+    if (!config) continue
+    const tenant = await loadTenantBySlug(slug)
+    if (tenant) await upsertTenant(tenant)
+    await upsertMarketplace(slug, config.tenantId, config)
+    try {
+      await seedMintMetadataFromConfig(config, app.log)
+    } catch (e) {
+      app.log.warn({ err: e, slug }, 'Mint metadata seed failed')
+    }
+    try {
+      await expandAndSaveScope(slug, config, app.log)
+    } catch (e) {
+      app.log.warn({ err: e, slug }, 'Scope expansion failed during seed')
     }
   }
 }
@@ -209,8 +156,8 @@ async function main() {
   const databaseUrl = process.env.DATABASE_URL
   if (databaseUrl) {
     initPool(databaseUrl)
-    await runMigrations()
-    void seedSkull(app).catch((e) => app.log.warn({ err: e }, 'Seed failed (scope may be empty)'))
+    await runMigrations(app.log)
+    void seedDefaultTenants(app).catch((e) => app.log.warn({ err: e }, 'Seed failed (scope may be empty)'))
   }
 
   app.get('/', async (_req, reply) => {
@@ -222,14 +169,20 @@ async function main() {
   })
   app.get('/api/v1/health', async () => {
     const tenantConfigPath = getTenantConfigDir()
-    const tenantConfigOk = Boolean(tenantConfigPath && (await loadTenantBySlug('skull')))
+    const slugs = await listTenantSlugs()
+    const tenantConfigOk = Boolean(tenantConfigPath && slugs.length > 0)
     return { status: 'ok', tenantConfigPath: tenantConfigPath ?? null, tenantConfigOk }
   })
   app.get('/api/v1/debug/tenant-config', async (request, reply) => {
     if (process.env.NODE_ENV === 'production') {
       return reply.code(404).send({ error: 'Not found' })
     }
-    const slug = new URL(request.url, 'http://localhost').searchParams.get('slug') ?? 'skull'
+    const slugParam = new URL(request.url, 'http://localhost').searchParams.get('slug')?.trim()
+    const slugs = await listTenantSlugs()
+    const slug = slugParam || (slugs[0] ?? null)
+    if (!slug) {
+      return reply.code(400).send({ error: 'No tenant configs found; use ?slug=<slug> when configs exist' })
+    }
     return reply.send(await loadTenantBySlugDiagnostic(slug))
   })
   app.post('/api/v1/debug/seed-metadata', async (request, reply) => {
@@ -242,7 +195,7 @@ async function main() {
       const config = await loadMarketplaceBySlug(slug)
       if (config) {
         try {
-          await seedMintMetadataFromConfig(config)
+          await seedMintMetadataFromConfig(config, app.log)
           seeded++
         } catch (e) {
           app.log.warn({ err: e, slug }, 'Mint metadata seed failed')
@@ -258,10 +211,25 @@ async function main() {
   await registerMarketplaceScopeRoutes(app)
   await registerMarketplaceEscrowsRoutes(app)
   await registerTenantsRoutes(app)
+  await registerDiscordBotRoutes(app)
+  await registerDiscordVerifyRoutes(app)
+  await registerDiscordServerRoutes(app)
+  await registerDiscordRulesRoutes(app)
+  await registerDiscordSyncRoutes(app)
 
   const port = Number(process.env.PORT) || 3001
   await app.listen({ port, host: '0.0.0.0' })
   app.log.info({ port, tenantConfigPath: process.env.TENANT_CONFIG_PATH ?? null }, 'API ready')
+
+  const syncIntervalMinutes = Number(process.env.DISCORD_SYNC_INTERVAL_MINUTES ?? 0)
+  if (syncIntervalMinutes > 0 && getPool()) {
+    const runSync = () => {
+      syncAllLinkedGuilds(app.log).catch((err) => app.log.error({ err }, 'Scheduled Discord holder sync failed'))
+    }
+    runSync()
+    setInterval(runSync, syncIntervalMinutes * 60 * 1000)
+    app.log.info({ intervalMinutes: syncIntervalMinutes }, 'Discord holder sync scheduled (on boot and every N min)')
+  }
 }
 
 main().catch((err) => {

@@ -252,7 +252,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
             image: c.image ?? null,
             decimals: c.decimals ?? null,
             sellerFeeBasisPoints: c.sellerFeeBasisPoints ?? null,
-          }).catch(() => {})
+          }).catch((e) => request.log.warn({ err: e, mint: c.mint?.trim() }, 'Mint metadata upsert skipped'))
         }
       }
       for (const s of config.splAssetMints ?? []) {
@@ -263,7 +263,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
             image: s.image ?? null,
             decimals: s.decimals ?? null,
             sellerFeeBasisPoints: s.sellerFeeBasisPoints ?? null,
-          }).catch(() => {})
+          }).catch((e) => request.log.warn({ err: e, mint: s.mint?.trim() }, 'Mint metadata upsert skipped'))
         }
       }
       try {

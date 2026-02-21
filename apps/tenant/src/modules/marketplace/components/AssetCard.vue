@@ -111,7 +111,7 @@ defineEmits<{
   display: flex;
   gap: var(--theme-space-xs);
   flex-wrap: wrap;
-  font-size: 10px;
+  font-size: var(--theme-font-xs);
   padding: var(--theme-space-xs);
   border-top: var(--theme-border-thin) solid var(--theme-border);
   background: var(--theme-bg-secondary);
@@ -119,7 +119,7 @@ defineEmits<{
 }
 
 .asset-card__name {
-  font-size: var(--theme-font-xs);
+  font-size: var(--theme-font-sm);
   font-weight: 600;
   color: var(--theme-text-primary);
   overflow: hidden;
@@ -128,12 +128,12 @@ defineEmits<{
 }
 
 .asset-card__symbol {
-  font-size: 10px;
+  font-size: var(--theme-font-xs);
   color: var(--theme-text-muted);
 }
 
 .asset-card__mint {
-  font-size: 10px;
+  font-size: var(--theme-font-xs);
   font-family: ui-monospace, monospace;
   color: var(--theme-text-muted);
   overflow: hidden;

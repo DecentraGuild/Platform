@@ -6,6 +6,7 @@
 import { fetchAsset, fetchAssetsByGroup, type DasAsset } from '@decentraguild/web3'
 import { saveScopeForTenant, type ScopeEntry } from './scope.js'
 import { upsertMintMetadata } from '../db/marketplace-metadata.js'
+import { traitsFromDasAsset } from './das-traits.js'
 
 interface SimpleLogger {
   warn?: (obj: unknown, msg?: string) => void
@@ -75,25 +76,15 @@ export async function expandAndSaveScope(
           if (itemMint) {
             entries.push({ mint: itemMint, source: 'collection', collectionMint })
             const meta = item.content?.metadata
-            const attrs = meta?.attributes
-            const traits =
-              Array.isArray(attrs) && attrs.length > 0
-                ? attrs
-                    .filter((a) => a?.trait_type != null && a?.value != null)
-                    .map((a) => ({
-                      trait_type: String(a.trait_type),
-                      value: a.value as string | number,
-                      display_type: a.display_type,
-                    }))
-                : undefined
-            if (meta || item.content?.links?.image || traits) {
+            const traits = traitsFromDasAsset(item)
+            if (meta || item.content?.links?.image || traits.length) {
               await upsertMintMetadata(itemMint, {
                 name: meta?.name ?? null,
                 symbol: meta?.symbol ?? null,
                 image: item.content?.links?.image ?? null,
                 decimals: item.token_info?.decimals ?? null,
-                traits: traits ?? undefined,
-              }).catch(() => {})
+                traits: traits.length ? traits : undefined,
+              }).catch((e) => log?.warn?.({ err: e, mint: itemMint }, 'Mint metadata upsert skipped'))
             }
           }
         }

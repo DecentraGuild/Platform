@@ -1,10 +1,8 @@
-import {
+export {
   ESCROW_PROGRAM_ID,
   WHITELIST_PROGRAM_ID,
   CONTRACT_FEE_ACCOUNT,
 } from '@decentraguild/contracts'
-
-export { ESCROW_PROGRAM_ID, WHITELIST_PROGRAM_ID, CONTRACT_FEE_ACCOUNT }
 
 export const FEE_CONFIG = {
   MAKER_FEE_SOL: 0.001,

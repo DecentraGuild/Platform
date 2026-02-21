@@ -8,15 +8,15 @@ import { getTenantSlugFromHost } from '@decentraguild/core'
 import { useThemeStore } from '@decentraguild/ui'
 import { useTenantStore } from '~/stores/tenant'
 
-const DEV_DEFAULT_TENANT = 'skull'
-
 function getSlugFromUrl(): string | null {
   if (import.meta.server) return null
+  const config = useRuntimeConfig()
+  const devDefaultSlug = (config.public.devTenantSlug as string) || 'skull'
   const host = window.location.hostname
   const searchParams = new URL(window.location.href).searchParams
   let slug = getTenantSlugFromHost(host, searchParams)
   if (!slug && (host === 'localhost' || host === '127.0.0.1')) {
-    slug = DEV_DEFAULT_TENANT
+    slug = devDefaultSlug
   }
   return slug
 }

@@ -1,0 +1,12 @@
+/**
+ * Tenant app global base styles.
+ * Base font size set so the app reads comfortably at 100% browser zoom
+ * without needing to zoom out (equivalent to a slightly reduced scale).
+ */
+html {
+  font-size: 87.5%;
+}
+
+body {
+  margin: 0;
+}

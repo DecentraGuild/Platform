@@ -29,7 +29,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Button, ConnectWalletModal } from '@decentraguild/ui/components'
 import type { WalletConnectorId } from '@solana/connector/headless'
-import { subscribeToConnectorState } from '@decentraguild/web3'
+import { subscribeToConnectorState } from '@decentraguild/web3/wallet'
 import { useAuth, openConnectModalRequested } from './useAuth'
 
 const auth = useAuth()

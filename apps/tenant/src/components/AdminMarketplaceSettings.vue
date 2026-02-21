@@ -492,11 +492,12 @@ async function addCollection() {
       const data = (await res.json().catch(() => ({}))) as { message?: string }
       throw new Error(data.message ?? `HTTP ${res.status}`)
     }
-    const data = (await res.json()) as { name?: string; image?: string; collectionSize?: number; uniqueTraitCount?: number; traitTypes?: string[] }
+    const data = (await res.json()) as { name?: string; image?: string; sellerFeeBasisPoints?: number; collectionSize?: number; uniqueTraitCount?: number; traitTypes?: string[] }
     form.collectionMints[idx] = {
       mint,
       name: data.name ?? undefined,
       image: data.image ?? undefined,
+      sellerFeeBasisPoints: data.sellerFeeBasisPoints ?? undefined,
       collectionSize: data.collectionSize ?? 0,
       uniqueTraitCount: data.uniqueTraitCount ?? 0,
       traitTypes: data.traitTypes ?? [],

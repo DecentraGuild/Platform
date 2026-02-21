@@ -160,7 +160,22 @@
         :message="scopeMints.length === 0 ? 'No assets in scope.' : browseActiveFilterCount || browseSearchQuery ? 'No items match your filters.' : 'No items to display.'"
       />
       <div v-else>
-      <div class="market-browse__grid">
+      <div class="market-browse__grid-toolbar">
+        <span class="market-browse__grid-scale-label">Card size</span>
+        <div class="market-browse__grid-scale">
+          <input
+            v-model.number="gridScaleRem"
+            type="range"
+            min="7"
+            max="18"
+            step="1"
+            class="market-browse__grid-scale-slider"
+            aria-label="Grid card size"
+          />
+          <span class="market-browse__grid-scale-value">{{ gridScaleRem }}rem</span>
+        </div>
+      </div>
+      <div class="market-browse__grid" :style="gridStyle">
         <AssetCard
           v-for="asset in assetCards"
           :key="asset.mint"
@@ -181,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { Button, StatusBanner } from '@decentraguild/ui/components'
@@ -325,6 +340,30 @@ const assetCardsAll = computed(() => {
 const browseSearchQuery = ref('')
 const browseSelectedTraits = ref<Record<string, string>>({})
 const browseFiltersOpen = ref(false)
+
+const MARKET_GRID_SCALE_KEY = 'market-grid-scale'
+const DEFAULT_GRID_SCALE_REM = 10
+const gridScaleRem = ref(DEFAULT_GRID_SCALE_REM)
+onMounted(() => {
+  try {
+    const stored = localStorage.getItem(MARKET_GRID_SCALE_KEY)
+    if (stored != null) {
+      const n = parseInt(stored, 10)
+      if (n >= 7 && n <= 18) gridScaleRem.value = n
+    }
+  } catch {
+    // ignore
+  }
+})
+watch(gridScaleRem, (v) => {
+  try {
+    localStorage.setItem(MARKET_GRID_SCALE_KEY, String(v))
+  } catch {
+    // ignore
+  }
+}, { immediate: false })
+
+const gridStyle = computed(() => ({ '--market-grid-min': `${gridScaleRem.value}rem` }))
 
 const browseUniqueTraits = computed(() => getUniqueTraits(assetCardsAll.value))
 const hasAnyTraits = computed(() => Object.keys(browseUniqueTraits.value).length > 0)
@@ -652,9 +691,40 @@ function onBreadcrumbClick(index: number | null) {
   color: var(--theme-text-muted);
 }
 
+.market-browse__grid-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--theme-space-sm);
+  margin-bottom: var(--theme-space-sm);
+}
+
+.market-browse__grid-scale-label {
+  font-size: var(--theme-font-xs);
+  color: var(--theme-text-muted);
+}
+
+.market-browse__grid-scale {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-space-sm);
+}
+
+.market-browse__grid-scale-slider {
+  width: 6rem;
+  accent-color: var(--theme-primary);
+}
+
+.market-browse__grid-scale-value {
+  font-size: var(--theme-font-xs);
+  font-family: ui-monospace, monospace;
+  color: var(--theme-text-muted);
+  min-width: 2.5rem;
+}
+
 .market-browse__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--market-grid-min, 10rem), 1fr));
   gap: var(--theme-space-sm);
 }
 

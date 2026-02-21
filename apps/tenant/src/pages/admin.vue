@@ -50,6 +50,10 @@
         />
       </div>
 
+      <div v-else-if="tab === 'discord'" class="admin__panel">
+        <AdminDiscordSettings :slug="slug ?? ''" />
+      </div>
+
       <div class="admin__actions">
         <Button variant="primary" :disabled="saving" @click="save">
           Save
@@ -74,6 +78,7 @@ import type { MarketplaceSettings } from '~/stores/tenant'
 import AdminMarketplaceSettings from '~/components/AdminMarketplaceSettings.vue'
 import AdminMarketplaceOnboardingModal from '~/components/AdminMarketplaceOnboardingModal.vue'
 import AdminThemeSettings from '~/components/AdminThemeSettings.vue'
+import AdminDiscordSettings from '~/components/AdminDiscordSettings.vue'
 
 const route = useRoute()
 const tenantStore = useTenantStore()
@@ -83,7 +88,7 @@ const slug = computed(() => tenantStore.slug)
 
 const moduleIds = computed(() => Object.keys(MODULE_NAV))
 
-const VALID_TABS = new Set(MODULE_SUBNAV.admin?.map((t) => t.id) ?? ['general', 'modules', 'theming', 'marketplace'])
+const VALID_TABS = new Set(MODULE_SUBNAV.admin?.map((t) => t.id) ?? ['general', 'modules', 'theming', 'marketplace', 'discord'])
 
 const showMarketplaceOnboarding = ref(false)
 const marketplaceSettings = computed(() => {

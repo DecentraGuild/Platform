@@ -8,6 +8,7 @@ import {
 } from '../auth/session.js'
 import { setNonce, consumeNonce } from '../auth/nonce-store.js'
 import { verifyWalletSignature } from '../auth/verify-signature.js'
+import { authRateLimit } from '../rate-limit-strict.js'
 
 const NONCE_BYTES = 32
 
@@ -25,7 +26,7 @@ export async function getWalletFromRequest(request: FastifyRequest): Promise<str
 }
 
 export async function registerAuthRoutes(app: FastifyInstance) {
-  app.post<{ Body: { wallet: string } }>('/api/v1/auth/nonce', async (request, reply) => {
+  app.post<{ Body: { wallet: string } }>('/api/v1/auth/nonce', { preHandler: [authRateLimit] }, async (request, reply) => {
     const wallet = request.body?.wallet
     if (!wallet || typeof wallet !== 'string') {
       return reply.status(400).send({ error: 'wallet (base58 public key) required' })
@@ -38,7 +39,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post<{
     Body: { wallet: string; signature: string; message: string }
-  }>('/api/v1/auth/verify', async (request, reply) => {
+  }>('/api/v1/auth/verify', { preHandler: [authRateLimit] }, async (request, reply) => {
     const { wallet, signature, message } = request.body ?? {}
     if (!wallet || !signature || !message) {
       return reply.status(400).send({ error: 'wallet, signature, and message required' })

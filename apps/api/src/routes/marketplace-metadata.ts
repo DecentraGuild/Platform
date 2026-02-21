@@ -41,7 +41,7 @@ export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
             image: fetched.image,
             decimals: fetched.decimals,
             sellerFeeBasisPoints: fetched.sellerFeeBasisPoints ?? undefined,
-          }).catch(() => {})
+          }).catch((e) => request.log.warn({ err: e, mint }, 'Mint metadata cache upsert skipped'))
         }
         return {
           mint: fetched.mint,

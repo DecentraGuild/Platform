@@ -8,14 +8,14 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./theme": {
+      "types": "./dist/theme/index.d.ts",
       "import": "./dist/theme/index.js",
-      "require": "./dist/theme/index.js",
-      "types": "./dist/theme/index.d.ts"
+      "require": "./dist/theme/index.js"
     },
     "./theme/vars.css": "./src/theme/vars.css",
     "./components": "./src/components/index.ts"

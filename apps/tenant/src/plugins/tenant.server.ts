@@ -8,9 +8,10 @@ import { useTenantStore } from '~/stores/tenant'
 import type { MarketplaceSettings } from '~/stores/tenant'
 import { normalizeApiBase } from '~/utils/apiBase'
 
-const DEV_DEFAULT_TENANT = 'skull'
-
 export default defineNuxtPlugin(async () => {
+  const config = useRuntimeConfig()
+  const devDefaultSlug = (config.public.devTenantSlug as string) || 'skull'
+
   const event = useRequestEvent()
   const req = event?.node?.req
   if (!req?.headers?.host) return
@@ -21,7 +22,7 @@ export default defineNuxtPlugin(async () => {
   const searchParams = parsed.searchParams
   let slug = getTenantSlugFromHost(host, searchParams)
   if (!slug && (host.includes('localhost') || host.includes('127.0.0.1'))) {
-    slug = DEV_DEFAULT_TENANT
+    slug = devDefaultSlug
   }
 
   if (!slug) return
@@ -29,7 +30,6 @@ export default defineNuxtPlugin(async () => {
   const tenantStore = useTenantStore()
   tenantStore.setSlug(slug)
 
-  const config = useRuntimeConfig()
   const apiBase = normalizeApiBase(config.public.apiUrl as string)
   const contextUrl = `${apiBase}/api/v1/tenant-context?slug=${encodeURIComponent(slug)}`
 
