@@ -1,0 +1,1 @@
+import"./Cov751Ou.js";import{_ as c,o,c as s,O as r}from"./Cuem3LDA.js";const t={},a={class:"card"};function n(e,d){return o(),s("div",a,[r(e.$slots,"default",{},void 0)])}const i=c(t,[["render",n],["__scopeId","data-v-ac27e643"]]);export{i as C};
