@@ -1,7 +1,4 @@
 import 'dotenv/config'
-import { readdirSync, readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { buildCorsOrigin } from './cors.js'
@@ -18,45 +15,38 @@ import { registerDiscordServerRoutes } from './routes/discord-server.js'
 import { registerDiscordRulesRoutes } from './routes/discord-rules.js'
 import { registerDiscordSyncRoutes } from './routes/discord-sync.js'
 import { initPool, getPool } from './db/client.js'
-import { syncAllLinkedGuilds } from './discord/holder-sync.js'
+import { apiError, ErrorCode } from './api-errors.js'
 import { runMigrations } from './db/run-migrations.js'
 import { upsertTenant } from './db/tenant.js'
+import { normalizeTenantSlug } from './validate-slug.js'
 import { getTenantConfigDir, loadTenantBySlug, loadTenantBySlugDiagnostic, listTenantSlugs } from './config/registry.js'
 import { loadMarketplaceBySlug, listMarketplaceSlugs } from './config/marketplace-registry.js'
+import { ensureConfigPaths } from './config/ensure-paths.js'
+import {
+  DEFAULT_PORT,
+  DEFAULT_RATE_LIMIT_MAX,
+  DEFAULT_RATE_LIMIT_WINDOW,
+} from './config/constants.js'
 import { upsertMarketplace } from './db/marketplace-settings.js'
 import { upsertMintMetadata } from './db/marketplace-metadata.js'
 import { expandAndSaveScope } from './marketplace/expand-collections.js'
+import { setSeedCompleted, isSeedPending } from './seed-state.js'
 import type { MarketplaceConfig } from './config/marketplace-registry.js'
 
-function ensureConfigPaths(): void {
-  const dirname = path.dirname(fileURLToPath(import.meta.url))
-  const repoRoot = path.resolve(dirname, '../../..')
-  if (!process.env.TENANT_CONFIG_PATH) {
-    const tenantConfigs = path.join(repoRoot, 'configs/tenants')
-    try {
-      const files = readdirSync(tenantConfigs)
-      if (files.some((f) => f.endsWith('.json'))) {
-        process.env.TENANT_CONFIG_PATH = tenantConfigs
-      }
-    } catch {
-      // not in monorepo or configs missing
-    }
-  }
-  if (!process.env.MARKETPLACE_CONFIG_PATH) {
-    const marketplaceConfigs = path.join(repoRoot, 'configs/marketplace')
-    try {
-      const files = readdirSync(marketplaceConfigs)
-      if (files.some((f) => f.endsWith('.json'))) {
-        process.env.MARKETPLACE_CONFIG_PATH = marketplaceConfigs
-      }
-    } catch {
-      // not in monorepo or configs missing
-    }
-  }
-}
 ensureConfigPaths()
 
 const app = Fastify({ logger: true })
+
+app.setErrorHandler((err: unknown, request, reply) => {
+  const msg = err instanceof Error ? err.message : 'Unhandled error'
+  request.log.error({ err }, msg)
+  const message = err instanceof Error ? err.message : 'Internal server error'
+  const body = apiError(message, ErrorCode.INTERNAL_ERROR)
+  if (process.env.NODE_ENV !== 'production' && err instanceof Error && err.stack) {
+    (body as Record<string, unknown>).stack = err.stack
+  }
+  return reply.status(500).send(body)
+})
 
 /** Known decimals for common currency mints (local seed fallback) */
 const KNOWN_DECIMALS: Record<string, number> = {
@@ -138,6 +128,11 @@ async function seedDefaultTenants(app: { log: { warn: (obj: unknown, msg?: strin
 }
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+    app.log.error('DATABASE_URL is required in production')
+    process.exit(1)
+  }
+
   await app.register(cors, {
     origin: buildCorsOrigin(),
     credentials: true,
@@ -149,15 +144,22 @@ async function main() {
 
   const rateLimit = await import('@fastify/rate-limit')
   await app.register(rateLimit.default, {
-    max: Number(process.env.RATE_LIMIT_MAX) || 200,
-    timeWindow: process.env.RATE_LIMIT_WINDOW ?? '1 minute',
+    max: Number(process.env.RATE_LIMIT_MAX) || DEFAULT_RATE_LIMIT_MAX,
+    timeWindow: process.env.RATE_LIMIT_WINDOW ?? DEFAULT_RATE_LIMIT_WINDOW,
   })
 
   const databaseUrl = process.env.DATABASE_URL
   if (databaseUrl) {
     initPool(databaseUrl)
     await runMigrations(app.log)
-    void seedDefaultTenants(app).catch((e) => app.log.warn({ err: e }, 'Seed failed (scope may be empty)'))
+    // Fire-and-forget: server is ready immediately; first requests may see empty scope until seed completes.
+    // If the process exits before seed finishes (e.g. short-lived deploy), scope stays empty until next start.
+    void seedDefaultTenants(app)
+      .then(() => setSeedCompleted())
+      .catch((e) => {
+        app.log.warn({ err: e }, 'Seed failed (scope may be empty)')
+        setSeedCompleted()
+      })
   }
 
   app.get('/', async (_req, reply) => {
@@ -171,23 +173,35 @@ async function main() {
     const tenantConfigPath = getTenantConfigDir()
     const slugs = await listTenantSlugs()
     const tenantConfigOk = Boolean(tenantConfigPath && slugs.length > 0)
-    return { status: 'ok', tenantConfigPath: tenantConfigPath ?? null, tenantConfigOk }
+    return {
+      status: 'ok',
+      tenantConfigPath: tenantConfigPath ?? null,
+      tenantConfigOk,
+      seedPending: databaseUrl ? isSeedPending() : undefined,
+    }
   })
   app.get('/api/v1/debug/tenant-config', async (request, reply) => {
     if (process.env.NODE_ENV === 'production') {
-      return reply.code(404).send({ error: 'Not found' })
+      return reply.code(404).send(apiError('Not found', ErrorCode.NOT_FOUND))
     }
     const slugParam = new URL(request.url, 'http://localhost').searchParams.get('slug')?.trim()
     const slugs = await listTenantSlugs()
-    const slug = slugParam || (slugs[0] ?? null)
+    const slug = slugParam
+      ? normalizeTenantSlug(slugParam)
+      : (slugs[0] ?? null)
     if (!slug) {
-      return reply.code(400).send({ error: 'No tenant configs found; use ?slug=<slug> when configs exist' })
+      return reply.code(400).send(
+        apiError(
+          slugParam ? 'Invalid tenant slug' : 'No tenant configs found; use ?slug=<slug> when configs exist',
+          ErrorCode.BAD_REQUEST
+        )
+      )
     }
     return reply.send(await loadTenantBySlugDiagnostic(slug))
   })
   app.post('/api/v1/debug/seed-metadata', async (request, reply) => {
     if (process.env.NODE_ENV === 'production') {
-      return reply.code(404).send({ error: 'Not found' })
+      return reply.code(404).send(apiError('Not found', ErrorCode.NOT_FOUND))
     }
     const slugs = await listMarketplaceSlugs()
     let seeded = 0
@@ -217,19 +231,10 @@ async function main() {
   await registerDiscordRulesRoutes(app)
   await registerDiscordSyncRoutes(app)
 
-  const port = Number(process.env.PORT) || 3001
+  const port = Number(process.env.PORT) || DEFAULT_PORT
   await app.listen({ port, host: '0.0.0.0' })
   app.log.info({ port, tenantConfigPath: process.env.TENANT_CONFIG_PATH ?? null }, 'API ready')
-
-  const syncIntervalMinutes = Number(process.env.DISCORD_SYNC_INTERVAL_MINUTES ?? 0)
-  if (syncIntervalMinutes > 0 && getPool()) {
-    const runSync = () => {
-      syncAllLinkedGuilds(app.log).catch((err) => app.log.error({ err }, 'Scheduled Discord holder sync failed'))
-    }
-    runSync()
-    setInterval(runSync, syncIntervalMinutes * 60 * 1000)
-    app.log.info({ intervalMinutes: syncIntervalMinutes }, 'Discord holder sync scheduled (on boot and every N min)')
-  }
+  // Scheduled jobs (Discord holder sync, module lifecycle) run in a separate worker process; see src/worker.ts.
 }
 
 main().catch((err) => {

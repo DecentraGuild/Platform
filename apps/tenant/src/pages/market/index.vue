@@ -5,6 +5,9 @@
         <p>Marketplace is not enabled for this dGuild.</p>
       </div>
       <div v-else class="market-shell" :class="{ 'market-shell--no-tree': activeTab === 'open-trades' }">
+        <div v-if="marketplaceDeactivating" class="market-shell__banner">
+          Marketplace is winding down. You can cancel your trades or claim goods; no new trades can be created or filled.
+        </div>
         <aside v-if="activeTab !== 'open-trades'" class="market-shell__tree">
           <MarketTree
             :tree="tree"
@@ -22,12 +25,15 @@
               :selected-detail-mint="selectedDetailMint"
               :breadcrumb-path="selectedNode?.path ?? []"
               :select-node="selectNode"
+              :select-node-by-breadcrumb-index="selectNodeByBreadcrumbIndex"
               :set-selected-detail-mint="setSelectedDetailMint"
+              :create-disabled="createDisabled"
               @open-create-trade="openCreateTradeModal"
             />
             <MarketOpenTradesView
               v-show="activeTab === 'open-trades'"
               :tab-active="activeTab === 'open-trades'"
+              :create-disabled="createDisabled"
               @open-create-trade="openCreateTradeModalFromMyTrades"
             />
           </div>
@@ -36,6 +42,7 @@
       <EscrowDetailModal
         :model-value="escrowModalOpen"
         :escrow-id="escrowId"
+        :fill-disabled="marketplaceDeactivating"
         @update:model-value="onEscrowModalClose"
       />
       <Teleport to="body">
@@ -85,6 +92,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { getModuleState, isModuleVisibleToMembers } from '@decentraguild/core'
 import { PageSection } from '@decentraguild/ui/components'
 import { useTenantStore } from '~/stores/tenant'
 import { useMarketplaceScope } from '~/composables/useMarketplaceScope'
@@ -105,7 +113,12 @@ const tenantStore = useTenantStore()
 const { slug, marketplaceSettings } = storeToRefs(tenantStore)
 
 const tenant = computed(() => tenantStore.tenant)
-const marketplaceActive = computed(() => tenant.value?.modules?.marketplace?.active ?? false)
+const marketplaceState = computed(() => getModuleState(tenant.value?.modules?.marketplace))
+const marketplaceActive = computed(() => isModuleVisibleToMembers(marketplaceState.value))
+const marketplaceDeactivating = computed(() => marketplaceState.value === 'deactivating')
+/** Disable create-trade UI for now; button is shown greyed out. Set to false to re-enable. */
+const createTradeDisabled = true
+const createDisabled = computed(() => createTradeDisabled || marketplaceDeactivating.value)
 const activeTab = computed(() => (route.query.tab === 'open-trades' ? 'open-trades' : 'browse'))
 
 const { entries } = useMarketplaceScope(slug)
@@ -117,6 +130,7 @@ const {
   descendantAssetNodes,
   selectedDetailMint,
   selectNode,
+  selectNodeByBreadcrumbIndex,
   setSelectedDetailMint,
 } = useMarketplaceTree(entries, marketplaceSettings)
 
@@ -148,6 +162,7 @@ const selectedAssetType = computed(() => {
 })
 
 function openCreateTradeModal(skipOfferRequestChoice = false) {
+  if (createDisabled.value) return
   if (!skipOfferRequestChoice && selectedDetailMint.value) {
     offerRequestChoiceOpen.value = true
   } else {
@@ -199,6 +214,14 @@ function onEscrowModalClose() {
   color: var(--theme-text-muted);
 }
 
+.market-shell__banner {
+  grid-column: 1 / -1;
+  padding: var(--theme-space-md);
+  background: var(--theme-status-warning, #ecc94b);
+  color: var(--theme-text-primary);
+  font-size: var(--theme-font-sm);
+}
+
 .market-shell {
   display: grid;
   grid-template-columns: 15rem 1fr;
@@ -210,7 +233,7 @@ function onEscrowModalClose() {
   grid-template-columns: 1fr;
 }
 
-@media (max-width: 768px) {
+@media (max-width: var(--theme-breakpoint-md)) {
   .market-shell {
     grid-template-columns: 1fr;
   }
@@ -223,7 +246,7 @@ function onEscrowModalClose() {
   overflow: hidden;
 }
 
-@media (max-width: 768px) {
+@media (max-width: var(--theme-breakpoint-md)) {
   .market-shell__tree {
     border-right: none;
     border-bottom: var(--theme-border-thin) solid var(--theme-border);

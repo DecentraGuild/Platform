@@ -5,6 +5,7 @@ import { updateBotRolePosition } from '../db/discord-servers.js'
 import { computeEligiblePerRole } from '../discord/rule-engine.js'
 import { scheduleRemovalsBatch, getAndClaimDueRemovals } from '../db/discord-removal-queue.js'
 import { logDiscordAudit } from '../db/discord-audit.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 /**
  * Routes called by the Discord bot with server-to-server auth.
@@ -23,7 +24,14 @@ export async function registerDiscordBotRoutes(app: FastifyInstance) {
 
   app.post<{
     Body: {
-      roles?: Array<{ id: string; name: string; position?: number }>
+      roles?: Array<{
+        id: string
+        name?: string
+        position?: number
+        color?: number | null
+        icon?: string | null
+        unicode_emoji?: string | null
+      }>
       bot_role_position?: number
     }
   }>(
@@ -33,11 +41,18 @@ export async function registerDiscordBotRoutes(app: FastifyInstance) {
       const ctx = request.discordContext!
       const roles = request.body?.roles
       if (!Array.isArray(roles)) {
-        return reply.status(400).send({ error: 'roles array required' })
+        return reply.status(400).send(apiError('roles array required', ErrorCode.BAD_REQUEST))
       }
       const normalized = roles
         .filter((r) => r && typeof r.id === 'string')
-        .map((r) => ({ id: r.id, name: typeof r.name === 'string' ? r.name : r.id, position: typeof r.position === 'number' ? r.position : 0 }))
+        .map((r) => ({
+          id: r.id,
+          name: typeof r.name === 'string' ? r.name : r.id,
+          position: typeof r.position === 'number' ? r.position : 0,
+          color: typeof r.color === 'number' ? r.color : null,
+          icon: typeof r.icon === 'string' ? r.icon : null,
+          unicode_emoji: typeof r.unicode_emoji === 'string' ? r.unicode_emoji : null,
+        }))
       await upsertGuildRoles(ctx.discordGuildId, normalized)
       const botPosition = request.body?.bot_role_position
       if (typeof botPosition === 'number' && botPosition >= 0) {
@@ -89,7 +104,7 @@ export async function registerDiscordBotRoutes(app: FastifyInstance) {
       const ctx = request.discordContext!
       const removals = request.body?.removals
       if (!Array.isArray(removals)) {
-        return reply.status(400).send({ error: 'removals array required' })
+        return reply.status(400).send(apiError('removals array required', ErrorCode.BAD_REQUEST))
       }
       const normalized = removals
         .filter((r) => r && typeof r.discord_user_id === 'string' && typeof r.discord_role_id === 'string')

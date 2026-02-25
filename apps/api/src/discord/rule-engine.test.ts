@@ -10,7 +10,7 @@ const GUILD_ID = '123456789'
 
 vi.mock('../db/discord-rules.js', () => ({
   getRoleRulesByGuildId: vi.fn(),
-  getConditionsByRoleRuleId: vi.fn(),
+  getConditionsByGuildId: vi.fn(),
 }))
 
 vi.mock('../db/discord-holder-snapshots.js', async (importOriginal) => {
@@ -25,12 +25,12 @@ vi.mock('../db/wallet-discord-links.js', () => ({
   getAllWalletLinks: vi.fn(),
 }))
 
-const { getRoleRulesByGuildId, getConditionsByRoleRuleId } = await import('../db/discord-rules.js')
+const { getRoleRulesByGuildId, getConditionsByGuildId } = await import('../db/discord-rules.js')
 const { getHolderSnapshot } = await import('../db/discord-holder-snapshots.js')
 const { getAllWalletLinks } = await import('../db/wallet-discord-links.js')
 
 const mockGetRoleRulesByGuildId = vi.mocked(getRoleRulesByGuildId)
-const mockGetConditionsByRoleRuleId = vi.mocked(getConditionsByRoleRuleId)
+const mockGetConditionsByGuildId = vi.mocked(getConditionsByGuildId)
 const mockGetHolderSnapshot = vi.mocked(getHolderSnapshot)
 const mockGetAllWalletLinks = vi.mocked(getAllWalletLinks)
 
@@ -62,6 +62,11 @@ function condition(
   }
 }
 
+/** Build conditions Map for getConditionsByGuildId mock: ruleId -> conditions. */
+function conditionsMap(entries: Array<[number, DiscordRoleConditionRow[]]>): Map<number, DiscordRoleConditionRow[]> {
+  return new Map(entries)
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
 })
@@ -71,9 +76,9 @@ describe('rule-engine', () => {
     it('passes when user balance meets threshold', async () => {
       const mint = 'So11111111111111111111111111111111111111112'
       mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role1')])
-      mockGetConditionsByRoleRuleId.mockResolvedValue([
-        condition(1, 1, 'SPL', { mint, threshold_raw: 100 }, null),
-      ])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'SPL', { mint, threshold_raw: 100 }, null)]]])
+      )
       mockGetHolderSnapshot.mockResolvedValue([
         { wallet: 'walletA', amount: '150' },
         { wallet: 'walletB', amount: '50' },
@@ -92,9 +97,9 @@ describe('rule-engine', () => {
     it('fails when user balance below threshold', async () => {
       const mint = 'So11111111111111111111111111111111111111112'
       mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role1')])
-      mockGetConditionsByRoleRuleId.mockResolvedValue([
-        condition(1, 1, 'SPL', { mint, threshold_raw: 200 }, null),
-      ])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'SPL', { mint, threshold_raw: 200 }, null)]]])
+      )
       mockGetHolderSnapshot.mockResolvedValue([{ wallet: 'walletA', amount: '100' }])
       mockGetAllWalletLinks.mockResolvedValue([
         { wallet_address: 'walletA', discord_user_id: 'user1' },
@@ -107,11 +112,11 @@ describe('rule-engine', () => {
   })
 
   describe('DISCORD condition', () => {
-    it('passes when user has required role (OR)', async () => {
+    it('passes when user has required role', async () => {
       mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role1')])
-      mockGetConditionsByRoleRuleId.mockResolvedValue([
-        condition(1, 1, 'DISCORD', { required_role_ids: ['roleA', 'roleB'], role_logic: 'OR' }, null),
-      ])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'DISCORD', { required_role_id: 'roleB' }, null)]]])
+      )
       mockGetAllWalletLinks.mockResolvedValue([
         { wallet_address: 'w1', discord_user_id: 'user1' },
       ])
@@ -124,11 +129,11 @@ describe('rule-engine', () => {
       expect(result[0].eligible_discord_user_ids).toContain('user1')
     })
 
-    it('fails when user missing required role (AND)', async () => {
+    it('fails when user missing required role', async () => {
       mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role1')])
-      mockGetConditionsByRoleRuleId.mockResolvedValue([
-        condition(1, 1, 'DISCORD', { required_role_ids: ['roleA', 'roleB'], role_logic: 'AND' }, null),
-      ])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'DISCORD', { required_role_id: 'roleX' }, null)]]])
+      )
       mockGetAllWalletLinks.mockResolvedValue([
         { wallet_address: 'w1', discord_user_id: 'user1' },
       ])
@@ -146,10 +151,17 @@ describe('rule-engine', () => {
     it('passes when either condition is satisfied', async () => {
       const mint = 'So11111111111111111111111111111111111111112'
       mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role1')])
-      mockGetConditionsByRoleRuleId.mockResolvedValue([
-        condition(1, 1, 'SPL', { mint, threshold_raw: 1000 }, 'OR'),
-        condition(2, 1, 'DISCORD', { required_role_ids: ['vip'], role_logic: 'OR' }, null),
-      ])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([
+          [
+            1,
+            [
+              condition(1, 1, 'SPL', { mint, threshold_raw: 1000 }, 'OR'),
+              condition(2, 1, 'DISCORD', { required_role_id: 'vip' }, null),
+            ],
+          ],
+        ])
+      )
       mockGetHolderSnapshot.mockResolvedValue([])
       mockGetAllWalletLinks.mockResolvedValue([
         { wallet_address: 'w1', discord_user_id: 'user1' },
@@ -160,6 +172,79 @@ describe('rule-engine', () => {
 
       const result = await computeEligiblePerRole(GUILD_ID, { memberRolesByUserId: memberRoles })
 
+      expect(result[0].eligible_discord_user_ids).toContain('user1')
+    })
+  })
+
+  describe('NFT and TRAIT amount conditions', () => {
+    it('NFT passes when user holds enough NFTs', async () => {
+      const collection = 'COLLECTION1111111111111111111111111111111'
+      mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role-nft')])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'NFT', { collection_or_mint: collection, amount: 2 }, null)]]])
+      )
+      mockGetHolderSnapshot.mockResolvedValue([
+        { wallet: 'walletA', amount: '2' },
+        { wallet: 'walletB', amount: '1' },
+      ])
+      mockGetAllWalletLinks.mockResolvedValue([
+        { wallet_address: 'walletA', discord_user_id: 'user1' },
+      ])
+
+      const result = await computeEligiblePerRole(GUILD_ID)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].discord_role_id).toBe('role-nft')
+      expect(result[0].eligible_discord_user_ids).toContain('user1')
+    })
+
+    it('NFT fails when user holds too few NFTs', async () => {
+      const collection = 'COLLECTION1111111111111111111111111111111'
+      mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role-nft')])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'NFT', { collection_or_mint: collection, amount: 3 }, null)]]])
+      )
+      mockGetHolderSnapshot.mockResolvedValue([{ wallet: 'walletA', amount: '2' }])
+      mockGetAllWalletLinks.mockResolvedValue([
+        { wallet_address: 'walletA', discord_user_id: 'user1' },
+      ])
+
+      const result = await computeEligiblePerRole(GUILD_ID)
+
+      expect(result[0].eligible_discord_user_ids).not.toContain('user1')
+    })
+
+    it('TRAIT uses amount with holder snapshots', async () => {
+      const collection = 'COLLECTION1111111111111111111111111111111'
+      mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role-trait')])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([
+          [
+            1,
+            [
+              condition(
+                1,
+                1,
+                'TRAIT',
+                { collection_or_mint: collection, trait_key: 'background', trait_value: 'blue', amount: 2 },
+                null
+              ),
+            ],
+          ],
+        ])
+      )
+      mockGetHolderSnapshot.mockResolvedValue([
+        { wallet: 'walletA', amount: '2' },
+        { wallet: 'walletB', amount: '1' },
+      ])
+      mockGetAllWalletLinks.mockResolvedValue([
+        { wallet_address: 'walletA', discord_user_id: 'user1' },
+      ])
+
+      const result = await computeEligiblePerRole(GUILD_ID)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].discord_role_id).toBe('role-trait')
       expect(result[0].eligible_discord_user_ids).toContain('user1')
     })
   })

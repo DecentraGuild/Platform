@@ -10,6 +10,11 @@ export default defineNuxtConfig({
   srcDir: 'src',
   compatibilityDate: '2025-02-10',
   experimental: { clientNodeCompat: true },
+  app: {
+    head: {
+      viewport: 'width=device-width, initial-scale=1',
+    },
+  },
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt'],
   css: [uiVarsCss, '~/assets/global.css'],
   plugins: ['~/plugins/buffer.server', '~/plugins/tenant.server', '~/plugins/buffer.client', '~/plugins/tenant.client', '@decentraguild/auth/plugin.client'],
@@ -53,6 +58,14 @@ export default defineNuxtConfig({
       heliusRpc: process.env.NUXT_PUBLIC_HELIUS_RPC ?? '',
       // Default tenant slug when running on localhost without subdomain. Override via NUXT_PUBLIC_DEV_TENANT.
       devTenantSlug: process.env.NUXT_PUBLIC_DEV_TENANT ?? 'skull',
+      // When true, Deploy sets deactivatedate to now+2m so cron moves active->deactivating after 2 mins (testing).
+      moduleLifecycleTestTiming: process.env.NUXT_PUBLIC_MODULE_LIFECYCLE_TEST_TIMING === 'true',
+      // Poll tenant context every N seconds when on a module page and tab visible (0 = disable). Default 60.
+      tenantContextPollSeconds: Number(process.env.NUXT_PUBLIC_TENANT_CONTEXT_POLL_SECONDS ?? 60),
+      // Explorer base URLs for tx, account, token links (default: Solscan). No trailing slash.
+      explorerTxUrl: process.env.NUXT_PUBLIC_EXPLORER_TX_URL ?? 'https://solscan.io/tx',
+      explorerAccountUrl: process.env.NUXT_PUBLIC_EXPLORER_ACCOUNT_URL ?? 'https://solscan.io/account',
+      explorerTokenUrl: process.env.NUXT_PUBLIC_EXPLORER_TOKEN_URL ?? 'https://solscan.io/token',
     },
   },
 })

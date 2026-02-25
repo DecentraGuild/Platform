@@ -54,6 +54,7 @@ import {
   subscribeToConnectorState,
 } from '@decentraguild/web3/wallet'
 import type { WalletConnectorId } from '@solana/connector/headless'
+import { API_V1 } from '~/utils/apiBase'
 import { useApiBase } from '~/composables/useApiBase'
 
 const route = useRoute()
@@ -87,7 +88,7 @@ async function checkSession() {
   if (!token.value) return
   try {
     const res = await fetch(
-      `${apiBase.value}/api/v1/discord/verify/session?token=${encodeURIComponent(token.value)}`,
+      `${apiBase.value}${API_V1}/discord/verify/session?token=${encodeURIComponent(token.value)}`,
       { credentials: 'include' }
     )
     if (!res.ok) {
@@ -110,7 +111,7 @@ async function doLink(wallet: string) {
   try {
     const base = apiBase.value.replace(/\/$/, '')
 
-    const nonceRes = await fetch(`${base}/api/v1/auth/nonce`, {
+    const nonceRes = await fetch(`${base}${API_V1}/auth/nonce`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wallet }),
@@ -125,7 +126,7 @@ async function doLink(wallet: string) {
 
     const { signature, message } = await signMessageForAuth(nonce)
 
-    const linkRes = await fetch(`${base}/api/v1/discord/verify/link`, {
+    const linkRes = await fetch(`${base}${API_V1}/discord/verify/link`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

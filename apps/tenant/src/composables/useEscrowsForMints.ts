@@ -4,6 +4,7 @@
  * Only includes escrows where BOTH sides are in scope and have meaningful remaining (not completed).
  */
 import { Connection, PublicKey } from '@solana/web3.js'
+import { API_V1 } from '~/utils/apiBase'
 import BN from 'bn.js'
 import { escrowPriceToHuman } from '@decentraguild/display'
 import { fetchAllEscrows } from '@decentraguild/web3'
@@ -116,7 +117,7 @@ export function useEscrowsForMints(
       loading.value = true
       error.value = null
       try {
-        const res = await fetch(`${apiBase}/api/v1/tenant/${encodeURIComponent(slug)}/marketplace/escrows`)
+        const res = await fetch(`${apiBase}${API_V1}/tenant/${encodeURIComponent(slug)}/marketplace/escrows`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = (await res.json()) as { escrows?: EscrowApiShape[] }
         const raw = Array.isArray(data.escrows) ? data.escrows : []

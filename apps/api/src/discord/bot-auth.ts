@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { getTenantSlugByGuildId } from '../db/discord-servers.js'
 import { secureCompare } from '../secure-compare.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 export interface DiscordBotContext {
   tenantSlug: string
@@ -44,22 +45,22 @@ export async function requireDiscordBotAuth(
   const secret = process.env.DISCORD_BOT_API_SECRET
   if (!secret) {
     request.log.warn('DISCORD_BOT_API_SECRET not set')
-    await reply.status(503).send({ error: 'Bot auth not configured' })
+    await reply.status(503).send(apiError('Bot auth not configured', ErrorCode.CONFIG_REQUIRED))
     return
   }
   const provided = getBotSecret(request)
   if (!provided || !secureCompare(provided, secret)) {
-    await reply.status(401).send({ error: 'Invalid bot secret' })
+    await reply.status(401).send(apiError('Invalid bot secret', ErrorCode.UNAUTHORIZED))
     return
   }
   const discordGuildId = getGuildId(request)
   if (!discordGuildId) {
-    await reply.status(400).send({ error: 'discord_guild_id required (header x-discord-guild-id or body)' })
+    await reply.status(400).send(apiError('discord_guild_id required (header x-discord-guild-id or body)', ErrorCode.BAD_REQUEST))
     return
   }
   const tenantSlug = await getTenantSlugByGuildId(discordGuildId)
   if (!tenantSlug) {
-    await reply.status(404).send({ error: 'Guild not linked to a tenant' })
+    await reply.status(404).send(apiError('Guild not linked to a tenant', ErrorCode.GUILD_NOT_LINKED))
     return
   }
   request.discordContext = { tenantSlug, discordGuildId }

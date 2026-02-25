@@ -6,5 +6,7 @@ export type {
   TenantBranding,
   TenantModuleEntry,
   TenantModulesMap,
+  ModuleState,
 } from './types.js'
+export { isModuleVisibleToMembers, isModuleVisibleInAdmin, getModuleState } from './types.js'
 export { getTenantSlugFromHost } from './resolver.js'

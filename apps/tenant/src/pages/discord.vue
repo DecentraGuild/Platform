@@ -1,85 +1,99 @@
 <template>
   <PageSection title="Discord">
-    <Card class="discord-page__card">
-      <p class="discord-page__intro">
-        Your Discord link and linked wallets are shared across all communities. Role eligibility is based on the combined holdings of all linked wallets.
-      </p>
-
-      <template v-if="loadingMe">
-        <p class="discord-page__loading">
-          <Icon icon="mdi:loading" class="discord-page__spinner" />
-          Loading…
+    <div class="discord-page__layout">
+      <div v-if="!discordVisible" class="discord-page__inactive">
+        <p>Discord is not enabled for this dGuild.</p>
+      </div>
+      <Card v-else class="discord-page__card">
+        <p v-if="discordDeactivating" class="discord-page__banner">
+          Discord module is winding down. You can unlink wallets only.
         </p>
-      </template>
-
-      <template v-else-if="!signedIn">
-        <p class="discord-page__hint">Sign in with your wallet to see your linked Discord and wallets.</p>
-      </template>
-
-      <template v-else-if="!me?.discord_user_id">
-        <p class="discord-page__hint">
-          You have not linked a wallet to Discord yet. Use <strong>/verify</strong> in your community's Discord server to get a link, then complete the flow to link this (or another) wallet.
+        <p class="discord-page__intro">
+          Your Discord link and linked wallets are shared across all communities. Role eligibility is based on the combined holdings of all linked wallets.
         </p>
-      </template>
 
-      <template v-else>
-        <div class="discord-page__section">
-          <h3 class="discord-page__heading">Linked to Discord</h3>
-          <p class="discord-page__id">Account ID: <code>{{ me.discord_user_id }}</code></p>
-        </div>
+        <template v-if="loadingMe">
+          <p class="discord-page__loading">
+            <Icon icon="mdi:loading" class="discord-page__spinner" />
+            Loading…
+          </p>
+        </template>
 
-        <div class="discord-page__section">
-          <h3 class="discord-page__heading">Linked wallets ({{ me.linked_wallets?.length ?? 0 }})</h3>
-          <p class="discord-page__hint-small">Holdings from these wallets are combined for role rules.</p>
-          <ul v-if="me.linked_wallets?.length" class="discord-page__wallets">
-            <li
-              v-for="addr in me.linked_wallets"
-              :key="addr"
-              class="discord-page__wallet-row"
-            >
-              <code class="discord-page__address">{{ truncate(addr) }}</code>
-              <span v-if="addr === me.session_wallet" class="discord-page__badge">Current</span>
-              <Button
-                variant="ghost"
-                size="small"
-                :disabled="revoking === addr"
-                @click="revokeWallet(addr)"
+        <template v-else-if="!signedIn">
+          <p class="discord-page__hint">Sign in with your wallet to see your linked Discord and wallets.</p>
+        </template>
+
+        <template v-else-if="!me?.discord_user_id">
+          <p class="discord-page__hint">
+            You have not linked a wallet to Discord yet. Use <strong>/verify</strong> in your community's Discord server to get a link, then complete the flow to link this (or another) wallet.
+          </p>
+        </template>
+
+        <template v-else>
+          <div class="discord-page__section">
+            <h3 class="discord-page__heading">Linked to Discord</h3>
+            <p class="discord-page__id">Account ID: <code>{{ me.discord_user_id }}</code></p>
+          </div>
+
+          <div class="discord-page__section">
+            <h3 class="discord-page__heading">Linked wallets ({{ me.linked_wallets?.length ?? 0 }})</h3>
+            <p class="discord-page__hint-small">Holdings from these wallets are combined for role rules.</p>
+            <ul v-if="me.linked_wallets?.length" class="discord-page__wallets">
+              <li
+                v-for="addr in me.linked_wallets"
+                :key="addr"
+                class="discord-page__wallet-row"
               >
-                Unlink
-              </Button>
-            </li>
-          </ul>
-          <p v-else class="discord-page__hint-small">No wallets linked.</p>
+                <code class="discord-page__address">{{ truncate(addr) }}</code>
+                <span v-if="addr === me.session_wallet" class="discord-page__badge">Current</span>
+                <Button
+                  variant="ghost"
+                  size="small"
+                  :disabled="revoking === addr"
+                  @click="revokeWallet(addr)"
+                >
+                  Unlink
+                </Button>
+              </li>
+            </ul>
+            <p v-else class="discord-page__hint-small">No wallets linked.</p>
 
-          <Button
-            variant="secondary"
-            size="small"
-            :disabled="addingWallet"
-            class="discord-page__add"
-            @click="showConnectModal = true"
-          >
-            <Icon v-if="addingWallet" icon="mdi:loading" class="discord-page__spinner" />
-            Link another wallet
-          </Button>
-          <p v-if="addError" class="discord-page__error">{{ addError }}</p>
-        </div>
+            <Button
+              v-if="!discordDeactivating"
+              variant="secondary"
+              size="small"
+              :disabled="addingWallet"
+              class="discord-page__add"
+              @click="showConnectModal = true"
+            >
+              <Icon v-if="addingWallet" icon="mdi:loading" class="discord-page__spinner" />
+              Link another wallet
+            </Button>
+            <p v-if="addError" class="discord-page__error">{{ addError }}</p>
+          </div>
 
-        <ConnectWalletModal
-          :open="showConnectModal"
-          title="Link another wallet"
-          description="Connect a wallet to add it to your Discord account. Its holdings will be combined with your other linked wallets for roles."
-          :connectors="connectorState.connectors"
-          :loading="addingWallet"
-          :error="addError"
-          @close="showConnectModal = false; addError = null"
-          @select="handleAddWallet"
-        />
-      </template>
-    </Card>
+          <ConnectWalletModal
+            :open="showConnectModal"
+            title="Link another wallet"
+            description="Connect a wallet to add it to your Discord account. Its holdings will be combined with your other linked wallets for roles."
+            :connectors="connectorState.connectors"
+            :loading="addingWallet"
+            :error="addError"
+            @close="showConnectModal = false; addError = null"
+            @select="handleAddWallet"
+          />
+        </template>
+      </Card>
+
+      <aside v-if="discordVisible && roleCards.length > 0" class="discord-page__carousel">
+        <DiscordRoleCardsCarousel :role-cards="roleCards" />
+      </aside>
+    </div>
   </PageSection>
 </template>
 
 <script setup lang="ts">
+import { getModuleState, isModuleVisibleToMembers } from '@decentraguild/core'
 import { PageSection, Card, Button, ConnectWalletModal } from '@decentraguild/ui/components'
 import { Icon } from '@iconify/vue'
 import {
@@ -89,9 +103,18 @@ import {
   subscribeToConnectorState,
 } from '@decentraguild/web3/wallet'
 import type { WalletConnectorId } from '@solana/connector/headless'
+import { API_V1 } from '~/utils/apiBase'
 import { useApiBase } from '~/composables/useApiBase'
+import DiscordRoleCardsCarousel from '~/components/DiscordRoleCardsCarousel.vue'
+import type { RoleCard } from '~/components/DiscordRoleCardsCarousel.vue'
+import { useTenantStore } from '~/stores/tenant'
 
 const apiBase = useApiBase()
+const tenantStore = useTenantStore()
+const tenant = computed(() => tenantStore.tenant)
+const discordState = computed(() => getModuleState(tenant.value?.modules?.discord))
+const discordVisible = computed(() => isModuleVisibleToMembers(discordState.value))
+const discordDeactivating = computed(() => discordState.value === 'deactivating')
 
 interface DiscordMe {
   discord_user_id: string | null
@@ -106,6 +129,7 @@ const showConnectModal = ref(false)
 const addingWallet = ref(false)
 const addError = ref<string | null>(null)
 const revoking = ref<string | null>(null)
+const roleCards = ref<RoleCard[]>([])
 
 const connectorState = ref(getConnectorState())
 
@@ -117,7 +141,7 @@ function truncate(addr: string): string {
 async function fetchMe() {
   loadingMe.value = true
   try {
-    const res = await fetch(`${apiBase.value}/api/v1/discord/me`, { credentials: 'include' })
+    const res = await fetch(`${apiBase.value}${API_V1}/discord/me`, { credentials: 'include' })
     if (res.status === 401) {
       signedIn.value = false
       me.value = null
@@ -133,9 +157,22 @@ async function fetchMe() {
   }
 }
 
+async function fetchRoleCards() {
+  const slug = tenantStore.slug
+  if (!slug) return
+  try {
+    const res = await fetch(`${apiBase.value}${API_V1}/tenant/${encodeURIComponent(slug)}/discord/role-cards`)
+    if (!res.ok) return
+    const data = (await res.json()) as { role_cards: RoleCard[] }
+    roleCards.value = data.role_cards ?? []
+  } catch {
+    roleCards.value = []
+  }
+}
+
 async function doLinkAdditionalWallet(wallet: string) {
   const base = apiBase.value.replace(/\/$/, '')
-  const nonceRes = await fetch(`${base}/api/v1/auth/nonce`, {
+  const nonceRes = await fetch(`${base}${API_V1}/auth/nonce`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ wallet }),
@@ -147,10 +184,11 @@ async function doLinkAdditionalWallet(wallet: string) {
   }
   const { nonce } = (await nonceRes.json()) as { nonce: string }
   const { signature, message } = await signMessageForAuth(nonce)
-  const linkRes = await fetch(`${base}/api/v1/discord/link-additional-wallet`, {
+  const slug = tenantStore.slug ?? undefined
+  const linkRes = await fetch(`${base}${API_V1}/discord/link-additional-wallet`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ wallet, message, signature }),
+    body: JSON.stringify({ wallet, message, signature, tenant_slug: slug }),
     credentials: 'include',
   })
   if (!linkRes.ok) {
@@ -182,7 +220,7 @@ async function handleAddWallet(connectorId: WalletConnectorId) {
 async function revokeWallet(addr: string) {
   revoking.value = addr
   try {
-    const res = await fetch(`${apiBase.value}/api/v1/discord/verify/revoke`, {
+    const res = await fetch(`${apiBase.value}${API_V1}/discord/verify/revoke`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wallet: addr }),
@@ -200,6 +238,7 @@ onMounted(() => {
     connectorState.value = getConnectorState()
   })
   fetchMe()
+  fetchRoleCards()
 })
 onUnmounted(() => {
   unsubscribe?.()
@@ -207,8 +246,40 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.discord-page__inactive {
+  padding: var(--theme-space-lg);
+  color: var(--theme-text-muted);
+}
+
+.discord-page__banner {
+  padding: var(--theme-space-md);
+  margin-bottom: var(--theme-space-md);
+  background: var(--theme-status-warning, #ecc94b);
+  color: var(--theme-text-primary);
+  font-size: var(--theme-font-sm);
+}
+
+.discord-page__layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-space-xl);
+}
+
+@media (min-width: var(--theme-breakpoint-md)) {
+  .discord-page__layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
 .discord-page__card {
   max-width: 36rem;
+  flex-shrink: 0;
+}
+
+.discord-page__carousel {
+  flex: 1;
+  min-width: 0;
 }
 
 .discord-page__intro {

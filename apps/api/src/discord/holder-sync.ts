@@ -4,14 +4,13 @@
 
 import { Connection, PublicKey } from '@solana/web3.js'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
-import { getDasRpcUrl } from '@decentraguild/web3'
-import { fetchAssetsByGroup } from '@decentraguild/web3'
+import { fetchAssetsByGroup, fetchMintMetadataFromChain } from '@decentraguild/web3'
+import { getSolanaConnection } from '../solana-connection.js'
 import { getPool } from '../db/client.js'
 import { getDiscordServerByGuildId, getAllLinkedGuildIds } from '../db/discord-servers.js'
 import { getConfiguredAssetsByGuildId } from '../db/discord-rules.js'
 import { upsertHolderSnapshot } from '../db/discord-holder-snapshots.js'
 import { upsertMintMetadata } from '../db/marketplace-metadata.js'
-import { fetchMintMetadataFromChain } from '@decentraguild/web3'
 
 const SPL_TOKEN_ACCOUNT_DATA_SIZE = 165
 const MINT_OFFSET = 0
@@ -57,8 +56,10 @@ interface DasAssetWithOwner {
   ownership?: { owner?: string }
 }
 
-export async function fetchNftCollectionHolders(collectionMint: string): Promise<string[]> {
-  const holders: string[] = []
+export async function fetchNftCollectionHolders(
+  collectionMint: string
+): Promise<Array<{ wallet: string; amount: string }>> {
+  const countByWallet = new Map<string, number>()
   let page = 1
   const limit = 1000
   let hasMore = true
@@ -67,12 +68,17 @@ export async function fetchNftCollectionHolders(collectionMint: string): Promise
     const items = (result?.items ?? []) as DasAssetWithOwner[]
     for (const item of items) {
       const owner = item.ownership?.owner
-      if (owner) holders.push(owner)
+      if (owner) {
+        countByWallet.set(owner, (countByWallet.get(owner) ?? 0) + 1)
+      }
     }
     hasMore = items.length === limit
     page++
   }
-  return [...new Set(holders)]
+  return [...countByWallet.entries()].map(([wallet, amount]) => ({
+    wallet,
+    amount: String(amount),
+  }))
 }
 
 export async function syncHoldersForAsset(
@@ -98,7 +104,7 @@ export async function syncHoldersForGuild(
   if (!server) return []
   const assets = await getConfiguredAssetsByGuildId(discordGuildId)
   if (assets.length === 0) return []
-  const connection = new Connection(getDasRpcUrl())
+  const connection = getSolanaConnection()
   const results: { assetId: string; holderCount: number }[] = []
   for (const { asset_id, type } of assets) {
     try {

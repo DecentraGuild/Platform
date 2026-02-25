@@ -2,7 +2,7 @@
   <Card class="discord-rules-card">
     <h3>Role rules</h3>
     <p class="discord-rules-card__hint">
-      Assign a Discord role when members meet conditions (SPL balance, NFT collection, trait, or Discord role). For SPL mints, click Load to fetch metadata first; the threshold is in token units. For NFT or Trait conditions, click Load to fetch and index all NFTs in the collection (required for Year 3 and other collections); trait options then appear as dropdowns. After each condition choose AND or OR before the next. Max 5 conditions per rule.
+      Assign a Discord role when members meet conditions (SPL balance, NFT collection, trait, or Discord role). Choose mints from the catalog above; for Trait conditions, select a collection and trait key/value dropdowns will load. After each condition choose AND or OR before the next. Max 5 conditions per rule.
     </p>
     <p v-if="configuredMintCount !== null" class="discord-rules-card__mint-count">
       Mints used: {{ configuredMintCount }}{{ mintCap != null ? ` / ${mintCap}` : '' }}
@@ -79,93 +79,119 @@
                 class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed"
                 @change="onConditionTypeChange(cond)"
               >
+                <option value="">Type</option>
                 <option v-for="t in conditionTypes" :key="t.id" :value="t.id">{{ t.label }}</option>
               </select>
               <template v-if="typeNeedsMint(cond.type)">
-                <TextInput
-                  v-model="cond.mint_or_group"
-                  placeholder="Mint or collection address"
-                  class="discord-rules-card__mint-input"
-                />
-                <Button
-                  variant="secondary"
-                  size="small"
-                  :disabled="!cond.mint_or_group.trim() || cond.mint_or_group.trim().length < 32 || mintLoadPending[idx]"
-                  :aria-label="'Load metadata for condition ' + (idx + 1)"
-                  @click="loadMintPreview(idx)"
-                >
-                  <Icon v-if="mintLoadPending[idx]" icon="mdi:loading" class="discord-rules-card__btn-spin" />
-                  {{ mintLoadPending[idx] ? 'Loading…' : 'Load' }}
-                </Button>
-                <TextInput
-                  v-if="cond.type === 'SPL'"
-                  v-model="cond.threshold"
-                  type="number"
-                  placeholder="Min amount"
-                  class="discord-rules-card__threshold-input"
-                />
-                <template v-if="cond.type === 'TRAIT'">
-                  <template v-if="traitOptionsByCondition[idx]?.trait_keys?.length">
-                    <select
-                      v-model="cond.trait_key"
-                      class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed"
-                      aria-label="Trait key"
-                      @change="cond.trait_value = ''"
+                <template v-if="cond.type === 'SPL'">
+                  <select
+                    v-model="cond.mint_or_group"
+                    class="discord-rules-card__select discord-rules-card__select--themed discord-rules-card__select--mint"
+                  >
+                    <option value="">Mint / collection</option>
+                    <option
+                      v-for="mint in splMints"
+                      :key="mint.asset_id"
+                      :value="mint.asset_id"
                     >
-                      <option value="">Select trait</option>
-                      <option
-                        v-for="key in traitOptionsByCondition[idx]?.trait_keys ?? []"
-                        :key="key"
-                        :value="key"
-                      >
-                        {{ key }}
-                      </option>
-                    </select>
-                    <select
-                      v-model="cond.trait_value"
-                      class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed"
-                      aria-label="Trait value"
+                      {{ mint.label }}{{ mint.symbol ? ` (${mint.symbol})` : '' }}
+                    </option>
+                  </select>
+                  <TextInput
+                    v-model="cond.threshold"
+                    type="number"
+                    placeholder="Amount"
+                    class="discord-rules-card__amount-input"
+                  />
+                </template>
+                <template v-else>
+                  <select
+                    v-model="cond.mint_or_group"
+                    class="discord-rules-card__select discord-rules-card__select--themed discord-rules-card__select--mint"
+                    @change="clearTraitWhenCollectionChanges(cond)"
+                  >
+                    <option value="">Mint / collection</option>
+                    <option
+                      v-for="mint in nftMints"
+                      :key="mint.asset_id"
+                      :value="mint.asset_id"
                     >
-                      <option value="">Select value</option>
-                      <option
-                        v-for="val in traitValueOptions(idx)"
-                        :key="val"
-                        :value="val"
+                      {{ mint.label }}{{ mint.symbol ? ` (${mint.symbol})` : '' }}
+                    </option>
+                  </select>
+                  <TextInput
+                    v-model="cond.amount"
+                    type="number"
+                    placeholder="Amount"
+                    class="discord-rules-card__amount-input"
+                  />
+                  <template v-if="cond.type === 'TRAIT'">
+                    <template v-if="traitOptionsForCondition(idx).trait_keys.length">
+                      <select
+                        v-model="cond.trait_key"
+                        class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed"
+                        aria-label="Trait key"
+                        @change="cond.trait_value = ''"
                       >
-                        {{ val }}
-                      </option>
-                    </select>
-                  </template>
-                  <template v-else>
-                    <TextInput v-model="cond.trait_key" placeholder="Trait key (load collection first)" class="discord-rules-card__trait-input" />
-                    <TextInput v-model="cond.trait_value" placeholder="Trait value" class="discord-rules-card__trait-input" />
-                    <span class="discord-rules-card__trait-hint">Click Load to fetch and index all NFTs in the collection; trait options will appear as dropdowns.</span>
+                        <option value="">Trait key</option>
+                        <option
+                          v-for="key in traitOptionsForCondition(idx).trait_keys"
+                          :key="key"
+                          :value="key"
+                        >
+                          {{ key }}
+                        </option>
+                      </select>
+                      <select
+                        v-model="cond.trait_value"
+                        class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed"
+                        aria-label="Trait value"
+                      >
+                        <option value="">Trait value</option>
+                        <option
+                          v-for="val in traitValueOptionsForCondition(idx)"
+                          :key="val"
+                          :value="val"
+                        >
+                          {{ val }}
+                        </option>
+                      </select>
+                    </template>
+                    <template v-else>
+                      <TextInput
+                        v-model="cond.trait_key"
+                        placeholder="Trait key"
+                        class="discord-rules-card__trait-input"
+                      />
+                      <TextInput
+                        v-model="cond.trait_value"
+                        placeholder="Trait value"
+                        class="discord-rules-card__trait-input"
+                      />
+                      <span class="discord-rules-card__trait-hint">
+                        {{ cond.mint_or_group ? 'Traits are stored when the collection is added to the mint catalog. Re-add the collection to refresh trait options.' : 'Select an NFT collection from the catalog above.' }}
+                      </span>
+                    </template>
                   </template>
                 </template>
               </template>
               <template v-else-if="cond.type === 'DISCORD'">
-                <div class="discord-rules-card__discord-roles">
-                  <select
-                    v-model="cond.required_role_ids"
-                    multiple
-                    class="discord-rules-card__select discord-rules-card__select--multi discord-rules-card__select--themed"
-                    aria-label="Required Discord roles"
-                  >
-                    <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
-                  </select>
-                  <span class="discord-rules-card__role-logic-label">Member must have:</span>
-                  <select v-model="cond.role_logic" class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed">
-                    <option value="AND">All of the selected roles</option>
-                    <option value="OR">Any of the selected roles</option>
-                  </select>
-                </div>
+                <select
+                  v-model="cond.required_role_id"
+                  class="discord-rules-card__select discord-rules-card__select--themed"
+                  aria-label="Required Discord role"
+                >
+                  <option value="">Discord role</option>
+                  <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
+                </select>
               </template>
               <select
-                v-if="idx < form.conditions.length - 1"
                 v-model="cond.logic_to_next"
                 class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed"
                 aria-label="Logic to next condition"
+                @change="onLogicChange(idx)"
               >
+                <option v-if="idx === form.conditions.length - 1" value=""></option>
                 <option value="AND">AND</option>
                 <option value="OR">OR</option>
               </select>
@@ -173,23 +199,7 @@
                 <Icon icon="mdi:close" />
               </Button>
             </div>
-            <div v-if="mintPreviews[idx]" class="discord-rules-card__mint-preview">
-              <template v-if="mintPreviews[idx]?.name || mintPreviews[idx]?.symbol">
-                <span class="discord-rules-card__mint-preview-name">{{ mintPreviews[idx]?.name ?? mintPreviews[idx]?.mint?.slice(0, 8) + '…' }}</span>
-                <span v-if="mintPreviews[idx]?.symbol" class="discord-rules-card__mint-preview-symbol">{{ mintPreviews[idx]?.symbol }}</span>
-              </template>
-              <span v-if="mintPreviews[idx]?.decimals != null" class="discord-rules-card__mint-preview-meta">Decimals: {{ mintPreviews[idx]?.decimals }}</span>
-              <span v-if="mintPreviews[idx]?.holder_count != null" class="discord-rules-card__mint-preview-holders">Holders: {{ mintPreviews[idx]?.holder_count }}</span>
-            </div>
           </div>
-          <Button
-            variant="secondary"
-            size="small"
-            :disabled="form.conditions.length >= 5"
-            @click="addCondition"
-          >
-            Add condition
-          </Button>
         </div>
         <div class="discord-rules-card__form-actions">
           <Button
@@ -216,10 +226,26 @@
 </template>
 
 <script setup lang="ts">
+import { API_V1 } from '~/utils/apiBase'
 import { Card, TextInput, Button } from '@decentraguild/ui/components'
 import { Icon } from '@iconify/vue'
 
-const props = defineProps<{ slug: string }>()
+interface CatalogMint {
+  id: number
+  asset_id: string
+  kind: 'SPL' | 'NFT'
+  label: string
+  symbol: string | null
+  image: string | null
+  decimals: number | null
+  trait_keys: string[] | null
+  trait_options: Record<string, string[]> | null
+}
+
+const props = defineProps<{
+  slug: string
+  catalogMints: CatalogMint[]
+}>()
 const apiBase = useApiBase()
 
 interface DiscordRole {
@@ -234,9 +260,9 @@ interface RuleCondition {
   threshold?: number | null
   trait_key?: string | null
   trait_value?: string | null
-  required_role_ids?: string[]
-  role_logic?: 'AND' | 'OR'
+  required_role_id?: string
   logic_to_next?: 'AND' | 'OR' | null
+  amount?: number | null
 }
 interface MintPreview {
   mint: string
@@ -277,30 +303,23 @@ const form = reactive({
     threshold?: string
     trait_key?: string
     trait_value?: string
-    required_role_ids?: string[]
-    role_logic?: 'AND' | 'OR'
+    required_role_id?: string
     logic_to_next?: 'AND' | 'OR'
+    amount?: string
   }>,
 })
-const mintPreviews = ref<Record<number, MintPreview | null>>({})
-const mintLoadPending = ref<Record<number, boolean>>({})
-const traitOptionsByCondition = ref<Record<number, TraitOptions>>({})
-const mintPreviewCache = ref<
-  Record<string, { preview: MintPreview; traitOptions?: TraitOptions; isCollection: boolean }>
->({})
 
 function typeNeedsMint(type: string): boolean {
   return type === 'SPL' || type === 'NFT' || type === 'TRAIT'
 }
 function onConditionTypeChange(cond: (typeof form.conditions)[number]) {
-  if (cond.type === 'DISCORD' && !Array.isArray(cond.required_role_ids)) {
-    cond.required_role_ids = []
-    cond.role_logic = 'OR'
+  if (cond.type === 'DISCORD' && typeof cond.required_role_id !== 'string') {
+    cond.required_role_id = ''
   }
 }
 function isConditionFilled(c: (typeof form.conditions)[number]): boolean {
   if (typeNeedsMint(c.type)) return !!c.mint_or_group?.trim()
-  if (c.type === 'DISCORD') return (c.required_role_ids?.length ?? 0) > 0
+  if (c.type === 'DISCORD') return !!c.required_role_id?.trim()
   return false
 }
 
@@ -313,114 +332,64 @@ const rulesSorted = computed(() => {
   })
 })
 
-async function loadMintPreview(idx: number) {
+const splMints = computed(() => props.catalogMints.filter((m) => m.kind === 'SPL'))
+const nftMints = computed(() => props.catalogMints.filter((m) => m.kind === 'NFT'))
+
+function traitOptionsForCondition(idx: number): { trait_keys: string[]; trait_options: Record<string, string[]> } {
   const cond = form.conditions[idx]
-  const mint = cond?.mint_or_group?.trim()
-  if (!mint || mint.length < 32) return
-  const isCollectionLoad = cond?.type === 'NFT' || cond?.type === 'TRAIT'
-  const cacheKey = `${mint}:${isCollectionLoad ? 'collection' : 'mint'}`
-  const cached = mintPreviewCache.value[cacheKey]
-  if (cached) {
-    mintPreviews.value = { ...mintPreviews.value, [idx]: cached.preview }
-    if (cached.traitOptions)
-      traitOptionsByCondition.value = { ...traitOptionsByCondition.value, [idx]: cached.traitOptions }
-    return
-  }
-  mintLoadPending.value = { ...mintLoadPending.value, [idx]: true }
-  try {
-    if (isCollectionLoad) {
-      const res = await fetch(
-        `${apiBase.value}/api/v1/tenant/${props.slug}/discord/collection-preview?mint=${encodeURIComponent(mint)}&fetch=1`,
-        { credentials: 'include' }
-      )
-      if (res.ok) {
-        const data = (await res.json()) as {
-          mint: string
-          name: string | null
-          image: string | null
-          trait_keys: string[]
-          trait_options: Record<string, string[]>
-          items_loaded?: number
-        }
-        const preview: MintPreview = {
-          mint: data.mint,
-          name: data.name ?? null,
-          symbol: null,
-          image: data.image ?? null,
-          decimals: null,
-          holder_count: data.items_loaded ?? null,
-        }
-        const traitOptions: TraitOptions = { trait_keys: data.trait_keys ?? [], trait_options: data.trait_options ?? {} }
-        mintPreviewCache.value = { ...mintPreviewCache.value, [cacheKey]: { preview, traitOptions, isCollection: true } }
-        mintPreviews.value = { ...mintPreviews.value, [idx]: preview }
-        traitOptionsByCondition.value = { ...traitOptionsByCondition.value, [idx]: traitOptions }
-      } else {
-        mintPreviews.value = { ...mintPreviews.value, [idx]: null }
-        traitOptionsByCondition.value = { ...traitOptionsByCondition.value, [idx]: { trait_keys: [], trait_options: {} } }
-      }
-    } else {
-      const res = await fetch(
-        `${apiBase.value}/api/v1/tenant/${props.slug}/discord/mint-preview?mint=${encodeURIComponent(mint)}&fetch=1`,
-        { credentials: 'include' }
-      )
-      if (res.ok) {
-        const data = (await res.json()) as MintPreview & { holder_count?: number; decimals?: number }
-        const preview: MintPreview = {
-          mint: data.mint,
-          name: data.name ?? null,
-          symbol: data.symbol ?? null,
-          image: data.image ?? null,
-          decimals: data.decimals ?? null,
-          holder_count: data.holder_count ?? null,
-        }
-        mintPreviewCache.value = { ...mintPreviewCache.value, [cacheKey]: { preview, isCollection: false } }
-        mintPreviews.value = { ...mintPreviews.value, [idx]: preview }
-      } else {
-        mintPreviews.value = { ...mintPreviews.value, [idx]: null }
-      }
-    }
-  } finally {
-    mintLoadPending.value = { ...mintLoadPending.value, [idx]: false }
+  const asset = cond?.mint_or_group?.trim()
+  if (!asset) return { trait_keys: [], trait_options: {} }
+  const catalogMint = props.catalogMints.find((m) => m.asset_id === asset)
+  return {
+    trait_keys: catalogMint?.trait_keys ?? [],
+    trait_options: catalogMint?.trait_options ?? {},
   }
 }
 
-function traitValueOptions(idx: number): string[] {
+function traitValueOptionsForCondition(idx: number): string[] {
   const cond = form.conditions[idx]
   const key = cond?.trait_key?.trim()
   if (!key) return []
-  const opts = traitOptionsByCondition.value[idx]
-  if (!opts?.trait_options) return []
-  return opts.trait_options[key] ?? []
+  const { trait_options } = traitOptionsForCondition(idx)
+  return trait_options[key] ?? []
 }
+
+function clearTraitWhenCollectionChanges(cond: (typeof form.conditions)[number]) {
+  if (cond.type === 'TRAIT') {
+    cond.trait_key = ''
+    cond.trait_value = ''
+  }
+}
+
+function onLogicChange(idx: number) {
+  const cond = form.conditions[idx]
+  if (!cond) return
+  const isLast = idx === form.conditions.length - 1
+  if (!isLast) return
+  if (cond.logic_to_next === 'AND' || cond.logic_to_next === 'OR') {
+    addCondition()
+  }
+}
+
 function addCondition() {
   if (form.conditions.length >= 5) return
   const last = form.conditions[form.conditions.length - 1]
-  if (last) last.logic_to_next = last.logic_to_next ?? 'AND'
+  if (last) {
+    last.logic_to_next = last.logic_to_next === 'OR' ? 'OR' : 'AND'
+  }
   const defaultType = conditionTypes.value[0]?.id ?? 'SPL'
   form.conditions.push({
     type: defaultType,
     mint_or_group: '',
-    logic_to_next: 'AND',
-    ...(defaultType === 'DISCORD' ? { required_role_ids: [], role_logic: 'OR' as const } : {}),
+    logic_to_next: null,
+    amount: defaultType === 'NFT' || defaultType === 'TRAIT' ? '1' : undefined,
+    ...(defaultType === 'DISCORD' ? { required_role_id: '' } : {}),
   })
 }
 function removeCondition(idx: number) {
   form.conditions.splice(idx, 1)
   if (idx > 0 && form.conditions[idx - 1]) form.conditions[idx - 1]!.logic_to_next = 'AND'
-  const prev: Record<number, MintPreview | null> = {}
-  Object.entries(mintPreviews.value).forEach(([k, v]) => {
-    const i = Number(k)
-    if (i < idx) prev[i] = v as MintPreview | null
-    else if (i > idx) prev[i - 1] = v as MintPreview | null
-  })
-  mintPreviews.value = prev
-  const prevTraits: Record<number, TraitOptions> = {}
-  Object.entries(traitOptionsByCondition.value).forEach(([k, v]) => {
-    const i = Number(k)
-    if (i < idx) prevTraits[i] = v
-    else if (i > idx) prevTraits[i - 1] = v
-  })
-  traitOptionsByCondition.value = prevTraits
+  if (form.conditions.length === 1) form.conditions[0]!.logic_to_next = null
 }
 function resetForm() {
   form.discord_role_id = ''
@@ -429,11 +398,10 @@ function resetForm() {
   form.conditions = [{
     type: defaultType,
     mint_or_group: '',
-    logic_to_next: 'AND',
-    ...(defaultType === 'DISCORD' ? { required_role_ids: [], role_logic: 'OR' as const } : {}),
+    logic_to_next: null,
+    amount: defaultType === 'NFT' || defaultType === 'TRAIT' ? '1' : undefined,
+    ...(defaultType === 'DISCORD' ? { required_role_id: '' } : {}),
   }]
-  mintPreviews.value = {}
-  traitOptionsByCondition.value = {}
   editingRuleId.value = null
 }
 function roleName(roleId: string): string {
@@ -441,14 +409,17 @@ function roleName(roleId: string): string {
 }
 function conditionSummary(c: RuleCondition, nextLogic?: string | null): string {
   if (c.type === 'DISCORD') {
-    const ids = c.required_role_ids ?? []
-    const names = ids.map((id) => roleName(id)).filter(Boolean)
-    const logic = c.role_logic ?? 'OR'
-    const base = `DISCORD ${names.length ? names.join(', ') : '(no roles)'} (${logic})`
+    const name = c.required_role_id ? roleName(c.required_role_id) : '(no role)'
+    const base = `DISCORD ${name}`
     return nextLogic ? `${base} ${nextLogic}` : base
   }
-  const parts = [c.type, c.mint_or_group]
+  const mintLabel =
+    props.catalogMints.find((m) => m.asset_id === c.mint_or_group)?.label ?? c.mint_or_group
+  const parts = [c.type, mintLabel]
   if (c.type === 'SPL' && c.threshold != null) parts.push(`>= ${c.threshold}`)
+  if ((c.type === 'NFT' || c.type === 'TRAIT') && c.amount != null && c.amount > 1) {
+    parts.push(`x ${c.amount}`)
+  }
   if (c.type === 'TRAIT' && c.trait_key) parts.push(`${c.trait_key}=${c.trait_value ?? ''}`)
   const base = parts.join(' ')
   return nextLogic ? `${base} ${nextLogic}` : base
@@ -459,9 +430,9 @@ async function fetchRules() {
   rulesError.value = null
   try {
     const [typesRes, rolesRes, rulesRes] = await Promise.all([
-      fetch(`${apiBase.value}/api/v1/tenant/${props.slug}/discord/condition-types`, { credentials: 'include' }),
-      fetch(`${apiBase.value}/api/v1/tenant/${props.slug}/discord/roles`, { credentials: 'include' }),
-      fetch(`${apiBase.value}/api/v1/tenant/${props.slug}/discord/rules`, { credentials: 'include' }),
+      fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/condition-types`, { credentials: 'include' }),
+      fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/roles`, { credentials: 'include' }),
+      fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/rules`, { credentials: 'include' }),
     ])
     if (typesRes.ok) {
       const d = (await typesRes.json()) as { types?: Array<{ id: string; label: string }> }
@@ -501,18 +472,17 @@ function startEdit(rule: Rule) {
         threshold: c.threshold != null ? String(c.threshold) : '',
         trait_key: c.trait_key ?? '',
         trait_value: c.trait_value ?? '',
-        required_role_ids: c.required_role_ids ?? [],
-        role_logic: (c.role_logic ?? 'OR') as 'AND' | 'OR',
+        required_role_id: c.required_role_id ?? '',
         logic_to_next: c.logic_to_next ?? (i < rule.conditions.length - 1 ? 'AND' : undefined),
+        amount: c.amount != null ? String(c.amount) : c.type === 'NFT' || c.type === 'TRAIT' ? '1' : undefined,
       }))
-    : [{ type: defaultType, mint_or_group: '', logic_to_next: 'AND', ...(defaultType === 'DISCORD' ? { required_role_ids: [], role_logic: 'OR' as const } : {}) }]
-  mintPreviews.value = {}
-  traitOptionsByCondition.value = {}
-  nextTick(() => {
-    form.conditions.forEach((c, idx) => {
-      if (typeNeedsMint(c.type) && c.mint_or_group.trim()) loadMintPreview(idx)
-    })
-  })
+    : [{
+      type: defaultType,
+      mint_or_group: '',
+      logic_to_next: null,
+      amount: defaultType === 'NFT' || defaultType === 'TRAIT' ? '1' : undefined,
+      ...(defaultType === 'DISCORD' ? { required_role_id: '' } : {}),
+    }]
 }
 function cancelEdit() {
   resetForm()
@@ -530,7 +500,7 @@ async function saveRule() {
         logic_to_next: i < raw.length - 1 ? (c.logic_to_next === 'OR' ? 'OR' : 'AND') : null,
       }
       if (c.type === 'DISCORD') {
-        return { ...base, required_role_ids: c.required_role_ids ?? [], role_logic: c.role_logic ?? 'OR' }
+        return { ...base, required_role_id: (c.required_role_id ?? '').trim() }
       }
       return {
         ...base,
@@ -538,11 +508,15 @@ async function saveRule() {
         threshold: c.type === 'SPL' && c.threshold !== '' ? Number(c.threshold) : undefined,
         trait_key: c.trait_key?.trim() || undefined,
         trait_value: c.trait_value?.trim() || undefined,
+        amount:
+          (c.type === 'NFT' || c.type === 'TRAIT') && c.amount && c.amount !== ''
+            ? Number(c.amount)
+            : undefined,
       }
     })
     if (editingRuleId.value != null) {
       const res = await fetch(
-        `${apiBase.value}/api/v1/tenant/${props.slug}/discord/rules/${editingRuleId.value}`,
+        `${apiBase.value}${API_V1}/tenant/${props.slug}/discord/rules/${editingRuleId.value}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -557,7 +531,7 @@ async function saveRule() {
         ruleSaveError.value = errBody.error ?? `Failed to update rule (${res.status})`
       }
     } else {
-      const res = await fetch(`${apiBase.value}/api/v1/tenant/${props.slug}/discord/rules`, {
+      const res = await fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/rules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -581,7 +555,7 @@ async function saveRule() {
 }
 
 async function deleteRule(id: number) {
-  const res = await fetch(`${apiBase.value}/api/v1/tenant/${props.slug}/discord/rules/${id}`, {
+  const res = await fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/rules/${id}`, {
     method: 'DELETE',
     credentials: 'include',
   })
@@ -737,7 +711,21 @@ onMounted(() => {
 }
 
 .discord-rules-card__select--sm {
-  min-width: 80px;
+  flex: none;
+  width: 7.5rem;
+  min-width: 5.5rem;
+}
+
+.discord-rules-card__select--mint {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+.discord-rules-card__amount-input {
+  flex: none;
+  width: 7.5rem;
+  min-width: 5.5rem;
 }
 
 .discord-rules-card__condition-block {
@@ -793,27 +781,9 @@ onMounted(() => {
 }
 
 .discord-rules-card__mint-input,
-.discord-rules-card__threshold-input,
 .discord-rules-card__trait-input {
   flex: 1;
   min-width: 120px;
-}
-
-.discord-rules-card__discord-roles {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--theme-space-sm);
-}
-
-.discord-rules-card__select--multi {
-  min-height: 80px;
-  min-width: 180px;
-}
-
-.discord-rules-card__role-logic-label {
-  font-size: var(--theme-font-sm);
-  color: var(--theme-text-muted, #666);
 }
 
 .discord-rules-card__form-actions {

@@ -4,6 +4,7 @@ import { Connection } from '@solana/web3.js'
 import { fetchAllEscrows, fetchEscrowByAddress, getDasRpcUrl } from '@decentraguild/web3'
 import { getScopeEntriesForTenant } from '../marketplace/scope.js'
 import { normalizeTenantSlug } from '../validate-slug.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 const ESCROWS_CACHE_TTL_MS = 60_000
 
@@ -30,7 +31,7 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const slug = normalizeTenantSlug(request.params.slug)
       if (!slug) {
-        return reply.status(400).send({ error: 'Invalid tenant slug' })
+        return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
       }
       const makerFilter = (request.query as { maker?: string }).maker?.trim() ?? null
 
@@ -39,7 +40,7 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
         const entries = await getScopeEntriesForTenant(slug)
         scopeMints = new Set(entries.map((e) => e.mint))
       } catch {
-        return reply.status(404).send({ error: 'Tenant or scope not found' })
+        return reply.status(404).send(apiError('Tenant or scope not found', ErrorCode.TENANT_NOT_FOUND))
       }
 
       reply.header('Cache-Control', 'public, max-age=60')
@@ -55,7 +56,7 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
       try {
         rpcUrl = getDasRpcUrl()
       } catch {
-        return reply.status(503).send({ error: 'HELIUS_RPC not configured' })
+        return reply.status(503).send(apiError('HELIUS_RPC not configured', ErrorCode.CONFIG_REQUIRED))
       }
       const connection = new Connection(rpcUrl)
 
@@ -97,10 +98,9 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
         return data
       } catch (e) {
         request.log.warn({ err: e, slug }, 'Escrow fetch failed')
-        return reply.status(503).send({
-          error: 'Failed to fetch escrows',
+        return reply.status(503).send(apiError('Failed to fetch escrows', ErrorCode.SERVICE_UNAVAILABLE, {
           message: e instanceof Error ? e.message : 'Unknown error',
-        })
+        }))
       }
     }
   )
@@ -111,7 +111,7 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
       const slug = normalizeTenantSlug(request.params.slug)
       const escrowId = request.params.escrowId
       if (!slug) {
-        return reply.status(400).send({ error: 'Invalid tenant slug' })
+        return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
       }
 
       let scopeMints: Set<string>
@@ -119,28 +119,28 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
         const entries = await getScopeEntriesForTenant(slug)
         scopeMints = new Set(entries.map((e) => e.mint))
       } catch {
-        return reply.status(404).send({ error: 'Tenant or scope not found' })
+        return reply.status(404).send(apiError('Tenant or scope not found', ErrorCode.TENANT_NOT_FOUND))
       }
 
       let rpcUrl: string
       try {
         rpcUrl = getDasRpcUrl()
       } catch {
-        return reply.status(503).send({ error: 'HELIUS_RPC not configured' })
+        return reply.status(503).send(apiError('HELIUS_RPC not configured', ErrorCode.CONFIG_REQUIRED))
       }
       const connection = new Connection(rpcUrl)
 
       try {
         const e = await fetchEscrowByAddress(connection, escrowId)
-        if (!e) return reply.status(404).send({ error: 'Escrow not found' })
+        if (!e) return reply.status(404).send(apiError('Escrow not found', ErrorCode.NOT_FOUND))
 
         const dep = e.account.depositToken.toBase58()
         const req = e.account.requestToken.toBase58()
         const bothInScope = scopeMints.has(dep) && scopeMints.has(req)
-        if (!bothInScope) return reply.status(404).send({ error: 'Escrow not in tenant scope' })
+        if (!bothInScope) return reply.status(404).send(apiError('Escrow not in tenant scope', ErrorCode.NOT_FOUND))
 
         const notComplete = !isEffectivelyComplete(e.account.tokensDepositRemaining, e.account.decimals)
-        if (!notComplete) return reply.status(404).send({ error: 'Escrow not found' })
+        if (!notComplete) return reply.status(404).send(apiError('Escrow not found', ErrorCode.NOT_FOUND))
 
         return reply.send({
           escrow: {

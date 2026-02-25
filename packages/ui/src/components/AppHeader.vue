@@ -1,6 +1,9 @@
 <template>
   <div class="app-header">
     <div class="app-header__left">
+      <div v-if="$slots.leading" class="app-header__leading">
+        <slot name="leading" />
+      </div>
       <slot name="logo">
         <img
           v-if="logo"
@@ -42,6 +45,12 @@ defineProps<{
   min-width: 0;
 }
 
+.app-header__leading {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
 .app-header__logo {
   height: 2rem;
   width: auto;
@@ -60,6 +69,15 @@ defineProps<{
   display: flex;
   gap: var(--theme-space-sm);
   align-items: center;
+  min-width: 0;
+}
+
+@media (max-width: var(--theme-breakpoint-md)) {
+  .app-header__nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
 }
 
 .app-header__actions {

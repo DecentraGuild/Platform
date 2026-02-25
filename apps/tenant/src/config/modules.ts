@@ -44,13 +44,16 @@ export const MODULE_SUBNAV: Record<string, ModuleSubnavTab[]> = {
   discord: [],
 }
 
+import type { ModuleState } from '@decentraguild/core'
+import { isModuleVisibleInAdmin, getModuleState } from '@decentraguild/core'
+
 /** Tenant module shape for subnav filtering */
 interface TenantModule {
-  active?: boolean
+  state?: ModuleState
 }
 
 /** Resolve module sub-nav tabs for a route path (e.g. /admin -> admin tabs).
- * When tenant is provided and path is admin, marketplace tab is shown only when marketplace.active. */
+ * When tenant is provided and path is admin, marketplace/discord tabs shown when visible in Admin. */
 export function getModuleSubnavForPath(
   path: string,
   tenant?: { modules?: Record<string, TenantModule> } | null
@@ -60,11 +63,11 @@ export function getModuleSubnavForPath(
   )?.[0]
   const tabs = (moduleId && MODULE_SUBNAV[moduleId]) ?? null
   if (!tabs || moduleId !== 'admin' || !tenant?.modules) return tabs
-  const marketplaceActive = tenant.modules.marketplace?.active
-  const discordActive = tenant.modules.discord?.active
+  const marketplaceVisible = isModuleVisibleInAdmin(getModuleState(tenant.modules.marketplace))
+  const discordVisible = isModuleVisibleInAdmin(getModuleState(tenant.modules.discord))
   return tabs.filter((t) => {
-    if (t.id === 'marketplace' && !marketplaceActive) return false
-    if (t.id === 'discord' && !discordActive) return false
+    if (t.id === 'marketplace' && !marketplaceVisible) return false
+    if (t.id === 'discord' && !discordVisible) return false
     return true
   })
 }

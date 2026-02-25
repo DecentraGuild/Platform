@@ -4,6 +4,7 @@ import { isValidDiscordSnowflake } from '../validate-discord.js'
 import { getDiscordServerByTenantSlug, linkDiscordServer, disconnectDiscordServer } from '../db/discord-servers.js'
 import { logDiscordAudit } from '../db/discord-audit.js'
 import { requireTenantAdmin } from './tenant-settings.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 // Minimal permissions: Manage Roles (268435456) + Use Application Commands (2147483648) for /verify
 const DISCORD_INVITE_PERMISSIONS = '2415919104'
@@ -54,11 +55,11 @@ export async function registerDiscordServerRoutes(app: FastifyInstance) {
       const result = await requireTenantAdmin(request, reply, request.params.slug)
       if (!result) return
       if (!getPool()) {
-        return reply.status(503).send({ error: 'Database not available' })
+        return reply.status(503).send(apiError('Database not available', ErrorCode.SERVICE_UNAVAILABLE))
       }
       const discordGuildId = request.body?.discord_guild_id?.trim()
       if (!discordGuildId || !isValidDiscordSnowflake(discordGuildId)) {
-        return reply.status(400).send({ error: 'discord_guild_id required (valid Discord server ID)' })
+        return reply.status(400).send(apiError('discord_guild_id required (valid Discord server ID)', ErrorCode.BAD_REQUEST))
       }
       const guildName = request.body?.guild_name?.trim() ?? null
       try {
@@ -81,7 +82,7 @@ export async function registerDiscordServerRoutes(app: FastifyInstance) {
         })
       } catch (err) {
         request.log.error({ err }, 'Discord server link failed')
-        return reply.status(500).send({ error: 'Failed to link server' })
+        return reply.status(500).send(apiError('Failed to link server', ErrorCode.INTERNAL_ERROR))
       }
     }
   )
@@ -92,7 +93,7 @@ export async function registerDiscordServerRoutes(app: FastifyInstance) {
       const result = await requireTenantAdmin(request, reply, request.params.slug)
       if (!result) return
       if (!getPool()) {
-        return reply.status(503).send({ error: 'Database not available' })
+        return reply.status(503).send(apiError('Database not available', ErrorCode.SERVICE_UNAVAILABLE))
       }
       const row = await getDiscordServerByTenantSlug(result.tenant.slug)
       const guildId = row?.discord_guild_id ?? null

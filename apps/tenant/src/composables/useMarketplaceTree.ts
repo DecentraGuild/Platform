@@ -4,8 +4,9 @@
  * Used by MarketTree and MarketBrowseView.
  */
 import type { Ref } from 'vue'
+import type { MarketplaceSettings } from '@decentraguild/core'
 import type { ScopeEntry } from './useMarketplaceScope'
-import type { MarketplaceSettings } from '~/stores/tenant'
+import { getMintDisplayLabel } from '~/utils/mintFromSettings'
 
 const GROUP_PATH_MAX = 3
 const SOURCE_TO_TYPE = {
@@ -32,14 +33,7 @@ export interface MarketplaceTreeInput {
 }
 
 function getAssetLabel(mint: string, settings: MarketplaceSettings | null): string {
-  if (!settings) return mint.slice(0, 8) + '...'
-  const coll = settings.collectionMints?.find((c) => c.mint === mint)
-  if (coll?.name) return coll.name
-  const curr = settings.currencyMints?.find((c) => c.mint === mint)
-  if (curr?.name) return curr.name
-  const spl = settings.splAssetMints?.find((s) => s.mint === mint)
-  if (spl?.name) return spl.name
-  return mint.slice(0, 8) + '...'
+  return getMintDisplayLabel(mint, settings)
 }
 
 function getGroupPath(item: { groupPath?: string[] }): string[] {
@@ -145,6 +139,27 @@ function collectDescendantAssets(nodes: TreeNode[]): TreeNode[] {
   return out
 }
 
+function findNodeById(nodes: TreeNode[], id: string): TreeNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    const found = n.children ? findNodeById(n.children, id) : null
+    if (found) return found
+  }
+  return null
+}
+
+function findNodeByPath(nodes: TreeNode[], path: string[]): TreeNode | null {
+  if (path.length === 0) return null
+  for (const n of nodes) {
+    if (n.path.length === path.length && n.path.every((s, i) => s === path[i])) return n
+    if (n.children?.length) {
+      const found = findNodeByPath(n.children, path)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 export function useMarketplaceTree(
   entries: Ref<ScopeEntry[]>,
   settings: Ref<MarketplaceSettings | null>
@@ -157,17 +172,7 @@ export function useMarketplaceTree(
   const selectedDetailMint = ref<string | null>(null)
   const selectedNode = computed<TreeNode | null>(() => {
     const id = selectedNodeId.value
-    if (!id) return null
-
-    function find(nodes: TreeNode[]): TreeNode | null {
-      for (const n of nodes) {
-        if (n.id === id) return n
-        const found = n.children ? find(n.children) : null
-        if (found) return found
-      }
-      return null
-    }
-    return find(tree.value)
+    return id ? findNodeById(tree.value, id) : null
   })
 
   const selectedMint = computed(() => selectedNode.value?.mint ?? null)
@@ -175,9 +180,7 @@ export function useMarketplaceTree(
 
   const childNodesForSelection = computed(() => {
     const node = selectedNode.value
-    if (!node) {
-      return tree.value
-    }
+    if (!node) return tree.value
     return getChildrenOfNode(node)
   })
 
@@ -190,21 +193,26 @@ export function useMarketplaceTree(
   function selectNode(id: string | null) {
     selectedNodeId.value = id
     if (id && id.startsWith('asset:')) {
-      function find(nodes: TreeNode[]): TreeNode | null {
-        for (const n of nodes) {
-          if (n.id === id) return n
-          const found = n.children ? find(n.children) : null
-          if (found) return found
-        }
-        return null
-      }
-      const node = find(tree.value)
+      const node = findNodeById(tree.value, id)
       if (node?.kind === 'asset' && node.mint && node.mint !== node.collectionMint) {
         selectedDetailMint.value = node.mint
         return
       }
     }
     selectedDetailMint.value = null
+  }
+
+  /** Select node by breadcrumb index (0 = type, 1 = first group, etc). Use for breadcrumb clicks. */
+  function selectNodeByBreadcrumbIndex(index: number | null) {
+    if (index === null) {
+      selectNode(null)
+      return
+    }
+    const path = selectedNode.value?.path ?? []
+    if (index < 0 || index >= path.length) return
+    const targetPath = path.slice(0, index + 1)
+    const node = findNodeByPath(tree.value, targetPath)
+    if (node) selectNode(node.id)
   }
 
   function setSelectedDetailMint(mint: string | null) {
@@ -221,6 +229,7 @@ export function useMarketplaceTree(
     childNodesForSelection,
     descendantAssetNodes,
     selectNode,
+    selectNodeByBreadcrumbIndex,
     setSelectedDetailMint,
   }
 }

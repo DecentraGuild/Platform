@@ -1,5 +1,5 @@
-import { query } from './client.js'
-import type { MarketplaceConfig } from '../config/marketplace-registry.js'
+import { getPool, query } from './client.js'
+import { loadMarketplaceBySlug, type MarketplaceConfig } from '../config/marketplace-registry.js'
 
 function rowToMarketplaceConfig(row: Record<string, unknown>): MarketplaceConfig {
   const parseJson = (val: unknown): unknown => (typeof val === 'string' ? JSON.parse(val) : val ?? null)
@@ -28,6 +28,18 @@ export async function getMarketplaceBySlug(slug: string): Promise<MarketplaceCon
   )
   if (rows.length === 0) return null
   return rowToMarketplaceConfig(rows[0])
+}
+
+/** Resolve marketplace config by slug: DB if available (with fallback to file), else file only. */
+export async function resolveMarketplace(slug: string): Promise<MarketplaceConfig | null> {
+  if (!getPool()) return loadMarketplaceBySlug(slug)
+  try {
+    const c = await getMarketplaceBySlug(slug)
+    if (c) return c
+  } catch {
+    // DB query failed
+  }
+  return loadMarketplaceBySlug(slug)
 }
 
 export async function upsertMarketplace(slug: string, tenantId: string | undefined, settings: Omit<MarketplaceConfig, 'tenantSlug' | 'tenantId'>): Promise<void> {

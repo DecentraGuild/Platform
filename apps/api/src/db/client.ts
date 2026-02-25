@@ -1,5 +1,6 @@
 import pg from 'pg'
 import type { Pool } from 'pg'
+import { DEFAULT_DB_POOL_MAX, DEFAULT_DB_IDLE_TIMEOUT_MS } from '../config/constants.js'
 
 let pool: Pool | null = null
 
@@ -8,10 +9,12 @@ export function getPool(): Pool | null {
 }
 
 export function initPool(databaseUrl: string): Pool {
+  const max = Number(process.env.DB_POOL_MAX) || DEFAULT_DB_POOL_MAX
+  const idleTimeoutMillis = Number(process.env.DB_IDLE_TIMEOUT_MS) || DEFAULT_DB_IDLE_TIMEOUT_MS
   pool = new pg.Pool({
     connectionString: databaseUrl,
-    max: 10,
-    idleTimeoutMillis: 30000,
+    max,
+    idleTimeoutMillis,
   })
   return pool
 }

@@ -105,6 +105,13 @@
   --theme-scrollbar-thumb: var(--theme-border);
   --theme-scrollbar-thumb-hover: var(--theme-border-light);
   --theme-scrollbar-track: var(--theme-bg-secondary);
+
+  /* Breakpoints – use in media queries, e.g. @media (min-width: var(--theme-breakpoint-md)) */
+  --theme-breakpoint-xs: 480px;
+  --theme-breakpoint-sm: 640px;
+  --theme-breakpoint-md: 768px;
+  --theme-breakpoint-lg: 1024px;
+  --theme-breakpoint-xl: 1280px;
 }
 
 /* Global scrollbar styling. Applies to any overflow: auto/scroll element. */

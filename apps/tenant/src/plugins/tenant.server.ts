@@ -2,11 +2,10 @@
  * Resolves tenant slug from request host during SSR and fetches tenant context
  * so first paint has full branding/nav. Avoids client waterfall and hydration mismatch.
  */
-import type { TenantConfig } from '@decentraguild/core'
+import type { TenantConfig, MarketplaceSettings } from '@decentraguild/core'
 import { getTenantSlugFromHost } from '@decentraguild/core'
 import { useTenantStore } from '~/stores/tenant'
-import type { MarketplaceSettings } from '~/stores/tenant'
-import { normalizeApiBase } from '~/utils/apiBase'
+import { API_V1, normalizeApiBase } from '~/utils/apiBase'
 
 export default defineNuxtPlugin(async () => {
   const config = useRuntimeConfig()
@@ -31,7 +30,7 @@ export default defineNuxtPlugin(async () => {
   tenantStore.setSlug(slug)
 
   const apiBase = normalizeApiBase(config.public.apiUrl as string)
-  const contextUrl = `${apiBase}/api/v1/tenant-context?slug=${encodeURIComponent(slug)}`
+  const contextUrl = `${apiBase}${API_V1}/tenant-context?slug=${encodeURIComponent(slug)}`
 
   try {
     const data = await $fetch<{ tenant: TenantConfig; marketplaceSettings?: MarketplaceSettings | null }>(

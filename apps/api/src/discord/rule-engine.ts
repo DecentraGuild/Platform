@@ -5,7 +5,7 @@
 
 import {
   getRoleRulesByGuildId,
-  getConditionsByRoleRuleId,
+  getConditionsByGuildId,
   type DiscordRoleConditionRow,
   type RoleConditionType,
   type SPLPayload,
@@ -57,8 +57,20 @@ function evaluateNFT(condition: DiscordRoleConditionRow, context: RuleEngineCont
   if (!payload?.collection_or_mint || context.linkedWallets.length === 0) return false
   const snapshot = context.snapshotByAsset.get(payload.collection_or_mint)
   if (!snapshot) return false
+  const targetAmount =
+    typeof payload.amount === 'number' && Number.isFinite(payload.amount) && payload.amount > 0
+      ? payload.amount
+      : 1
+  if (isBalanceSnapshot(snapshot)) {
+    const balances = getHolderBalancesFromSnapshot(snapshot)
+    const total = context.linkedWallets.reduce((sum, w) => sum + (balances.get(w) ?? 0), 0)
+    return total >= targetAmount
+  }
   const wallets = getHolderWalletsFromSnapshot(snapshot)
-  return context.linkedWallets.some((w) => wallets.includes(w))
+  const hasAny = context.linkedWallets.some((w) => wallets.includes(w))
+  if (!hasAny) return false
+  // Old snapshots (string[]) only support any-holder semantics; treat any holder as at least 1.
+  return targetAmount <= 1
 }
 
 function evaluateTRAIT(condition: DiscordRoleConditionRow, context: RuleEngineContext): boolean {
@@ -66,21 +78,31 @@ function evaluateTRAIT(condition: DiscordRoleConditionRow, context: RuleEngineCo
   if (!payload?.collection_or_mint || context.linkedWallets.length === 0) return false
   const snapshot = context.snapshotByAsset.get(payload.collection_or_mint)
   if (!snapshot) return false
-  const wallets = getHolderWalletsFromSnapshot(snapshot)
-  const isHolder = context.linkedWallets.some((w) => wallets.includes(w))
-  if (!isHolder) return false
-  // Trait filter: when we have trait index in context we can require matching trait_key/trait_value; for now holder check only
+  const targetAmount =
+    typeof payload.amount === 'number' && Number.isFinite(payload.amount) && payload.amount > 0
+      ? payload.amount
+      : 1
+  if (isBalanceSnapshot(snapshot)) {
+    const balances = getHolderBalancesFromSnapshot(snapshot)
+    const total = context.linkedWallets.reduce((sum, w) => sum + (balances.get(w) ?? 0), 0)
+    if (total < targetAmount) return false
+  } else {
+    const wallets = getHolderWalletsFromSnapshot(snapshot)
+    const isHolder = context.linkedWallets.some((w) => wallets.includes(w))
+    if (!isHolder) return false
+    if (targetAmount > 1) {
+      // Old snapshots (string[]) only support any-holder semantics; for counts > 1 we require fresh balance snapshots.
+      return false
+    }
+  }
+  // Trait filter: when we have trait index in context we can require matching trait_key/trait_value; for now holder count only.
   return true
 }
 
 function evaluateDISCORD(condition: DiscordRoleConditionRow, context: RuleEngineContext): boolean {
   const payload = condition.payload as DISCORDPayload
-  if (!payload?.required_role_ids?.length) return false
-  const roleSet = new Set(context.discordRoleIds)
-  if (payload.role_logic === 'AND') {
-    return payload.required_role_ids.every((id) => roleSet.has(id))
-  }
-  return payload.required_role_ids.some((id) => roleSet.has(id))
+  if (!payload?.required_role_id) return false
+  return context.discordRoleIds.includes(payload.required_role_id)
 }
 
 const EVALUATORS: Record<RoleConditionType, Evaluator> = {
@@ -134,14 +156,14 @@ export async function computeEligiblePerRole(
   discordGuildId: string,
   options?: { memberRolesByUserId?: Map<string, string[]> }
 ): Promise<EligibleRole[]> {
-  const rules = await getRoleRulesByGuildId(discordGuildId)
+  const [rules, conditionsByRule] = await Promise.all([
+    getRoleRulesByGuildId(discordGuildId),
+    getConditionsByGuildId(discordGuildId),
+  ])
   if (rules.length === 0) return []
 
-  const conditionsByRule = new Map<number, DiscordRoleConditionRow[]>()
   const allAssetIds = new Set<string>()
-  for (const rule of rules) {
-    const conditions = await getConditionsByRoleRuleId(rule.id)
-    conditionsByRule.set(rule.id, conditions)
+  for (const conditions of conditionsByRule.values()) {
     for (const id of getAssetIdsFromConditions(conditions)) allAssetIds.add(id)
   }
 

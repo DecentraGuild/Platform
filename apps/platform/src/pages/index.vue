@@ -8,9 +8,7 @@
       <NuxtLink to="/directory">
         <Button variant="primary">Discover dGuilds</Button>
       </NuxtLink>
-      <NuxtLink to="/onboard">
-        <Button variant="secondary">Create org</Button>
-      </NuxtLink>
+      <Button variant="secondary" disabled>Create org</Button>
     </div>
   </PageSection>
 </template>

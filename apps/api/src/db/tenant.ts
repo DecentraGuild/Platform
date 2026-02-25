@@ -1,6 +1,6 @@
 import { type TenantConfig, normalizeModules } from '@decentraguild/core'
 import { loadTenantBySlug } from '../config/registry.js'
-import { query } from './client.js'
+import { getPool, query } from './client.js'
 
 const toDbRow = (t: TenantConfig) => ({
   id: t.id,
@@ -42,6 +42,24 @@ export async function getTenantBySlug(slug: string): Promise<TenantConfig | null
   )
   if (rows.length === 0) return null
   return rowToTenantConfig(rows[0])
+}
+
+/** Resolve tenant by slug: DB if available (with fallback to file), else file only. Single place for DB vs file logic. */
+export async function resolveTenant(slug: string): Promise<TenantConfig | null> {
+  if (!getPool()) return loadTenantBySlug(slug)
+  try {
+    const t = await getTenantBySlug(slug)
+    if (t) return t
+  } catch {
+    // DB query failed
+  }
+  return loadTenantBySlug(slug)
+}
+
+/** All tenant slugs from DB. Used by module-lifecycle job to iterate tenants. */
+export async function getAllTenantSlugs(): Promise<string[]> {
+  const { rows } = await query<Record<string, unknown>>('SELECT slug FROM tenant_config')
+  return rows.map((r) => r.slug as string).filter(Boolean)
 }
 
 export async function upsertTenant(config: TenantConfig): Promise<void> {
@@ -109,14 +127,16 @@ export function mergeTenantPatch(existing: TenantConfig, patch: TenantSettingsPa
 }
 
 export async function updateTenant(slug: string, patch: TenantSettingsPatch): Promise<TenantConfig | null> {
-  let existing = await getTenantBySlug(slug)
-  if (!existing) {
-    existing = await loadTenantBySlug(slug)
-    if (existing) await upsertTenant(existing)
-  }
+  const existing = await resolveTenant(slug)
   if (!existing) return null
-
+  if (getPool()) {
+    const inDb = await getTenantBySlug(slug).catch(() => null)
+    if (!inDb) await upsertTenant(existing)
+  }
   const merged = mergeTenantPatch(existing, patch)
-  await upsertTenant(merged)
-  return getTenantBySlug(slug)
+  if (getPool()) {
+    await upsertTenant(merged)
+    return getTenantBySlug(slug)
+  }
+  return merged
 }

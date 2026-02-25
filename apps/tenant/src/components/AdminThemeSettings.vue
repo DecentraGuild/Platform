@@ -408,7 +408,7 @@ const previewStyle = computed(() => {
   gap: var(--theme-space-xl);
 }
 
-@media (min-width: 900px) {
+@media (min-width: var(--theme-breakpoint-lg)) {
   .theme-settings {
     grid-template-columns: 1fr minmax(280px, 360px);
   }

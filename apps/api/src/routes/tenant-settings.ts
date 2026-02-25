@@ -1,8 +1,10 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { getPool } from '../db/client.js'
-import { getTenantBySlug, updateTenant, mergeTenantPatch, type TenantSettingsPatch } from '../db/tenant.js'
-import { getMarketplaceBySlug, upsertMarketplace } from '../db/marketplace-settings.js'
+import { getDiscordServerByTenantSlug, type DiscordServerRow } from '../db/discord-servers.js'
+import { resolveTenant, updateTenant, mergeTenantPatch, type TenantSettingsPatch } from '../db/tenant.js'
+import { getMarketplaceBySlug, resolveMarketplace, upsertMarketplace } from '../db/marketplace-settings.js'
 import type { TenantConfig } from '@decentraguild/core'
+import type { ModuleState } from '@decentraguild/core'
 import { getWalletFromRequest } from './auth.js'
 import {
   loadTenantBySlug,
@@ -10,7 +12,6 @@ import {
   getTenantConfigDir,
 } from '../config/registry.js'
 import {
-  loadMarketplaceBySlug,
   writeMarketplaceBySlug,
   getMarketplaceConfigDir,
   type MarketplaceConfig,
@@ -19,6 +20,8 @@ import { expandAndSaveScope } from '../marketplace/expand-collections.js'
 import { getMintMetadataBatch, upsertMintMetadata } from '../db/marketplace-metadata.js'
 import { enrichMarketplaceConfigWithMetadata } from '../marketplace/enrich-config.js'
 import { normalizeTenantSlug } from '../validate-slug.js'
+import { adminWriteRateLimit } from '../rate-limit-strict.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 const BASE_CURRENCY_MINTS: MarketplaceConfig['currencyMints'] = [
   { mint: 'So11111111111111111111111111111111111111112', name: 'Wrapped SOL', symbol: 'SOL' },
@@ -116,33 +119,54 @@ function normalizeToMarketplaceConfig(
 }
 
 export async function requireTenantAdmin(
-  request: Parameters<Parameters<FastifyInstance['get']>[1]>[0],
-  reply: Parameters<Parameters<FastifyInstance['get']>[1]>[1],
+  request: FastifyRequest,
+  reply: FastifyReply,
   slugParam: string
 ): Promise<{ wallet: string; tenant: TenantConfig } | null> {
   const slug = normalizeTenantSlug(slugParam)
   if (!slug) {
-    reply.status(400).send({ error: 'Invalid tenant slug' })
+    reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
     return null
   }
   const wallet = await getWalletFromRequest(request)
   if (!wallet) {
-    reply.status(401).send({ error: 'Authentication required' })
+    reply.status(401).send(apiError('Authentication required', ErrorCode.UNAUTHORIZED))
     return null
   }
-  let tenant: TenantConfig | null = null
-  if (getPool()) tenant = await getTenantBySlug(slug)
-  if (!tenant) tenant = await loadTenantBySlug(slug)
+  const tenant = await resolveTenant(slug)
   if (!tenant) {
-    reply.status(404).send({ error: 'Tenant not found' })
+    reply.status(404).send(apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND))
     return null
   }
   const admins = tenant.admins ?? []
   if (!admins.includes(wallet)) {
-    reply.status(403).send({ error: 'Admin access required' })
+    reply.status(403).send(apiError('Admin access required', ErrorCode.FORBIDDEN))
     return null
   }
   return { wallet, tenant }
+}
+
+/**
+ * Same as requireTenantAdmin but also requires DB and a linked Discord server.
+ * Sends 503 if no pool, 400 if Discord server not connected. Use for Discord rule write/read-by-id.
+ */
+export async function requireTenantAdminWithDiscordServer(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  slugParam: string
+): Promise<{ wallet: string; tenant: TenantConfig; server: DiscordServerRow } | null> {
+  const result = await requireTenantAdmin(request, reply, slugParam)
+  if (!result) return null
+  if (!getPool()) {
+    reply.status(503).send(apiError('Database not available', ErrorCode.SERVICE_UNAVAILABLE))
+    return null
+  }
+  const server = await getDiscordServerByTenantSlug(result.tenant.slug)
+  if (!server) {
+    reply.status(400).send(apiError('Discord server not connected', ErrorCode.DISCORD_SERVER_NOT_CONNECTED))
+    return null
+  }
+  return { ...result, server }
 }
 
 export async function registerTenantSettingsRoutes(app: FastifyInstance) {
@@ -156,7 +180,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
   app.patch<{
     Params: { slug: string }
     Body: TenantSettingsPatch
-  }>('/api/v1/tenant/:slug/settings', async (request, reply) => {
+  }>('/api/v1/tenant/:slug/settings', { preHandler: [adminWriteRateLimit] }, async (request, reply) => {
     const result = await requireTenantAdmin(request, reply, request.params.slug)
     if (!result) return
     const slug = result.tenant.slug
@@ -166,29 +190,32 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
     for (const k of ALLOWED_KEYS) {
       if (k in body && body[k] !== undefined) patch[k] = body[k] as TenantSettingsPatch[typeof k]
     }
+    if (patch.modules && typeof patch.modules === 'object' && (patch.modules as Record<string, { state?: ModuleState }>).admin?.state === 'off') {
+      return reply.status(400).send(apiError('Admin module cannot be turned off', ErrorCode.BAD_REQUEST))
+    }
 
     if (getPool()) {
       const updated = await updateTenant(slug, patch)
       if (!updated) {
-        return reply.status(404).send({ error: 'Tenant not found' })
+        return reply.status(404).send(apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND))
       }
       return { tenant: updated }
     }
 
     const configDir = getTenantConfigDir()
     if (!configDir) {
-      return reply.status(503).send({ error: 'Database not configured and TENANT_CONFIG_PATH not set' })
+      return reply.status(503).send(apiError('Database not configured and TENANT_CONFIG_PATH not set', ErrorCode.CONFIG_REQUIRED))
     }
     const existing = await loadTenantBySlug(slug)
     if (!existing) {
-      return reply.status(404).send({ error: 'Tenant not found' })
+      return reply.status(404).send(apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND))
     }
     const merged = mergeTenantPatch(existing, patch)
     try {
       await writeTenantBySlug(slug, merged)
     } catch (e) {
       request.log.warn({ err: e, slug }, 'Failed to write tenant config file')
-      return reply.status(503).send({ error: 'Failed to save tenant config' })
+      return reply.status(503).send(apiError('Failed to save tenant config', ErrorCode.SERVICE_UNAVAILABLE))
     }
     return { tenant: merged }
   })
@@ -197,15 +224,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
     const result = await requireTenantAdmin(request, reply, request.params.slug)
     if (!result) return
     const slug = result.tenant.slug
-    let config: MarketplaceConfig | null = null
-    if (getPool()) {
-      try {
-        config = await getMarketplaceBySlug(slug)
-      } catch {
-        // fall back to file
-      }
-    }
-    if (!config) config = await loadMarketplaceBySlug(slug)
+    let config = await resolveMarketplace(slug)
     if (config && getPool()) {
       const mints = [
         ...config.currencyMints.map((c) => c.mint),
@@ -229,7 +248,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
   app.patch<{
     Params: { slug: string }
     Body: Record<string, unknown>
-  }>('/api/v1/tenant/:slug/marketplace-settings', async (request, reply) => {
+  }>('/api/v1/tenant/:slug/marketplace-settings', { preHandler: [adminWriteRateLimit] }, async (request, reply) => {
     const result = await requireTenantAdmin(request, reply, request.params.slug)
     if (!result) return
     const slug = result.tenant.slug
@@ -295,7 +314,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
 
     const configDir = getMarketplaceConfigDir()
     if (!configDir) {
-      return reply.status(503).send({ error: 'MARKETPLACE_CONFIG_PATH not set' })
+      return reply.status(503).send(apiError('MARKETPLACE_CONFIG_PATH not set', ErrorCode.CONFIG_REQUIRED))
     }
     try {
       await writeMarketplaceBySlug(slug, config)
@@ -306,7 +325,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
       }
     } catch (e) {
       request.log.warn({ err: e, slug }, 'Failed to write marketplace config file')
-      return reply.status(503).send({ error: 'Failed to save marketplace settings' })
+      return reply.status(503).send(apiError('Failed to save marketplace settings', ErrorCode.SERVICE_UNAVAILABLE))
     }
     return {
         settings: {

@@ -24,9 +24,14 @@ export type LogicToNext = 'AND' | 'OR' | null
 
 /** Type-specific payload shapes. Stored in condition.payload (JSONB). */
 export type SPLPayload = { mint: string; threshold_raw: number }
-export type NFTPayload = { collection_or_mint: string }
-export type TRAITPayload = { collection_or_mint: string; trait_key: string; trait_value: string }
-export type DISCORDPayload = { required_role_ids: string[]; role_logic: 'AND' | 'OR' }
+export type NFTPayload = { collection_or_mint: string; amount?: number }
+export type TRAITPayload = {
+  collection_or_mint: string
+  trait_key: string
+  trait_value: string
+  amount?: number
+}
+export type DISCORDPayload = { required_role_id: string }
 
 export type ConditionPayload = SPLPayload | NFTPayload | TRAITPayload | DISCORDPayload
 
@@ -51,10 +56,10 @@ export interface DiscordRoleConditionRowRaw {
 
 function parsePayload(type: string, payload: unknown): ConditionPayload {
   if (payload == null || typeof payload !== 'object') {
-    if (type === 'DISCORD') return { required_role_ids: [], role_logic: 'OR' }
+    if (type === 'DISCORD') return { required_role_id: '' }
     if (type === 'SPL') return { mint: '', threshold_raw: 1 }
-    if (type === 'NFT') return { collection_or_mint: '' }
-    if (type === 'TRAIT') return { collection_or_mint: '', trait_key: '', trait_value: '' }
+    if (type === 'NFT') return { collection_or_mint: '', amount: 1 }
+    if (type === 'TRAIT') return { collection_or_mint: '', trait_key: '', trait_value: '', amount: 1 }
     return payload as ConditionPayload
   }
   const p = payload as Record<string, unknown>
@@ -65,21 +70,29 @@ function parsePayload(type: string, payload: unknown): ConditionPayload {
     }
   }
   if (type === 'NFT') {
-    return { collection_or_mint: typeof p.collection_or_mint === 'string' ? p.collection_or_mint : '' }
+    const amount =
+      typeof p.amount === 'number' && Number.isFinite(p.amount) && p.amount > 0 ? p.amount : 1
+    return {
+      collection_or_mint: typeof p.collection_or_mint === 'string' ? p.collection_or_mint : '',
+      amount,
+    }
   }
   if (type === 'TRAIT') {
+    const amount =
+      typeof p.amount === 'number' && Number.isFinite(p.amount) && p.amount > 0 ? p.amount : 1
     return {
       collection_or_mint: typeof p.collection_or_mint === 'string' ? p.collection_or_mint : '',
       trait_key: typeof p.trait_key === 'string' ? p.trait_key : '',
       trait_value: typeof p.trait_value === 'string' ? p.trait_value : '',
+      amount,
     }
   }
   if (type === 'DISCORD') {
-    const ids = Array.isArray(p.required_role_ids)
-      ? (p.required_role_ids as unknown[]).filter((x): x is string => typeof x === 'string')
-      : []
-    const role_logic = p.role_logic === 'AND' ? 'AND' : 'OR'
-    return { required_role_ids: ids, role_logic }
+    const fromSingle = typeof p.required_role_id === 'string' ? p.required_role_id : ''
+    const fromLegacy = Array.isArray(p.required_role_ids) && typeof (p.required_role_ids as unknown[])[0] === 'string'
+      ? (p.required_role_ids as string[])[0]!
+      : ''
+    return { required_role_id: fromSingle || fromLegacy }
   }
   return payload as ConditionPayload
 }
@@ -117,6 +130,26 @@ export async function getConditionsByRoleRuleId(roleRuleId: number): Promise<Dis
     [roleRuleId]
   )
   return rows.map(rowToCondition)
+}
+
+/** All conditions for all rules of a guild (one query). Use for role-cards and other batch flows to avoid N+1. */
+export async function getConditionsByGuildId(discordGuildId: string): Promise<Map<number, DiscordRoleConditionRow[]>> {
+  const { rows } = await query<DiscordRoleConditionRowRaw>(
+    `SELECT c.id, c.role_rule_id, c.type, c.payload, c.logic_to_next, c.created_at
+     FROM discord_role_conditions c
+     JOIN discord_role_rules r ON r.id = c.role_rule_id
+     WHERE r.discord_guild_id = $1
+     ORDER BY c.role_rule_id, c.id`,
+    [discordGuildId]
+  )
+  const map = new Map<number, DiscordRoleConditionRow[]>()
+  for (const row of rows) {
+    const cond = rowToCondition(row)
+    const list = map.get(cond.role_rule_id) ?? []
+    list.push(cond)
+    map.set(cond.role_rule_id, list)
+  }
+  return map
 }
 
 export interface CreateRoleRuleInput {

@@ -11,8 +11,6 @@ export interface TransactionNotification {
   createdAt: number
 }
 
-const SOLSCAN_BASE = 'https://solscan.io/tx/'
-
 export const useTransactionNotificationsStore = defineStore('transactionNotifications', () => {
   const items = ref<TransactionNotification[]>([])
 
@@ -54,9 +52,5 @@ export const useTransactionNotificationsStore = defineStore('transactionNotifica
     items.value = items.value.filter((i) => i.id !== id)
   }
 
-  function getExplorerUrl(signature: string): string {
-    return `${SOLSCAN_BASE}${signature}`
-  }
-
-  return { items, add, update, remove, getExplorerUrl }
+  return { items, add, update, remove }
 })

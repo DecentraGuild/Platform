@@ -7,11 +7,7 @@
 import { fromRawUnits, escrowPriceToHuman, truncateAddress } from '@decentraguild/display'
 import type { EscrowWithAddress } from '@decentraguild/web3'
 import type { EscrowApiShape } from './useEscrowsForMints'
-
-type MarketplaceSettings = {
-  currencyMints?: Array<{ mint: string; decimals?: number }>
-  splAssetMints?: Array<{ mint: string; decimals?: number }>
-} | null
+import { getMintInfoFromSettings } from '~/utils/mintFromSettings'
 
 export interface EscrowDisplayData {
   depositAmount: number
@@ -51,14 +47,10 @@ function getPrice(e: EscrowWithAddress | EscrowApiShape): number {
 
 function getDecimalsFromConfig(
   mint: string,
-  settings: MarketplaceSettings
+  settings: import('@decentraguild/core').MarketplaceSettings | null
 ): number {
-  if (!settings) return 0
-  const c = settings.currencyMints?.find((x) => x.mint === mint)
-  if (c?.decimals != null) return c.decimals
-  const s = settings.splAssetMints?.find((x) => x.mint === mint)
-  if (s?.decimals != null) return s.decimals
-  return 0
+  const info = getMintInfoFromSettings(mint, settings)
+  return Math.max(0, Math.min(18, info.decimals))
 }
 
 export function useEscrowDisplay(escrow: Ref<EscrowWithAddress | EscrowApiShape | null>) {

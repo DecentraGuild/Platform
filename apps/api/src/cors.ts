@@ -4,6 +4,7 @@
  */
 
 import { TENANT_DOMAIN } from '@decentraguild/core'
+import { DEFAULT_CORS_ORIGIN } from './constants.js'
 
 function getTenantDomain(): string {
   const env = process.env.CORS_TENANT_DOMAIN?.trim()
@@ -25,7 +26,7 @@ function isTenantSubdomainOrigin(origin: string, tenantDomain: string): boolean 
 }
 
 function parseExplicitOrigins(): string[] {
-  const raw = process.env.CORS_ORIGIN ?? 'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002'
+  const raw = process.env.CORS_ORIGIN ?? DEFAULT_CORS_ORIGIN
   return raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
 }
 

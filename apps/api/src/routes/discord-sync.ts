@@ -3,6 +3,7 @@ import { getPool } from '../db/client.js'
 import { syncHoldersForGuild, syncAllLinkedGuilds } from '../discord/holder-sync.js'
 import { requireDiscordBotAuth } from '../discord/bot-auth.js'
 import { secureCompare } from '../secure-compare.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 const SYNC_SECRET_HEADER = 'x-sync-secret'
 
@@ -14,22 +15,22 @@ export async function registerDiscordSyncRoutes(app: FastifyInstance) {
 
   app.post('/api/v1/discord/sync-holders', async (request, reply) => {
     if (!getPool()) {
-      return reply.status(503).send({ error: 'Database not available' })
+      return reply.status(503).send(apiError('Database not available', ErrorCode.SERVICE_UNAVAILABLE))
     }
     const secret = syncSecret()
     if (!secret) {
-      return reply.status(503).send({ error: 'Sync not configured (set DISCORD_SYNC_SECRET or DISCORD_BOT_API_SECRET)' })
+      return reply.status(503).send(apiError('Sync not configured (set DISCORD_SYNC_SECRET or DISCORD_BOT_API_SECRET)', ErrorCode.CONFIG_REQUIRED))
     }
     const provided = (request.headers[SYNC_SECRET_HEADER] as string)?.trim()
     if (!provided || !secureCompare(provided, secret)) {
-      return reply.status(401).send({ error: 'Invalid sync secret' })
+      return reply.status(401).send(apiError('Invalid sync secret', ErrorCode.UNAUTHORIZED))
     }
     try {
       await syncAllLinkedGuilds(request.log)
       return reply.send({ ok: true })
     } catch (err) {
       request.log.error({ err }, 'Holder sync failed')
-      return reply.status(500).send({ error: 'Sync failed' })
+      return reply.status(500).send(apiError('Sync failed', ErrorCode.INTERNAL_ERROR))
     }
   })
 
@@ -46,7 +47,7 @@ export async function registerDiscordSyncRoutes(app: FastifyInstance) {
         return reply.send({ ok: true, results })
       } catch (err) {
         request.log.error({ err }, 'Holder sync failed for guild')
-        return reply.status(500).send({ error: 'Sync failed' })
+        return reply.status(500).send(apiError('Sync failed', ErrorCode.INTERNAL_ERROR))
       }
     }
   )

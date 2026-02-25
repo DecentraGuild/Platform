@@ -1,12 +1,18 @@
 /**
  * Ensures tenant context for current slug. On hydration after SSR, we may already
  * have data. On client-side tenant switch (subdomain change or ?tenant= in path),
- * we fetch the new tenant. Users can be in multiple dGuilds or visit public
- * modules of other dGuilds; switching happens via subdomain or tenant path click.
+ * we fetch the new tenant. Refetches when navigating to a module route so module
+ * state (e.g. after cron) is fresh. Optional 60s poll when on a module page and
+ * tab visible (configurable via NUXT_PUBLIC_TENANT_CONTEXT_POLL_SECONDS, 0 = off).
  */
 import { getTenantSlugFromHost } from '@decentraguild/core'
 import { useThemeStore } from '@decentraguild/ui'
 import { useTenantStore } from '~/stores/tenant'
+import { MODULE_NAV, IMPLEMENTED_MODULES } from '~/config/modules'
+
+const MODULE_PATHS = Array.from(IMPLEMENTED_MODULES)
+  .map((id) => MODULE_NAV[id]?.path)
+  .filter((path): path is string => Boolean(path))
 
 function getSlugFromUrl(): string | null {
   if (import.meta.server) return null
@@ -21,12 +27,18 @@ function getSlugFromUrl(): string | null {
   return slug
 }
 
+function isModulePath(path: string): boolean {
+  return MODULE_PATHS.some((p) => path === p || path.startsWith(p + '/'))
+}
+
 export default defineNuxtPlugin(async () => {
   if (import.meta.server) return
 
   const tenantStore = useTenantStore()
   const themeStore = useThemeStore()
   const route = useRoute()
+  const config = useRuntimeConfig()
+  const pollSeconds = Number((config.public as { tenantContextPollSeconds?: number }).tenantContextPollSeconds ?? 60)
 
   async function ensureTenantContext(slug: string | null) {
     if (!slug) return
@@ -49,4 +61,49 @@ export default defineNuxtPlugin(async () => {
       }
     }
   )
+
+  watch(
+    () => route.path,
+    (newPath, oldPath) => {
+      if (newPath !== oldPath && isModulePath(newPath) && tenantStore.slug) {
+        void tenantStore.refetchTenantContext()
+      }
+    }
+  )
+
+  if (pollSeconds > 0 && typeof document !== 'undefined') {
+    let pollTimer: ReturnType<typeof setInterval> | null = null
+    function startPoll() {
+      if (pollTimer) return
+      pollTimer = setInterval(() => {
+        if (document.visibilityState === 'visible' && tenantStore.slug && isModulePath(route.path)) {
+          void tenantStore.refetchTenantContext()
+        }
+      }, pollSeconds * 1000)
+    }
+    function stopPoll() {
+      if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+      }
+    }
+    watch(
+      () => route.path,
+      () => {
+        if (document.visibilityState === 'visible' && isModulePath(route.path)) {
+          startPoll()
+        } else {
+          stopPoll()
+        }
+      },
+      { immediate: true }
+    )
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        stopPoll()
+      } else if (isModulePath(route.path)) {
+        startPoll()
+      }
+    })
+  }
 })

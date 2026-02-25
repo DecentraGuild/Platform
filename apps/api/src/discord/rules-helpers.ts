@@ -53,8 +53,8 @@ export interface ConditionResponseItem {
   threshold: number | null
   trait_key: string | null
   trait_value: string | null
-  required_role_ids: string[]
-  role_logic: 'AND' | 'OR'
+  required_role_id: string
+  amount: number | null
 }
 
 /** Condition response: payload + derived display fields for tenant UI. */
@@ -68,8 +68,8 @@ export async function conditionsForResponse(
     let threshold: number | null = null
     let trait_key: string | null = null
     let trait_value: string | null = null
-    let required_role_ids: string[] = []
-    let role_logic: 'AND' | 'OR' = 'OR'
+    let required_role_id = ''
+    let amount: number | null = null
     if (c.type === 'SPL') {
       const spl = p as SPLPayload
       mint_or_group = spl.mint ?? ''
@@ -84,6 +84,9 @@ export async function conditionsForResponse(
     } else if (c.type === 'NFT' || c.type === 'TRAIT') {
       const nft = p as NFTPayload | TRAITPayload
       mint_or_group = nft.collection_or_mint ?? ''
+      if (typeof (nft as NFTPayload).amount === 'number') {
+        amount = (nft as NFTPayload).amount!
+      }
       if (c.type === 'TRAIT') {
         const t = p as TRAITPayload
         trait_key = t.trait_key ?? null
@@ -91,8 +94,7 @@ export async function conditionsForResponse(
       }
     } else if (c.type === 'DISCORD') {
       const disc = p as DISCORDPayload
-      required_role_ids = disc.required_role_ids ?? []
-      role_logic = disc.role_logic ?? 'OR'
+      required_role_id = disc.required_role_id ?? ''
     }
     out.push({
       id: c.id,
@@ -103,8 +105,8 @@ export async function conditionsForResponse(
       threshold,
       trait_key,
       trait_value,
-      required_role_ids,
-      role_logic,
+      required_role_id,
+      amount,
     })
   }
   return out
@@ -132,8 +134,8 @@ export async function buildPayloadFromBody(
     threshold_raw?: number
     trait_key?: string
     trait_value?: string
-    required_role_ids?: string[]
-    role_logic?: string
+    required_role_id?: string
+    amount?: number
   }
 ): Promise<{ payload: ConditionPayload; mintOrGroupForValidation?: string }> {
   const payload = body.payload ?? {}
@@ -149,22 +151,93 @@ export async function buildPayloadFromBody(
   }
   if (type === 'NFT') {
     const collection_or_mint = (payload.collection_or_mint as string) ?? body.collection_or_mint ?? body.mint_or_group ?? ''
-    return { payload: { collection_or_mint }, mintOrGroupForValidation: collection_or_mint }
+    const amountRaw = (payload.amount as number) ?? body.amount
+    const amount =
+      typeof amountRaw === 'number' && Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : 1
+    return { payload: { collection_or_mint, amount }, mintOrGroupForValidation: collection_or_mint }
   }
   if (type === 'TRAIT') {
     const collection_or_mint =
       (payload.collection_or_mint as string) ?? body.collection_or_mint ?? body.mint_or_group ?? ''
     const trait_key = (payload.trait_key as string) ?? body.trait_key ?? ''
     const trait_value = (payload.trait_value as string) ?? body.trait_value ?? ''
+    const amountRaw = (payload.amount as number) ?? body.amount
+    const amount =
+      typeof amountRaw === 'number' && Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : 1
     return {
-      payload: { collection_or_mint, trait_key, trait_value },
+      payload: { collection_or_mint, trait_key, trait_value, amount },
       mintOrGroupForValidation: collection_or_mint,
     }
   }
   if (type === 'DISCORD') {
-    const required_role_ids = (payload.required_role_ids as string[]) ?? body.required_role_ids ?? []
-    const role_logic = (payload.role_logic as 'AND' | 'OR') ?? (body.role_logic === 'AND' ? 'AND' : 'OR')
-    return { payload: { required_role_ids: Array.isArray(required_role_ids) ? required_role_ids : [], role_logic } }
+    const required_role_id =
+      (payload.required_role_id as string) ?? body.required_role_id ?? ''
+    return { payload: { required_role_id: typeof required_role_id === 'string' ? required_role_id : '' } }
   }
   return { payload: {} as ConditionPayload }
+}
+
+/** Truncate address for display when name is missing. */
+function truncateAddress(addr: string, head = 6, tail = 4): string {
+  if (!addr || addr.length <= head + tail) return addr
+  return `${addr.slice(0, head)}...${addr.slice(-tail)}`
+}
+
+export type RoleCardRequirementItem =
+  | { type: 'text'; text: string }
+  | { type: 'separator'; label: 'OR' | 'and' }
+
+/** Map of role_id -> display info for resolving role names in DISCORD conditions. */
+export interface RoleInfoMap {
+  get(roleId: string): { name: string } | undefined
+}
+
+/**
+ * Build human-readable requirement lines for a single rule's conditions.
+ * Inserts "OR" or "and" between items based on logic_to_next.
+ */
+export async function buildRoleCardRequirements(
+  conditions: DiscordRoleConditionRow[],
+  roleInfoMap: RoleInfoMap
+): Promise<RoleCardRequirementItem[]> {
+  const out: RoleCardRequirementItem[] = []
+  for (let i = 0; i < conditions.length; i++) {
+    if (i > 0 && conditions[i - 1].logic_to_next) {
+      out.push({
+        type: 'separator',
+        label: conditions[i - 1].logic_to_next === 'OR' ? 'OR' : 'and',
+      })
+    }
+    const c = conditions[i]
+    const p = c.payload
+    let text = ''
+    if (c.type === 'SPL') {
+      const spl = p as SPLPayload
+      const meta = getPool() ? await getMintMetadata(spl.mint) : null
+      const amount =
+        meta?.decimals != null ? spl.threshold_raw / 10 ** meta.decimals : spl.threshold_raw
+      const tokenName = meta?.name ?? meta?.symbol ?? truncateAddress(spl.mint || '')
+      text = `${amount} ${tokenName}`.trim() || truncateAddress(spl.mint || '')
+    } else if (c.type === 'NFT') {
+      const nft = p as NFTPayload
+      const coll = nft.collection_or_mint || ''
+      const meta = getPool() ? await getMintMetadata(coll) : null
+      const name = meta?.name ?? meta?.symbol ?? truncateAddress(coll)
+      text = `any NFT from ${name}`
+    } else if (c.type === 'TRAIT') {
+      const t = p as TRAITPayload
+      const coll = t.collection_or_mint || ''
+      const meta = getPool() ? await getMintMetadata(coll) : null
+      const collName = meta?.name ?? meta?.symbol ?? truncateAddress(coll)
+      const traitPart = [t.trait_key, t.trait_value].filter(Boolean).join(': ') || 'trait'
+      text = `NFT from ${collName} with ${traitPart}`
+    } else if (c.type === 'DISCORD') {
+      const disc = p as DISCORDPayload
+      const id = disc.required_role_id ?? ''
+      const name = id ? (roleInfoMap.get(id)?.name ?? truncateAddress(id)) : ''
+      text = name ? `Have ${name} on Discord` : 'Have role on Discord'
+    }
+    if (text) out.push({ type: 'text', text })
+  }
+  return out
 }

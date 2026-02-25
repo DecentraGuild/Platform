@@ -9,6 +9,7 @@ import {
 import { setNonce, consumeNonce } from '../auth/nonce-store.js'
 import { verifyWalletSignature } from '../auth/verify-signature.js'
 import { authRateLimit } from '../rate-limit-strict.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 const NONCE_BYTES = 32
 
@@ -29,11 +30,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   app.post<{ Body: { wallet: string } }>('/api/v1/auth/nonce', { preHandler: [authRateLimit] }, async (request, reply) => {
     const wallet = request.body?.wallet
     if (!wallet || typeof wallet !== 'string') {
-      return reply.status(400).send({ error: 'wallet (base58 public key) required' })
+      return reply.status(400).send(apiError('wallet (base58 public key) required', ErrorCode.BAD_REQUEST))
     }
     const code = randomBytes(NONCE_BYTES).toString('base64')
     const message = `Sign in to DecentraGuild.\n\nYour one-time code: ${code}`
-    setNonce(wallet, message)
+    await setNonce(wallet, message)
     return { nonce: message }
   })
 
@@ -42,14 +43,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   }>('/api/v1/auth/verify', { preHandler: [authRateLimit] }, async (request, reply) => {
     const { wallet, signature, message } = request.body ?? {}
     if (!wallet || !signature || !message) {
-      return reply.status(400).send({ error: 'wallet, signature, and message required' })
+      return reply.status(400).send(apiError('wallet, signature, and message required', ErrorCode.BAD_REQUEST))
     }
-    if (!consumeNonce(wallet, message)) {
-      return reply.status(401).send({ error: 'Invalid or expired nonce' })
+    if (!(await consumeNonce(wallet, message))) {
+      return reply.status(401).send(apiError('Invalid or expired nonce', ErrorCode.INVALID_NONCE))
     }
     const valid = await verifyWalletSignature(wallet, message, signature)
     if (!valid) {
-      return reply.status(401).send({ error: 'Invalid signature' })
+      return reply.status(401).send(apiError('Invalid signature', ErrorCode.INVALID_SIGNATURE))
     }
     try {
       const token = await createSessionToken(wallet)
@@ -60,18 +61,18 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         .send({ ok: true })
     } catch (err) {
       request.log.error({ err }, 'Auth verify: session or cookie failed')
-      return reply.status(500).send({ error: 'Session creation failed' })
+      return reply.status(500).send(apiError('Session creation failed', ErrorCode.INTERNAL_ERROR))
     }
   })
 
   app.get('/api/v1/auth/me', async (request, reply) => {
     const token = getTokenFromCookie(request)
     if (!token) {
-      return reply.status(401).send({ error: 'Not authenticated' })
+      return reply.status(401).send(apiError('Not authenticated', ErrorCode.UNAUTHORIZED))
     }
     const payload = await verifySessionToken(token)
     if (!payload) {
-      return reply.status(401).send({ error: 'Invalid or expired session' })
+      return reply.status(401).send(apiError('Invalid or expired session', ErrorCode.UNAUTHORIZED))
     }
     return { wallet: payload.wallet }
   })

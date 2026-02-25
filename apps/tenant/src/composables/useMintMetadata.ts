@@ -2,6 +2,7 @@
  * Fetch mint metadata from API (cached). If API returns 404, falls back to client-side RPC fetch.
  */
 import { Connection } from '@solana/web3.js'
+import { API_V1 } from '~/utils/apiBase'
 import { fetchMintMetadataFromChain } from '@decentraguild/web3'
 
 export interface MintMetadata {
@@ -33,7 +34,7 @@ export function useMintMetadata() {
     if (cached && !forceFromChain) return cached
 
     if (!forceFromChain && apiBase.value) {
-      const url = `${apiBase.value}/api/v1/marketplace/metadata/mint/${encodeURIComponent(mint)}`
+      const url = `${apiBase.value}${API_V1}/marketplace/metadata/mint/${encodeURIComponent(mint)}`
       try {
         const res = await fetch(url)
         if (res.ok) {

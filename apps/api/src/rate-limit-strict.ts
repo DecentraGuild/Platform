@@ -4,6 +4,14 @@
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify'
+import { apiError, ErrorCode } from './api-errors.js'
+import {
+  DEFAULT_RATE_LIMIT_AUTH_MAX,
+  DEFAULT_RATE_LIMIT_TENANT_CREATE_MAX,
+  DEFAULT_RATE_LIMIT_DISCORD_VERIFY_MAX,
+  DEFAULT_RATE_LIMIT_ADMIN_WRITE_MAX,
+  RATE_LIMIT_STRICT_WINDOW_MS,
+} from './config/constants.js'
 
 interface WindowEntry {
   count: number
@@ -45,6 +53,10 @@ export function strictRateLimit(options: StrictRateLimitOptions) {
   return async function (request: FastifyRequest, reply: FastifyReply) {
     const ip = getClientIp(request)
     const now = Date.now()
+    // Prune expired entries to avoid unbounded memory under IP churn
+    for (const [key, value] of store!.entries()) {
+      if (now >= value.resetAt) store!.delete(key)
+    }
     let entry = store!.get(ip)
     if (!entry || now >= entry.resetAt) {
       entry = { count: 0, resetAt: now + windowMs }
@@ -52,31 +64,36 @@ export function strictRateLimit(options: StrictRateLimitOptions) {
     }
     entry.count++
     if (entry.count > max) {
-      return reply.status(429).send({
-        error: 'Too many requests',
-        message: `Rate limit exceeded. Try again in ${Math.ceil((entry.resetAt - now) / 1000)} seconds.`,
-      })
+      const retryAfterSeconds = Math.ceil((entry.resetAt - now) / 1000)
+      return reply.status(429).send(apiError('Too many requests', ErrorCode.RATE_LIMIT_EXCEEDED, { retryAfterSeconds }))
     }
   }
 }
 
-/** 10 requests per minute per IP for auth endpoints */
+/** Auth endpoints: requests per minute per IP. Override with RATE_LIMIT_AUTH_MAX. */
 export const authRateLimit = strictRateLimit({
   name: 'auth',
-  max: Number(process.env.RATE_LIMIT_AUTH_MAX) || 10,
-  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_AUTH_MAX) || DEFAULT_RATE_LIMIT_AUTH_MAX,
+  windowMs: RATE_LIMIT_STRICT_WINDOW_MS,
 })
 
-/** 5 tenant creation attempts per minute per IP */
+/** Tenant creation: attempts per minute per IP. Override with RATE_LIMIT_TENANT_CREATE_MAX. */
 export const tenantCreateRateLimit = strictRateLimit({
   name: 'tenant-create',
-  max: Number(process.env.RATE_LIMIT_TENANT_CREATE_MAX) || 5,
-  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_TENANT_CREATE_MAX) || DEFAULT_RATE_LIMIT_TENANT_CREATE_MAX,
+  windowMs: RATE_LIMIT_STRICT_WINDOW_MS,
 })
 
-/** 20 verify/link attempts per minute per IP (public Discord verify flow) */
+/** Discord verify: attempts per minute per IP. Override with RATE_LIMIT_DISCORD_VERIFY_MAX. */
 export const discordVerifyRateLimit = strictRateLimit({
   name: 'discord-verify',
-  max: Number(process.env.RATE_LIMIT_DISCORD_VERIFY_MAX) || 20,
-  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_DISCORD_VERIFY_MAX) || DEFAULT_RATE_LIMIT_DISCORD_VERIFY_MAX,
+  windowMs: RATE_LIMIT_STRICT_WINDOW_MS,
+})
+
+/** Admin write: requests per minute per IP. Override with RATE_LIMIT_ADMIN_WRITE_MAX. */
+export const adminWriteRateLimit = strictRateLimit({
+  name: 'admin-write',
+  max: Number(process.env.RATE_LIMIT_ADMIN_WRITE_MAX) || DEFAULT_RATE_LIMIT_ADMIN_WRITE_MAX,
+  windowMs: RATE_LIMIT_STRICT_WINDOW_MS,
 })

@@ -20,7 +20,7 @@
                 <p class="admin-collection-modal__field">
                   <span class="admin-collection-modal__label">Mint</span>
                   <code class="admin-collection-modal__mint">{{ collection.mint }}</code>
-                  <a :href="`https://solscan.io/token/${collection.mint}`" target="_blank" rel="noopener" class="admin-collection-modal__link">Solscan</a>
+                  <a :href="explorerLinks.tokenUrl(collection.mint)" target="_blank" rel="noopener" class="admin-collection-modal__link">Solscan</a>
                 </p>
                 <p v-if="collection.name" class="admin-collection-modal__field">
                   <span class="admin-collection-modal__label">Name</span>
@@ -97,6 +97,7 @@ import { ref, computed, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { truncateAddress } from '@decentraguild/display'
 import { useMarketplaceAssets } from '~/composables/useMarketplaceAssets'
+import { useExplorerLinks } from '~/composables/useExplorerLinks'
 
 const props = defineProps<{
   modelValue: boolean
@@ -113,6 +114,7 @@ const props = defineProps<{
 
 defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
+const explorerLinks = useExplorerLinks()
 const collectionMintRef = ref<string | null>(null)
 watch(
   () => props.collection?.mint ?? null,

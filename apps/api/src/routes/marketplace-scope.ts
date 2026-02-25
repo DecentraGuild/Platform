@@ -6,10 +6,10 @@ import {
 } from '../marketplace/scope.js'
 import { expandAndSaveScope } from '../marketplace/expand-collections.js'
 import { getMintMetadataBatch } from '../db/marketplace-metadata.js'
-import { getMarketplaceBySlug } from '../db/marketplace-settings.js'
-import { loadMarketplaceBySlug } from '../config/marketplace-registry.js'
+import { resolveMarketplace } from '../db/marketplace-settings.js'
 import { getPool } from '../db/client.js'
 import { normalizeTenantSlug } from '../validate-slug.js'
+import { apiError, ErrorCode } from '../api-errors.js'
 
 const ASSET_TYPE_MAP = {
   collection: 'NFT_COLLECTION',
@@ -21,18 +21,14 @@ export async function registerMarketplaceScopeRoutes(app: FastifyInstance) {
   app.post<{ Params: { slug: string } }>('/api/v1/tenant/:slug/marketplace/scope/expand', async (request, reply) => {
     const slug = normalizeTenantSlug(request.params.slug)
     if (!slug) {
-      return reply.status(400).send({ error: 'Invalid tenant slug' })
+      return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
     }
     if (process.env.NODE_ENV === 'production') {
-      return reply.status(404).send({ error: 'Not found' })
+      return reply.status(404).send(apiError('Not found', ErrorCode.NOT_FOUND))
     }
-    let config: Awaited<ReturnType<typeof loadMarketplaceBySlug>> = null
-    if (getPool()) {
-      config = await getMarketplaceBySlug(slug)
-    }
-    if (!config) config = await loadMarketplaceBySlug(slug)
+    const config = await resolveMarketplace(slug)
     if (!config) {
-      return reply.status(404).send({ error: 'Marketplace config not found', slug })
+      return reply.status(404).send(apiError('Marketplace config not found', ErrorCode.MARKETPLACE_NOT_FOUND, { slug }))
     }
     try {
       const entries = await expandAndSaveScope(slug, config, request.log)
@@ -40,17 +36,16 @@ export async function registerMarketplaceScopeRoutes(app: FastifyInstance) {
       return { ok: true, mintsCount: mints.length, message: `Scope expanded: ${entries.length} entries` }
     } catch (e) {
       request.log.error({ err: e, slug }, 'Scope expansion failed')
-      return reply.status(500).send({
-        error: 'Scope expansion failed',
+      return reply.status(500).send(apiError('Scope expansion failed', ErrorCode.INTERNAL_ERROR, {
         message: e instanceof Error ? e.message : 'Unknown error',
-      })
+      }))
     }
   })
 
   app.get<{ Params: { slug: string } }>('/api/v1/tenant/:slug/marketplace/scope', async (request, reply) => {
     const slug = normalizeTenantSlug(request.params.slug)
     if (!slug) {
-      return reply.status(400).send({ error: 'Invalid tenant slug' })
+      return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
     }
     reply.header('Cache-Control', 'public, max-age=60')
     const entries = await getScopeEntriesForTenant(slug)

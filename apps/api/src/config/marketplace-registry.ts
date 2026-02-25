@@ -1,54 +1,38 @@
 /**
  * Marketplace config registry: read/write {slug}.json from MARKETPLACE_CONFIG_PATH.
  * Linked to tenant by slug. Separate from tenant config.
+ * Uses shared MarketplaceSettings from @decentraguild/core; extends with tenantSlug/tenantId and API-only collection fields.
  */
 
 import { existsSync } from 'node:fs'
 import { readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import type {
+  MarketplaceSettings,
+  MarketplaceGroupPath,
+  MarketplaceCollectionMint,
+  MarketplaceCurrencyMint,
+} from '@decentraguild/core'
 import { isValidTenantSlug } from '../validate-slug.js'
 
-export interface CurrencyMint {
-  mint: string
-  name: string
-  symbol: string
-  image?: string
-  decimals?: number
-  sellerFeeBasisPoints?: number
+export type { MarketplaceGroupPath }
+
+/** API-only fields added to collection mints (enrichment from scope/metadata). */
+export interface MarketplaceCollectionMintEnriched extends MarketplaceCollectionMint {
+  collectionSize?: number
+  uniqueTraitCount?: number
+  traitTypes?: string[]
 }
 
-export interface WhitelistSettings {
-  programId: string
-  account: string
-}
-
-/** 0..3 group labels for flexible tree levels under Type (e.g. ['Year 2'], ['Ships','Medium']). */
-export type MarketplaceGroupPath = string[]
-
-export interface MarketplaceConfig {
+/** Marketplace config: core settings plus tenant identity and enriched collection mints. */
+export interface MarketplaceConfig extends Omit<MarketplaceSettings, 'collectionMints'> {
   tenantSlug: string
   tenantId?: string
-  collectionMints: Array<{
-    mint: string
-    name?: string
-    image?: string
-    sellerFeeBasisPoints?: number
-    groupPath?: MarketplaceGroupPath
-    collectionSize?: number
-    uniqueTraitCount?: number
-    traitTypes?: string[]
-  }>
-  currencyMints: (CurrencyMint & { groupPath?: MarketplaceGroupPath })[]
-  splAssetMints?: Array<{ mint: string; name?: string; symbol?: string; image?: string; decimals?: number; sellerFeeBasisPoints?: number; groupPath?: MarketplaceGroupPath }>
-  whitelist?: WhitelistSettings
-  shopFee: {
-    wallet: string
-    makerFlatFee: number
-    takerFlatFee: number
-    makerPercentFee: number
-    takerPercentFee: number
-  }
+  collectionMints: MarketplaceCollectionMintEnriched[]
 }
+
+/** Alias for API code that references currencyMints entries. */
+export type CurrencyMint = MarketplaceCurrencyMint
 
 const DEFAULT_MARKETPLACE_CONFIG_PATH = 'configs/marketplace'
 

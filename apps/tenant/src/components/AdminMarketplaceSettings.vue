@@ -256,6 +256,7 @@
 </template>
 
 <script setup lang="ts">
+import { API_V1 } from '~/utils/apiBase'
 import { Icon } from '@iconify/vue'
 import { Card, TextInput, Button } from '@decentraguild/ui/components'
 import AdminCollectionDetailModal from './AdminCollectionDetailModal.vue'
@@ -440,7 +441,7 @@ async function fillMissingCollectionCounts() {
     const m = form.collectionMints[i]
     if (m._loading || m._error || (m.collectionSize != null && m.collectionSize > 0)) continue
     try {
-      const res = await fetch(`${apiBase.value}/api/v1/marketplace/asset-preview/collection/${encodeURIComponent(m.mint)}`)
+      const res = await fetch(`${apiBase.value}${API_V1}/marketplace/asset-preview/collection/${encodeURIComponent(m.mint)}`)
       if (!res.ok) continue
       const data = (await res.json()) as { collectionSize?: number; uniqueTraitCount?: number; traitTypes?: string[] }
       const existing = form.collectionMints[i]
@@ -487,7 +488,7 @@ async function addCollection() {
   newCollectionMint.value = ''
   const idx = form.collectionMints.length - 1
   try {
-    const res = await fetch(`${apiBase.value}/api/v1/marketplace/asset-preview/collection/${encodeURIComponent(mint)}`)
+    const res = await fetch(`${apiBase.value}${API_V1}/marketplace/asset-preview/collection/${encodeURIComponent(mint)}`)
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { message?: string }
       throw new Error(data.message ?? `HTTP ${res.status}`)
@@ -531,7 +532,7 @@ async function addSpl() {
   newSplMint.value = ''
   const idx = form.splAssetMints.length - 1
   try {
-    const res = await fetch(`${apiBase.value}/api/v1/marketplace/asset-preview/spl/${encodeURIComponent(mint)}`)
+    const res = await fetch(`${apiBase.value}${API_V1}/marketplace/asset-preview/spl/${encodeURIComponent(mint)}`)
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { message?: string }
       throw new Error(data.message ?? `HTTP ${res.status}`)
@@ -580,7 +581,7 @@ async function lookupAndAddCurrency() {
   newCurrencyMint.value = ''
   const idx = form.currencyMints.length - 1
   try {
-    const res = await fetch(`${apiBase.value}/api/v1/marketplace/asset-preview/spl/${encodeURIComponent(mint)}`)
+    const res = await fetch(`${apiBase.value}${API_V1}/marketplace/asset-preview/spl/${encodeURIComponent(mint)}`)
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string }
       throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`)
@@ -640,7 +641,7 @@ async function save() {
   saveError.value = null
   saveSuccess.value = false
   try {
-    const res = await fetch(`${apiBase.value}/api/v1/tenant/${props.slug}/marketplace-settings`, {
+    const res = await fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/marketplace-settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

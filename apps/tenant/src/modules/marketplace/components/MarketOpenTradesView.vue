@@ -12,7 +12,13 @@
     />
     <div v-else>
       <div class="market-open-trades__toolbar">
-        <button type="button" class="market-open-trades__create-btn" @click="emit('open-create-trade')">
+        <button
+          type="button"
+          class="market-open-trades__create-btn"
+          :class="{ 'market-open-trades__create-btn--disabled': props.createDisabled }"
+          :disabled="props.createDisabled"
+          @click="!props.createDisabled && emit('open-create-trade')"
+        >
           <Icon icon="mdi:plus" class="market-open-trades__create-btn-icon" />
           <span>New trade</span>
         </button>
@@ -79,6 +85,7 @@ import ManageEscrowCard from './ManageEscrowCard.vue'
 import MintLabel from './MintLabel.vue'
 import { useTenantStore } from '~/stores/tenant'
 import { useMarketplaceEscrowLinks } from '~/composables/useMarketplaceEscrowLinks'
+import { API_V1 } from '~/utils/apiBase'
 import { useApiBase } from '~/composables/useApiBase'
 import { useAuth } from '@decentraguild/auth'
 import { useRpc } from '~/composables/useRpc'
@@ -88,8 +95,8 @@ import type { EscrowApiShape } from '~/composables/useEscrowsForMints'
 
 
 const props = withDefaults(
-  defineProps<{ tabActive?: boolean }>(),
-  { tabActive: false }
+  defineProps<{ tabActive?: boolean; createDisabled?: boolean }>(),
+  { tabActive: false, createDisabled: false }
 )
 const emit = defineEmits<{ 'open-create-trade': [] }>()
 
@@ -174,7 +181,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const url = `${apiBase.value}/api/v1/tenant/${encodeURIComponent(slug)}/marketplace/escrows?maker=${encodeURIComponent(addr)}`
+    const url = `${apiBase.value}${API_V1}/tenant/${encodeURIComponent(slug)}/marketplace/escrows?maker=${encodeURIComponent(addr)}`
     const res = await fetch(url)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = (await res.json()) as { escrows?: EscrowApiShape[] }
@@ -249,8 +256,16 @@ async function handleQuickCancel(escrow: EscrowWithAddress) {
   cursor: pointer;
 }
 
-.market-open-trades__create-btn:hover {
+.market-open-trades__create-btn:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+.market-open-trades__create-btn--disabled,
+.market-open-trades__create-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--theme-bg-tertiary);
+  color: var(--theme-text-muted);
 }
 
 .market-open-trades__create-btn-icon {

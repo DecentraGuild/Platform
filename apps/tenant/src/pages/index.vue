@@ -42,7 +42,7 @@ function applyTenant() {
   brandLogo.value = themeStore.branding.logo ?? t?.branding?.logo ?? ''
   showDescription.value = Boolean(t?.description)
   showAdminCta.value =
-    (t?.modules?.admin?.active && IMPLEMENTED_MODULES.has('admin')) ?? false
+    (t?.modules?.admin && IMPLEMENTED_MODULES.has('admin')) ?? false
 }
 onMounted(applyTenant)
 watch([tenant, () => themeStore.branding], applyTenant)

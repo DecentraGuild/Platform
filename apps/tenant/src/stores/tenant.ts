@@ -1,19 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { TenantConfig } from '@decentraguild/core'
+import type { TenantConfig, MarketplaceSettings } from '@decentraguild/core'
 import { useThemeStore } from '@decentraguild/ui'
-import { normalizeApiBase } from '~/utils/apiBase'
+import { API_V1, normalizeApiBase } from '~/utils/apiBase'
 
-/** 0..3 group labels for flexible tree levels under Type. Max 3 in v1. */
-export type MarketplaceGroupPath = string[]
-
-export interface MarketplaceSettings {
-  collectionMints: Array<{ mint: string; name?: string; image?: string; sellerFeeBasisPoints?: number; groupPath?: MarketplaceGroupPath }>
-  splAssetMints?: Array<{ mint: string; name?: string; symbol?: string; decimals?: number; groupPath?: MarketplaceGroupPath }>
-  currencyMints: Array<{ mint: string; name: string; symbol: string; decimals?: number; groupPath?: MarketplaceGroupPath }>
-  whitelist?: { programId: string; account: string }
-  shopFee: { wallet: string; makerFlatFee: number; takerFlatFee: number; makerPercentFee: number; takerPercentFee: number }
-}
+export type { MarketplaceSettings } from '@decentraguild/core'
 
 export const useTenantStore = defineStore('tenant', () => {
   const tenant = ref<TenantConfig | null>(null)
@@ -29,10 +20,10 @@ export const useTenantStore = defineStore('tenant', () => {
     marketplaceSettings.value = null
 
     const config = useRuntimeConfig()
-    const apiBase = normalizeApiBase(config.public.apiUrl as string)
-    const url = `${apiBase}/api/v1/tenant-context?slug=${slugParam}`
+    const apiBase = normalizeApiBase(config.public.apiUrl as string) // same formula as useApiBase()
+    const url = `${apiBase}${API_V1}/tenant-context?slug=${slugParam}`
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         const msg = (data.error as string) || `HTTP ${res.status}`
@@ -50,6 +41,13 @@ export const useTenantStore = defineStore('tenant', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  /** Re-fetch tenant context for current slug (e.g. after cron may have changed module state). */
+  async function refetchTenantContext() {
+    const currentSlug = slug.value
+    if (!currentSlug) return
+    await fetchTenantContext(currentSlug)
   }
 
   function clearTenant() {
@@ -92,6 +90,7 @@ export const useTenantStore = defineStore('tenant', () => {
     loading,
     error,
     fetchTenantContext,
+    refetchTenantContext,
     applyTenantContext,
     clearTenant,
     setTenant,

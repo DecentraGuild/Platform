@@ -125,7 +125,7 @@
                       <code>{{ truncateAddress(props.escrowId ?? '', 8, 8) }}</code>
                       <a
                         v-if="props.escrowId"
-                        :href="`https://solscan.io/account/${props.escrowId}`"
+                        :href="explorerLinks.accountUrl(props.escrowId)"
                         target="_blank"
                         rel="noopener"
                         class="escrow-modal__link"
@@ -140,19 +140,19 @@
                     <dt>Maker</dt>
                     <dd>
                       <code>{{ truncateAddress(escrow.account.maker.toBase58(), 8, 8) }}</code>
-                      <a :href="`https://solscan.io/account/${escrow.account.maker.toBase58()}`" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
+                      <a :href="explorerLinks.accountUrl(escrow.account.maker.toBase58())" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
                       <button type="button" class="escrow-modal__copy" aria-label="Copy maker address" @click="copyToClipboard(escrow.account.maker.toBase58(), 'Maker address')"><Icon icon="mdi:content-copy" /></button>
                     </dd>
                     <dt>Deposit token</dt>
                     <dd>
                       <code>{{ truncateAddress(escrow.account.depositToken.toBase58(), 8, 8) }}</code>
-                      <a :href="`https://solscan.io/token/${escrow.account.depositToken.toBase58()}`" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
+                      <a :href="explorerLinks.tokenUrl(escrow.account.depositToken.toBase58())" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
                       <button type="button" class="escrow-modal__copy" aria-label="Copy mint" @click="copyToClipboard(escrow.account.depositToken.toBase58(), 'Deposit token mint')"><Icon icon="mdi:content-copy" /></button>
                     </dd>
                     <dt>Request token</dt>
                     <dd>
                       <code>{{ truncateAddress(escrow.account.requestToken.toBase58(), 8, 8) }}</code>
-                      <a :href="`https://solscan.io/token/${escrow.account.requestToken.toBase58()}`" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
+                      <a :href="explorerLinks.tokenUrl(escrow.account.requestToken.toBase58())" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
                       <button type="button" class="escrow-modal__copy" aria-label="Copy mint" @click="copyToClipboard(escrow.account.requestToken.toBase58(), 'Request token mint')"><Icon icon="mdi:content-copy" /></button>
                     </dd>
                     <dt>Price (chain)</dt>
@@ -190,7 +190,10 @@
             <!-- Fill section: visible when not maker -->
             <section v-if="!isMaker" class="escrow-modal__fill">
               <h3 class="escrow-modal__section-title">Fill trade</h3>
-              <p v-if="!display" class="escrow-modal__fill-loading">Loading trade details...</p>
+              <p v-if="props.fillDisabled" class="escrow-modal__fill-winding-down">
+                Marketplace is winding down; only cancel is allowed.
+              </p>
+              <p v-else-if="!display" class="escrow-modal__fill-loading">Loading trade details...</p>
               <div v-else class="escrow-modal__fill-content">
                 <!-- Rate: 1 line, label + value + swap -->
                 <div class="escrow-modal__rate">
@@ -283,7 +286,7 @@
                 <div v-if="walletAddress && insufficientBalance" class="escrow-modal__insufficient">
                   Insufficient balance to fill this amount.
                 </div>
-                <div class="escrow-modal__fill-actions">
+                <div v-if="!props.fillDisabled" class="escrow-modal__fill-actions">
                   <Button
                     v-if="walletAddress && canFill && canSignTransactions"
                     variant="primary"
@@ -338,25 +341,25 @@
                       <dt>Escrow</dt>
                       <dd>
                         <code>{{ truncateAddress(props.escrowId ?? '', 8, 8) }}</code>
-                        <a v-if="props.escrowId" :href="`https://solscan.io/account/${props.escrowId}`" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
+                        <a v-if="props.escrowId" :href="explorerLinks.accountUrl(props.escrowId)" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
                         <button type="button" class="escrow-modal__copy" aria-label="Copy escrow address" @click="copyToClipboard(props.escrowId ?? '', 'Escrow address')"><Icon icon="mdi:content-copy" /></button>
                       </dd>
                       <dt>Maker</dt>
                       <dd>
                         <code>{{ truncateAddress(escrow.account.maker.toBase58(), 8, 8) }}</code>
-                        <a :href="`https://solscan.io/account/${escrow.account.maker.toBase58()}`" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
+                        <a :href="explorerLinks.accountUrl(escrow.account.maker.toBase58())" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
                         <button type="button" class="escrow-modal__copy" aria-label="Copy maker address" @click="copyToClipboard(escrow.account.maker.toBase58(), 'Maker address')"><Icon icon="mdi:content-copy" /></button>
                       </dd>
                       <dt>Deposit token</dt>
                       <dd>
                         <code>{{ truncateAddress(escrow.account.depositToken.toBase58(), 8, 8) }}</code>
-                        <a :href="`https://solscan.io/token/${escrow.account.depositToken.toBase58()}`" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
+                        <a :href="explorerLinks.tokenUrl(escrow.account.depositToken.toBase58())" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
                         <button type="button" class="escrow-modal__copy" aria-label="Copy mint" @click="copyToClipboard(escrow.account.depositToken.toBase58(), 'Deposit token mint')"><Icon icon="mdi:content-copy" /></button>
                       </dd>
                       <dt>Request token</dt>
                       <dd>
                         <code>{{ truncateAddress(escrow.account.requestToken.toBase58(), 8, 8) }}</code>
-                        <a :href="`https://solscan.io/token/${escrow.account.requestToken.toBase58()}`" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
+                        <a :href="explorerLinks.tokenUrl(escrow.account.requestToken.toBase58())" target="_blank" rel="noopener" class="escrow-modal__link" title="View on Solscan"><Icon icon="mdi:open-in-new" /></a>
                         <button type="button" class="escrow-modal__copy" aria-label="Copy mint" @click="copyToClipboard(escrow.account.requestToken.toBase58(), 'Request token mint')"><Icon icon="mdi:content-copy" /></button>
                       </dd>
                       <dt>Price (chain)</dt>
@@ -406,6 +409,7 @@ import { Button, TokenAmountWithLabel, StatusBanner } from '@decentraguild/ui/co
 import { truncateAddress, toRawUnits, sanitizeTokenLabel, escrowPriceToHuman } from '@decentraguild/display'
 import { useEscrowDisplay } from '~/composables/useEscrowDisplay'
 import { useTenantStore } from '~/stores/tenant'
+import { API_V1 } from '~/utils/apiBase'
 import { useApiBase } from '~/composables/useApiBase'
 import { useMarketplaceEscrowLinks } from '~/composables/useMarketplaceEscrowLinks'
 import { useAuth } from '@decentraguild/auth'
@@ -420,13 +424,18 @@ import { ESCROW_PROGRAM_ID } from '@decentraguild/contracts'
 import { Connection, SystemProgram, PublicKey } from '@solana/web3.js'
 import BN from 'bn.js'
 import { useRpc } from '~/composables/useRpc'
+import { useExplorerLinks } from '~/composables/useExplorerLinks'
 import { useTransactionNotificationsStore } from '~/stores/transactionNotifications'
 import { fetchWalletTokenBalances, type TokenBalance } from '~/composables/useWalletTokenBalances'
 
-const props = defineProps<{
-  modelValue: boolean
-  escrowId: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    escrowId: string | null
+    fillDisabled?: boolean
+  }>(),
+  { fillDisabled: false }
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -440,6 +449,7 @@ const openConnectModal = auth.openConnectModal
 const { rpcUrl, rpcError } = useRpc()
 const txNotifications = useTransactionNotificationsStore()
 const apiBase = useApiBase()
+const explorerLinks = useExplorerLinks()
 
 const apiAvailable = computed(() => Boolean(apiBase.value && slug.value))
 
@@ -768,7 +778,7 @@ async function loadEscrow(id: string) {
     const base = apiBase.value
     const tenantSlug = slug.value
     if (base && tenantSlug) {
-      const url = `${base}/api/v1/tenant/${encodeURIComponent(tenantSlug)}/marketplace/escrows/${encodeURIComponent(id)}`
+      const url = `${base}${API_V1}/tenant/${encodeURIComponent(tenantSlug)}/marketplace/escrows/${encodeURIComponent(id)}`
       const res = await fetch(url)
       if (res.ok) {
         const json = (await res.json()) as { escrow?: EscrowApiShape }
@@ -960,7 +970,7 @@ watch(
   align-items: start;
 }
 
-@media (max-width: 480px) {
+@media (max-width: var(--theme-breakpoint-xs)) {
   .escrow-modal__details-cols {
     grid-template-columns: 1fr;
   }
@@ -1047,10 +1057,17 @@ watch(
   color: var(--theme-text-primary);
 }
 
-.escrow-modal__fill-loading {
+.escrow-modal__fill-loading,
+.escrow-modal__fill-winding-down {
   margin: 0;
   font-size: var(--theme-font-sm);
   color: var(--theme-text-muted);
+}
+
+.escrow-modal__fill-winding-down {
+  padding: var(--theme-space-sm);
+  background: var(--theme-status-warning, #ecc94b);
+  color: var(--theme-text-primary);
 }
 
 .escrow-modal__fill-amount-header {

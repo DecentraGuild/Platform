@@ -3,9 +3,8 @@
  * Does not persist; used to show metadata before save.
  */
 
-import { Connection } from '@solana/web3.js'
-import { fetchAsset, fetchAssetsByGroup, getDasRpcUrl } from '@decentraguild/web3'
-import { fetchMintMetadataFromChain } from '@decentraguild/web3'
+import { fetchAsset, fetchAssetsByGroup, fetchMintMetadataFromChain } from '@decentraguild/web3'
+import { getSolanaConnection } from '../solana-connection.js'
 import { traitsFromDasAsset } from './das-traits.js'
 
 export interface SplAssetPreview {
@@ -42,8 +41,7 @@ export async function fetchSplAssetPreview(mint: string): Promise<SplAssetPrevie
       sellerFeeBasisPoints: typeof bps === 'number' && bps >= 0 && bps <= 10000 ? bps : null,
     }
   }
-  const connection = new Connection(getDasRpcUrl())
-  const meta = await fetchMintMetadataFromChain(connection, mint)
+  const meta = await fetchMintMetadataFromChain(getSolanaConnection(), mint)
   return {
     mint,
     name: meta.name,

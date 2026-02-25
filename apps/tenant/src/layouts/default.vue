@@ -1,5 +1,8 @@
 <template>
-  <AppShell>
+  <AppShell
+    :mobile-nav-open="mobileNavOpen"
+    @update:mobile-nav-open="mobileNavOpen = $event"
+  >
     <ClientOnly>
       <div v-if="tenantStore.error" class="tenant-error">
         {{ tenantStore.error }}
@@ -12,6 +15,16 @@
         :logo="headerLogo"
         :name="headerName"
       >
+        <template #leading>
+          <button
+            type="button"
+            class="layout-nav-toggle"
+            aria-label="Open menu"
+            @click="mobileNavOpen = true"
+          >
+            <Icon icon="mdi:menu" />
+          </button>
+        </template>
         <template #nav>
           <nav v-if="subnavTabs.length" class="layout-subnav">
             <NuxtLink
@@ -52,6 +65,7 @@
 
 <script setup lang="ts">
 import { AuthWidget, useAuth } from '@decentraguild/auth'
+import { Icon } from '@iconify/vue'
 import {
   AppShell,
   AppHeader,
@@ -61,11 +75,17 @@ import {
 import TransactionToastContainer from '~/components/TransactionToastContainer.vue'
 import { useThemeStore } from '@decentraguild/ui'
 import { useTenantStore } from '~/stores/tenant'
+import { isModuleVisibleToMembers, getModuleState } from '@decentraguild/core'
 import { MODULE_NAV, IMPLEMENTED_MODULES, getModuleSubnavForPath } from '~/config/modules'
 
 const route = useRoute()
 const tenantStore = useTenantStore()
 const themeStore = useThemeStore()
+const mobileNavOpen = ref(false)
+
+watch(() => route.path, () => {
+  mobileNavOpen.value = false
+})
 
 const tenant = computed(() => tenantStore.tenant)
 
@@ -96,7 +116,7 @@ const isAdmin = computed(() => {
 const navModules = computed(() => {
   const mods = tenant.value?.modules ?? {}
   return Object.entries(mods)
-    .filter(([id, e]) => e.active && IMPLEMENTED_MODULES.has(id))
+    .filter(([id, e]) => isModuleVisibleToMembers(getModuleState(e)) && IMPLEMENTED_MODULES.has(id))
     .filter(([id]) => id !== 'admin' || isAdmin.value)
     .map(([id]) => {
       const entry = MODULE_NAV[id]
@@ -154,9 +174,11 @@ function isSubnavTabActive(tab: { id: string; path?: string }): boolean {
   display: flex;
   gap: var(--theme-space-xs);
   align-items: center;
+  flex-wrap: nowrap;
 }
 
 .layout-subnav__tab {
+  flex-shrink: 0;
   padding: var(--theme-space-sm) var(--theme-space-md);
   color: var(--theme-text-secondary);
   text-decoration: none;
@@ -172,5 +194,30 @@ function isSubnavTabActive(tab: { id: string; path?: string }): boolean {
 .layout-subnav__tab--active {
   color: var(--theme-primary);
   background: var(--theme-bg-card);
+}
+
+.layout-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--theme-radius-md);
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+}
+
+.layout-nav-toggle:hover {
+  color: var(--theme-text-primary);
+  background: var(--theme-bg-card);
+}
+
+@media (max-width: var(--theme-breakpoint-md)) {
+  .layout-nav-toggle {
+    display: flex;
+  }
 }
 </style>

@@ -33,16 +33,39 @@
             class="admin__module"
           >
             <span>{{ MODULE_NAV[id]?.label ?? id }}</span>
-            <Toggle
-              :model-value="form.modulesById[id]"
-              :label="form.modulesById[id] ? 'On' : 'Off'"
-              @update:model-value="onModuleToggle(id, $event)"
-            />
+            <div v-if="id !== 'admin'" class="admin__module-controls">
+              <span v-if="moduleDeactivationDate(id)" class="admin__module-date">
+                Deactivate at {{ formatDeactivationDate(moduleDeactivationDate(id)) }}
+              </span>
+              <select
+                :value="form.modulesById[id]"
+                class="admin__state-select"
+                @change="onModuleStateChange(id, ($event.target as HTMLSelectElement).value as ModuleState)"
+              >
+                <option
+                  v-for="opt in MODULE_STATES"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+            <span v-else class="admin__module-always-on">Always on</span>
           </div>
         </Card>
       </div>
 
       <div v-else-if="tab === 'marketplace'" class="admin__panel">
+        <AdminModuleDeployCard
+          :module-state="marketplaceModuleState"
+          staging-hint="Configure the marketplace below, then deploy to make it active for members."
+          deactivating-hint="Module is deactivating. Members can only cancel or claim; no new trades."
+          :deploying="deploying"
+          :saving="saving"
+          @deploy="deployModule('marketplace')"
+          @reactivate="reactivateModule('marketplace')"
+        />
         <AdminMarketplaceSettings
           :slug="slug ?? ''"
           :settings="marketplaceSettings"
@@ -51,6 +74,15 @@
       </div>
 
       <div v-else-if="tab === 'discord'" class="admin__panel">
+        <AdminModuleDeployCard
+          :module-state="discordModuleState"
+          staging-hint="Configure Discord below, then deploy to make it active for members."
+          deactivating-hint="Module is deactivating. Members can only unlink wallets."
+          :deploying="deploying"
+          :saving="saving"
+          @deploy="deployModule('discord')"
+          @reactivate="reactivateModule('discord')"
+        />
         <AdminDiscordSettings :slug="slug ?? ''" />
       </div>
 
@@ -70,15 +102,26 @@
 
 <script setup lang="ts">
 definePageMeta({ middleware: 'admin-auth' })
-import { PageSection, Card, TextInput, Toggle, Button } from '@decentraguild/ui/components'
+import type { ModuleState } from '@decentraguild/core'
+import { getModuleState } from '@decentraguild/core'
+import { PageSection, Card, TextInput, Button } from '@decentraguild/ui/components'
 import { useThemeStore, mergeTheme, DEFAULT_TENANT_THEME } from '@decentraguild/ui'
 import { useTenantStore } from '~/stores/tenant'
 import { MODULE_NAV, MODULE_SUBNAV } from '~/config/modules'
-import type { MarketplaceSettings } from '~/stores/tenant'
+import type { MarketplaceSettings } from '@decentraguild/core'
 import AdminMarketplaceSettings from '~/components/AdminMarketplaceSettings.vue'
 import AdminMarketplaceOnboardingModal from '~/components/AdminMarketplaceOnboardingModal.vue'
+import AdminModuleDeployCard from '~/components/AdminModuleDeployCard.vue'
 import AdminThemeSettings from '~/components/AdminThemeSettings.vue'
 import AdminDiscordSettings from '~/components/AdminDiscordSettings.vue'
+import { API_V1 } from '~/utils/apiBase'
+
+const MODULE_STATES: { value: ModuleState; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'staging', label: 'Staging' },
+  { value: 'active', label: 'Active' },
+  { value: 'deactivating', label: 'Deactivating' },
+]
 
 const route = useRoute()
 const tenantStore = useTenantStore()
@@ -103,11 +146,99 @@ const marketplaceSettings = computed(() => {
   }
 })
 
-function onModuleToggle(id: string, value: boolean) {
-  if (id === 'marketplace' && value) {
+const marketplaceModuleState = computed(() => getModuleState(tenant.value?.modules?.marketplace))
+const discordModuleState = computed(() => getModuleState(tenant.value?.modules?.discord))
+const deploying = ref(false)
+
+function moduleDeactivationDate(moduleId: string): string | null {
+  const entry = tenant.value?.modules?.[moduleId] as { deactivatedate?: string | null } | undefined
+  const d = entry?.deactivatedate
+  return d && typeof d === 'string' ? d : null
+}
+
+function formatDeactivationDate(iso: string): string {
+  try {
+    const date = new Date(iso)
+    if (Number.isNaN(date.getTime())) return iso
+    return date.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+  } catch {
+    return iso
+  }
+}
+
+function onModuleStateChange(id: string, value: ModuleState) {
+  if (id === 'marketplace' && value === 'staging') {
     showMarketplaceOnboarding.value = true
   }
   form.modulesById[id] = value
+}
+
+async function deployModule(moduleId: string) {
+  if (!slug.value) return
+  deploying.value = true
+  try {
+    const prevMods = tenant.value?.modules ?? {}
+    const modules = { ...prevMods }
+    const prev = (modules[moduleId] ?? {}) as { state?: ModuleState; deactivatedate?: string | null; deactivatingUntil?: string | null; settingsjson?: Record<string, unknown> }
+    const config = useRuntimeConfig()
+    const testTiming = import.meta.dev || (config.public?.moduleLifecycleTestTiming as boolean) === true
+    const deactivatedate = testTiming ? new Date(Date.now() + 2 * 60 * 1000).toISOString() : null
+    modules[moduleId] = {
+      state: 'active',
+      deactivatedate: deactivatedate ?? prev.deactivatedate ?? null,
+      deactivatingUntil: prev.deactivatingUntil ?? null,
+      settingsjson: prev.settingsjson ?? {},
+    }
+    const res = await fetch(`${apiBase.value}${API_V1}/tenant/${slug.value}/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ modules }),
+    })
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(data.error ?? 'Deploy failed')
+    }
+    const data = await res.json()
+    tenantStore.setTenant(data.tenant)
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : 'Deploy failed'
+  } finally {
+    deploying.value = false
+  }
+}
+
+async function reactivateModule(moduleId: string) {
+  if (!slug.value) return
+  saving.value = true
+  saveError.value = null
+  try {
+    const prevMods = tenant.value?.modules ?? {}
+    const modules = { ...prevMods }
+    const prev = (modules[moduleId] ?? {}) as { deactivatedate?: string | null; deactivatingUntil?: string | null; settingsjson?: Record<string, unknown> }
+    modules[moduleId] = {
+      state: 'active',
+      deactivatedate: null,
+      deactivatingUntil: null,
+      settingsjson: prev.settingsjson ?? {},
+    }
+    const res = await fetch(`${apiBase.value}${API_V1}/tenant/${slug.value}/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ modules }),
+    })
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(data.error ?? 'Reactivate failed')
+    }
+    const data = await res.json()
+    tenantStore.setTenant(data.tenant)
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : 'Reactivate failed'
+  } finally {
+    saving.value = false
+  }
 }
 
 function onMarketplaceSaved(settings: Record<string, unknown>) {
@@ -166,14 +297,14 @@ const form = reactive({
   name: '',
   description: '',
   branding: buildBrandingForm(null),
-  modulesById: {} as Record<string, boolean>,
+  modulesById: {} as Record<string, ModuleState>,
 })
 
 watch(
   tenant,
   (t) => {
     if (!t) {
-      form.modulesById = Object.fromEntries(moduleIds.value.map((id) => [id, false]))
+      form.modulesById = Object.fromEntries(moduleIds.value.map((id) => [id, 'off']))
       form.branding = buildBrandingForm(null)
       return
     }
@@ -182,7 +313,7 @@ watch(
     form.branding = buildBrandingForm(t)
     const mods = t.modules ?? {}
     form.modulesById = Object.fromEntries(
-      moduleIds.value.map((id) => [id, mods[id]?.active ?? false])
+      moduleIds.value.map((id) => [id, (mods[id]?.state ?? 'off') as ModuleState])
     )
   },
   { immediate: true }
@@ -194,17 +325,19 @@ async function save() {
   saveError.value = null
   try {
     const prevMods = tenant.value?.modules ?? {}
-    const modules: Record<string, { active: boolean; deactivatedate: null; settingsjson: Record<string, unknown> }> = {}
+    const modules: Record<string, { state: ModuleState; deactivatedate: string | null; deactivatingUntil: string | null; settingsjson: Record<string, unknown> }> = {}
     for (const id of moduleIds.value) {
-      const prev = prevMods[id]
+      const prev = prevMods[id] as { state?: ModuleState; deactivatedate?: string | null; deactivatingUntil?: string | null; settingsjson?: Record<string, unknown> } | undefined
+      const state = id === 'admin' ? 'active' : (form.modulesById[id] ?? 'off')
       modules[id] = {
-        active: form.modulesById[id] ?? false,
+        state: state as ModuleState,
         deactivatedate: prev?.deactivatedate ?? null,
+        deactivatingUntil: prev?.deactivatingUntil ?? null,
         settingsjson: prev?.settingsjson ?? {},
       }
     }
     const base = apiBase.value
-    const res = await fetch(`${base}/api/v1/tenant/${slug.value}/settings`, {
+    const res = await fetch(`${base}${API_V1}/tenant/${slug.value}/settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -262,6 +395,32 @@ async function save() {
 
 .admin__module:last-child {
   border-bottom: none;
+}
+
+.admin__state-select {
+  padding: var(--theme-space-xs) var(--theme-space-sm);
+  border: var(--theme-border-thin) solid var(--theme-border);
+  border-radius: var(--theme-radius-md, 4px);
+  background: var(--theme-bg-primary);
+  color: var(--theme-text-primary);
+  font-size: var(--theme-font-sm);
+}
+
+.admin__module-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-space-md);
+  flex-wrap: wrap;
+}
+
+.admin__module-date {
+  font-size: var(--theme-font-sm);
+  color: var(--theme-text-muted);
+}
+
+.admin__module-always-on {
+  font-size: var(--theme-font-sm);
+  color: var(--theme-text-muted);
 }
 
 .admin__actions {

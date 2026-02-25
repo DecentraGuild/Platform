@@ -3,6 +3,7 @@
  * Combine with useEscrowsForMints to overlay real offer/request counts.
  * Returns scope (mints, entries) when API includes it.
  */
+import { API_V1 } from '~/utils/apiBase'
 import type { ScopeEntry } from './useMarketplaceScope'
 
 export type AssetType = 'CURRENCY' | 'NFT_COLLECTION' | 'SPL_ASSET'
@@ -82,7 +83,7 @@ export function useMarketplaceAssets(options: UseMarketplaceAssetsOptions) {
       if (search.value?.trim()) params.set('search', search.value.trim())
 
       const res = await fetch(
-        `${apiBase.value}/api/v1/tenant/${encodeURIComponent(s)}/marketplace/assets?${params}`
+        `${apiBase.value}${API_V1}/tenant/${encodeURIComponent(s)}/marketplace/assets?${params}`
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = (await res.json()) as {

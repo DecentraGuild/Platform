@@ -6,7 +6,7 @@
       :status="item.status"
       :message="item.message"
       :signature="item.signature"
-      :explorer-url="item.signature ? store.getExplorerUrl(item.signature) : undefined"
+      :explorer-url="item.signature ? explorerLinks.txUrl(item.signature) : undefined"
       :dismissible="item.status !== 'pending'"
       @dismiss="store.remove(item.id)"
     />
@@ -16,8 +16,10 @@
 <script setup lang="ts">
 import { TransactionToast } from '@decentraguild/ui/components'
 import { useTransactionNotificationsStore } from '~/stores/transactionNotifications'
+import { useExplorerLinks } from '~/composables/useExplorerLinks'
 
 const store = useTransactionNotificationsStore()
+const explorerLinks = useExplorerLinks()
 </script>
 
 <style scoped>
