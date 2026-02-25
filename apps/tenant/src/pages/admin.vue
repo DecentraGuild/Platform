@@ -17,6 +17,25 @@
             v-model="form.description"
             label="Description"
           />
+          <div v-if="slug" class="admin__discord-invite">
+            <p class="admin__discord-invite-label">Discord bot invite</p>
+            <template v-if="discordInviteUrl !== null">
+              <a
+                v-if="discordInviteUrl"
+                :href="discordInviteUrl"
+                target="_blank"
+                rel="noopener"
+                class="admin__discord-invite-link"
+              >
+                Invite bot to server
+              </a>
+              <p v-else class="admin__discord-invite-hint">Invite URL not configured. Set DISCORD_CLIENT_ID on the API.</p>
+            </template>
+            <p v-else class="admin__discord-invite-loading">
+              <Icon icon="mdi:loading" class="admin__discord-invite-spinner" />
+              Loading…
+            </p>
+          </div>
         </Card>
       </div>
 
@@ -114,7 +133,10 @@ import AdminMarketplaceOnboardingModal from '~/components/AdminMarketplaceOnboar
 import AdminModuleDeployCard from '~/components/AdminModuleDeployCard.vue'
 import AdminThemeSettings from '~/components/AdminThemeSettings.vue'
 import AdminDiscordSettings from '~/components/AdminDiscordSettings.vue'
+import { Icon } from '@iconify/vue'
 import { API_V1 } from '~/utils/apiBase'
+
+const discordInviteUrl = ref<string | null>(null)
 
 const MODULE_STATES: { value: ModuleState; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -272,7 +294,7 @@ const tab = computed(() => {
   return typeof q === 'string' && VALID_TABS.has(q) ? q : 'general'
 })
 
-onMounted(() => {
+onMounted(async () => {
   const q = route.query.tab
   if (typeof q !== 'string' || !VALID_TABS.has(q)) {
     navigateTo({
@@ -280,6 +302,20 @@ onMounted(() => {
       query: { ...route.query, tab: 'general' },
       replace: true,
     })
+  }
+  const s = slug.value
+  if (s) {
+    try {
+      const res = await fetch(`${apiBase.value}${API_V1}/tenant/${s}/discord/invite-url`, { credentials: 'include' })
+      if (res.ok) {
+        const data = (await res.json()) as { invite_url?: string | null }
+        discordInviteUrl.value = data.invite_url ?? ''
+      } else {
+        discordInviteUrl.value = ''
+      }
+    } catch {
+      discordInviteUrl.value = ''
+    }
   }
 })
 const saving = ref(false)
@@ -421,6 +457,50 @@ async function save() {
 .admin__module-always-on {
   font-size: var(--theme-font-sm);
   color: var(--theme-text-muted);
+}
+
+.admin__discord-invite {
+  margin-top: var(--theme-space-md);
+  padding-top: var(--theme-space-md);
+  border-top: var(--theme-border-thin) solid var(--theme-border);
+}
+
+.admin__discord-invite-label {
+  font-size: var(--theme-font-sm);
+  color: var(--theme-text-secondary);
+  margin: 0 0 var(--theme-space-xs);
+}
+
+.admin__discord-invite-link {
+  color: var(--theme-primary);
+  text-decoration: none;
+}
+
+.admin__discord-invite-link:hover {
+  text-decoration: underline;
+}
+
+.admin__discord-invite-hint {
+  font-size: var(--theme-font-sm);
+  color: var(--theme-text-muted);
+  margin: 0;
+}
+
+.admin__discord-invite-loading {
+  font-size: var(--theme-font-sm);
+  color: var(--theme-text-muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--theme-space-xs);
+}
+
+.admin__discord-invite-spinner {
+  animation: admin-spin 0.8s linear infinite;
+}
+
+@keyframes admin-spin {
+  to { transform: rotate(360deg); }
 }
 
 .admin__actions {

@@ -183,12 +183,14 @@
       </div>
     </Card>
 
-    <Card>
+    <Card class="marketplace-settings__fee-section marketplace-settings__fee-section--disabled">
       <h3>Fees</h3>
+      <p class="marketplace-settings__hint">Not available yet.</p>
       <TextInput
         v-model="form.shopFee.wallet"
         label="Fee recipient wallet"
         placeholder="Wallet address"
+        disabled
       />
       <div class="marketplace-settings__fee-row">
         <TextInput
@@ -196,12 +198,14 @@
           type="number"
           label="Maker flat fee (SOL)"
           placeholder="0"
+          disabled
         />
         <TextInput
           v-model.number="form.shopFee.takerFlatFee"
           type="number"
           label="Taker flat fee (SOL)"
           placeholder="0"
+          disabled
         />
       </div>
       <div class="marketplace-settings__fee-row">
@@ -210,12 +214,14 @@
           type="number"
           label="Maker % (basis points)"
           placeholder="0"
+          disabled
         />
         <TextInput
           v-model.number="form.shopFee.takerPercentFee"
           type="number"
           label="Taker % (basis points)"
           placeholder="0"
+          disabled
         />
       </div>
     </Card>
@@ -677,6 +683,11 @@ async function save() {
   font-size: var(--theme-font-sm);
   color: var(--theme-text-muted);
   margin-bottom: var(--theme-space-md);
+}
+
+.marketplace-settings__fee-section--disabled {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .marketplace-settings__add-mint {

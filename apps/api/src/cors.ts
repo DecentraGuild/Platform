@@ -4,7 +4,7 @@
  */
 
 import { TENANT_DOMAIN } from '@decentraguild/core'
-import { DEFAULT_CORS_ORIGIN } from './constants.js'
+import { DEFAULT_CORS_ORIGIN } from './config/constants.js'
 
 function getTenantDomain(): string {
   const env = process.env.CORS_TENANT_DOMAIN?.trim()

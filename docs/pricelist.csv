@@ -1,41 +1,47 @@
-productcode,Dguilld Fees,One-time fee (USDC),Recurring (USDC),Included (bulletpoints),Discount yearly (%),Platform Fee Maker (SOL),Platform Fee Taker (SOL)
-,Admin Module,,,,,,
-admin,Admin ,10.00,,"- dGuild account
+productcode,module,name,One-time fee (USDC),Recurring (USDC),Included (bulletpoints),Discount yearly (%),Platform Fee Maker (SOL),Platform Fee Taker (SOL)
+,Admin Module,,,,,,,
+adm,admin,Admin ,10.00,,"- dGuild account
 - Custom branding
 - Unique Slug (myguild.dguild.org)",,-,
-,Marketplace Module,,,,,,
-marketplace,Marketplace ,,Free,"
+,Marketplace Module,,,,,,,
+mp-p2p,marketplace,Marketplace ,,Free,"
 - P2P escrow
 - No storefront",,0.002,0.0012
-marketplace-castle,Marketplace Castle,,29.00,"- Branded storefront
+mp-base,marketplace,Marketplace Castle,,29.00,"- Branded storefront
 - 50 SPL / NFT collections
 - 4 Currency",0.25,0.001,0.0006
-marketplace-empire,Marketplace Empire,,49.00,"- Branded storefront
+mp-empire,marketplace,Marketplace Empire,,49.00,"- Branded storefront
 - 350 SPL / NFT collections
 - 4 Currency + 1 Custom
 - Add storefront fees",0.25,0.001,0.0006
-marketplace-50-collections,Marketplace Extra 50 SPL/NFT,,5.00,,0.25,,
-marketplace-currency,Marketplace Extra Currency,,5.00,,0.25,,
-,Discord Module,,,,,,
-discord,Discord,,Free,"- Linked multiple wallets
+mp-50mint,marketplace,Marketplace Extra 50 SPL/NFT,,5.00,,0.25,,
+mp-cur,marketplace,Marketplace Extra Currency,,5.00,,0.25,,
+,Discord Module,,,,,,,
+discord,discord,Discord,,Free,"- Linked multiple wallets
 - Receive unlimited roles",,,
-discord-castle,Discord Castle,,19.00,"- Track 3 SLP / NFT
+discord-base,discord,Discord Castle,,19.00,"- Track 3 SLP / NFT
 - Discord roles 
 - Add up to 5 conditions per role
 - 1k verified wallets",0.25,,
-discord-empire,Discord Empire,,29.00,"- Track 5 SLP / NFT
+discord-empire,discord,Discord Empire,,29.00,"- Track 5 SLP / NFT
 - Discord roles
 - Add up to 5 conditions per role 
 - unlimited wallets",0.25,,
-,Whitelist Module,,,,,,
-whitelist,Whitelist,10.00,,"- Create on-chain list of wallets
+discord-mint,discord,Discord Track extra mint,,5.00,Track a extra Mint,0.25,,
+,Whitelist Module,,,,,,,
+whitelist-base,whitelist,Whitelist,25,,"- Create on-chain list of wallets
 - Gate your community and tools",,0.001,
-whitelist-castle,Whitelist Castle,50.00,,"- Create on-chain list of wallets
+whitelist-empire,whitelist,Whitelist Castle,100,,"- Create on-chain list of wallets
 - Gate your community and tools
 - Assign various permission tables",,0.001,
-whitelist-permission,Whitelist Permission Table,10.00,,- Create permissions to any dGuild smart contracts,,0.001,
-,Raffle Module ,,,,,,
-raffle,Raffle,,,- Participate in any public raffle,,0.001,
-raffle-castle,Raffle Castle,,19.00,"- Create raffles
+whitelist-permission,whitelist,Whitelist Permission Table,25,,- Create permissions to any dGuild smart contracts,,0.001,
+,Raffle Module ,,,,,,,
+raffle,raffle,Raffle,,,- Participate in any public raffle,,0.001,
+raffle-base,raffle,Raffle Castle,,19.00,"- Host up to 5 raffles at the same time
+- Distribute prices
+- Claim the proceeds",0.25,0.001,
+"raffle-empire
+
+",raffle,Raffle Castle,,29.00,"- Host up unlimited raffles at the same time
 - Distribute prices
 - Claim the proceeds",0.25,0.001,
