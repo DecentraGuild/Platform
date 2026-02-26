@@ -158,6 +158,9 @@ importers:
       '@decentraguild/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@decentraguild/config':
+        specifier: workspace:*
+        version: link:../../config
       '@decentraguild/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -198,6 +201,15 @@ importers:
       '@nuxtjs/tailwindcss':
         specifier: ^6.12.0
         version: 6.14.0(magicast@0.5.2)(tsx@4.21.0)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  config:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@microsoft/api-extractor@7.43.0(@types/node@20.19.33))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       typescript:
         specifier: ^5.3.0
         version: 5.9.3

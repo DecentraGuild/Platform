@@ -1,0 +1,18 @@
+{
+  "id": "discord",
+  "status": "available",
+  "name": "Discord",
+  "icon": "mdi:discord",
+  "image": null,
+  "shortDescription": "Link wallets to Discord and automate role assignments based on holdings.",
+  "longDescription": "The Discord module connects your community's Discord server to on-chain data. Members link their wallets to their Discord identity, and role rules automatically assign or revoke Discord roles based on token holdings, NFT ownership, or other on-chain criteria.",
+  "keyInfo": [
+    "Wallet-to-Discord identity linking",
+    "Automated role assignment based on holdings",
+    "Configurable role rules per collection or token",
+    "Periodic sync to keep roles up to date"
+  ],
+  "routePath": "/discord",
+  "order": 3,
+  "pricing": null
+}
