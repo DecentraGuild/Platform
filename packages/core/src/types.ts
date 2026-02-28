@@ -124,13 +124,16 @@ export interface TenantBranding {
   logo?: string
   name?: string
   shortName?: string
+  /** dGuild's Discord server invite link (for users to join the community). Editable in Admin > General. */
+  discordServerInviteLink?: string
   theme?: TenantTheme
   themeRef?: string
 }
 
 export interface TenantConfig {
   id: string
-  slug: string
+  /** Custom subdomain slug. Optional for new orgs; paid add-on claimable from Admin General. */
+  slug?: string | null
   name: string
   description?: string
   branding: TenantBranding
@@ -138,6 +141,8 @@ export interface TenantConfig {
   modules: TenantModulesMap
   admins: string[]
   treasury?: string
+  /** Custom domain (e.g. www.skull.com). Reserved for future use. */
+  customDomain?: string | null
   createdAt?: string
   updatedAt?: string
 }

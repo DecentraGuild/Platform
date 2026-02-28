@@ -8,13 +8,28 @@ export function getPool(): Pool | null {
   return pool
 }
 
+/** Railway and other hosted Postgres require SSL; use rejectUnauthorized: false for self-signed certs. */
+function getSslConfig(connectionString: string): pg.PoolConfig['ssl'] {
+  if (connectionString.includes('localhost') || connectionString.includes('127.0.0.1')) {
+    return false
+  }
+  return { rejectUnauthorized: false }
+}
+
 export function initPool(databaseUrl: string): Pool {
-  const max = Number(process.env.DB_POOL_MAX) || DEFAULT_DB_POOL_MAX
+  const isRailway = databaseUrl.includes('railway')
+  const defaultMax = isRailway ? 5 : DEFAULT_DB_POOL_MAX
+  const max = Number(process.env.DB_POOL_MAX) || defaultMax
   const idleTimeoutMillis = Number(process.env.DB_IDLE_TIMEOUT_MS) || DEFAULT_DB_IDLE_TIMEOUT_MS
+  const ssl = getSslConfig(databaseUrl)
   pool = new pg.Pool({
     connectionString: databaseUrl,
     max,
     idleTimeoutMillis,
+    ssl,
+  })
+  pool.on('error', (err) => {
+    console.error('Database pool error:', err.message)
   })
   return pool
 }

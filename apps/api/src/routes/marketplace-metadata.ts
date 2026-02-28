@@ -5,13 +5,16 @@ import { getMintMetadata, upsertMintMetadata } from '../db/marketplace-metadata.
 import { fetchMintMetadataFromChain } from '@decentraguild/web3'
 import { fetchSplAssetPreview, fetchCollectionPreview } from '../marketplace/asset-preview.js'
 import { requireTenantAdmin } from './tenant-settings.js'
-import { normalizeTenantSlug } from '../validate-slug.js'
+import { normalizeTenantIdentifier } from '../validate-slug.js'
 import { apiError, ErrorCode } from '../api-errors.js'
+
+const MAX_MINTS_PER_REFRESH = 50
+const MIN_MINT_LENGTH = 32
 
 export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
   app.get<{ Params: { mint: string } }>('/api/v1/marketplace/metadata/mint/:mint', async (request, reply) => {
     const { mint } = request.params
-    if (!mint || mint.length < 32) {
+    if (!mint || mint.length < MIN_MINT_LENGTH) {
       return reply.status(400).send(apiError('Invalid mint address', ErrorCode.BAD_REQUEST))
     }
 
@@ -61,7 +64,7 @@ export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
     Params: { slug: string }
     Body: { mints: string[] }
   }>('/api/v1/tenant/:slug/marketplace/metadata/refresh', async (request, reply) => {
-    const slug = normalizeTenantSlug(request.params.slug)
+    const slug = normalizeTenantIdentifier(request.params.slug)
     if (!slug) {
       return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
     }
@@ -69,12 +72,12 @@ export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
     if (!auth) return
 
     const body = (request.body ?? {}) as { mints?: string[] }
-    const mints = Array.isArray(body.mints) ? body.mints.filter((m): m is string => typeof m === 'string' && m.length >= 32) : []
+    const mints = Array.isArray(body.mints) ? body.mints.filter((m): m is string => typeof m === 'string' && m.length >= MIN_MINT_LENGTH) : []
     if (mints.length === 0) {
       return reply.status(400).send(apiError('mints array required with at least one valid mint address', ErrorCode.BAD_REQUEST))
     }
-    if (mints.length > 50) {
-      return reply.status(400).send(apiError('Maximum 50 mints per request', ErrorCode.BAD_REQUEST))
+    if (mints.length > MAX_MINTS_PER_REFRESH) {
+      return reply.status(400).send(apiError(`Maximum ${MAX_MINTS_PER_REFRESH} mints per request`, ErrorCode.BAD_REQUEST))
     }
 
     const pool = getPool()
@@ -107,7 +110,7 @@ export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { mint: string } }>('/api/v1/marketplace/asset-preview/spl/:mint', async (request, reply) => {
     const { mint } = request.params
-    if (!mint || mint.length < 32) {
+    if (!mint || mint.length < MIN_MINT_LENGTH) {
       return reply.status(400).send(apiError('Invalid mint address', ErrorCode.BAD_REQUEST))
     }
     try {
@@ -123,7 +126,7 @@ export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { mint: string } }>('/api/v1/marketplace/asset-preview/collection/:mint', async (request, reply) => {
     const { mint } = request.params
-    if (!mint || mint.length < 32) {
+    if (!mint || mint.length < MIN_MINT_LENGTH) {
       return reply.status(400).send(apiError('Invalid mint address', ErrorCode.BAD_REQUEST))
     }
     try {

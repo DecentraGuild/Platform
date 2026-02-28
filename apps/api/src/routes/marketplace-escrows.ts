@@ -3,7 +3,8 @@ import BN from 'bn.js'
 import { Connection } from '@solana/web3.js'
 import { fetchAllEscrows, fetchEscrowByAddress, getDasRpcUrl } from '@decentraguild/web3'
 import { getScopeEntriesForTenant } from '../marketplace/scope.js'
-import { normalizeTenantSlug } from '../validate-slug.js'
+import { resolveTenant } from '../db/tenant.js'
+import { normalizeTenantIdentifier } from '../validate-slug.js'
 import { apiError, ErrorCode } from '../api-errors.js'
 
 const ESCROWS_CACHE_TTL_MS = 60_000
@@ -29,15 +30,19 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
   app.get<{ Params: { slug: string }; Querystring: { maker?: string } }>(
     '/api/v1/tenant/:slug/marketplace/escrows',
     async (request, reply) => {
-      const slug = normalizeTenantSlug(request.params.slug)
-      if (!slug) {
-        return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
+      const idOrSlug = normalizeTenantIdentifier(request.params.slug)
+      if (!idOrSlug) {
+        return reply.status(400).send(apiError('Invalid tenant identifier', ErrorCode.INVALID_SLUG))
+      }
+      const tenant = await resolveTenant(idOrSlug)
+      if (!tenant) {
+        return reply.status(404).send(apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND))
       }
       const makerFilter = (request.query as { maker?: string }).maker?.trim() ?? null
 
       let scopeMints: Set<string>
       try {
-        const entries = await getScopeEntriesForTenant(slug)
+        const entries = await getScopeEntriesForTenant(tenant.id)
         scopeMints = new Set(entries.map((e) => e.mint))
       } catch {
         return reply.status(404).send(apiError('Tenant or scope not found', ErrorCode.TENANT_NOT_FOUND))
@@ -46,7 +51,7 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
       reply.header('Cache-Control', 'public, max-age=60')
 
       const now = Date.now()
-      const cacheKey = makerFilter ? `${slug}:${makerFilter}` : `${slug}:all`
+      const cacheKey = makerFilter ? `${tenant.id}:${makerFilter}` : `${tenant.id}:all`
       const cached = escrowsCache.get(cacheKey)
       if (cached && now < cached.expiresAt) {
         return cached.data
@@ -97,7 +102,7 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
         escrowsCache.set(cacheKey, { data, expiresAt: now + ESCROWS_CACHE_TTL_MS })
         return data
       } catch (e) {
-        request.log.warn({ err: e, slug }, 'Escrow fetch failed')
+        request.log.warn({ err: e, tenantId: tenant.id }, 'Escrow fetch failed')
         return reply.status(503).send(apiError('Failed to fetch escrows', ErrorCode.SERVICE_UNAVAILABLE, {
           message: e instanceof Error ? e.message : 'Unknown error',
         }))
@@ -108,15 +113,19 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
   app.get<{ Params: { slug: string; escrowId: string } }>(
     '/api/v1/tenant/:slug/marketplace/escrows/:escrowId',
     async (request, reply) => {
-      const slug = normalizeTenantSlug(request.params.slug)
+      const idOrSlug = normalizeTenantIdentifier(request.params.slug)
       const escrowId = request.params.escrowId
-      if (!slug) {
-        return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
+      if (!idOrSlug) {
+        return reply.status(400).send(apiError('Invalid tenant identifier', ErrorCode.INVALID_SLUG))
+      }
+      const tenant = await resolveTenant(idOrSlug)
+      if (!tenant) {
+        return reply.status(404).send(apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND))
       }
 
       let scopeMints: Set<string>
       try {
-        const entries = await getScopeEntriesForTenant(slug)
+        const entries = await getScopeEntriesForTenant(tenant.id)
         scopeMints = new Set(entries.map((e) => e.mint))
       } catch {
         return reply.status(404).send(apiError('Tenant or scope not found', ErrorCode.TENANT_NOT_FOUND))
@@ -165,11 +174,8 @@ export async function registerMarketplaceEscrowsRoutes(app: FastifyInstance) {
           },
         })
       } catch (e) {
-        request.log.warn({ err: e, slug, escrowId }, 'Escrow fetch failed')
-        return reply.status(503).send({
-          error: 'Failed to fetch escrow',
-          message: e instanceof Error ? e.message : 'Unknown error',
-        })
+        request.log.warn({ err: e, tenantId: tenant.id, escrowId }, 'Escrow fetch failed')
+        return reply.status(503).send(apiError('Failed to fetch escrow', ErrorCode.INTERNAL_ERROR))
       }
     }
   )

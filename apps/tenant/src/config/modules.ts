@@ -38,6 +38,7 @@ export const MODULE_SUBNAV: Record<string, ModuleSubnavTab[]> = {
     { id: 'theming', label: 'Theming' },
     { id: 'marketplace', label: 'Marketplace' },
     { id: 'discord', label: 'Discord' },
+    { id: 'billing', label: 'Billing' },
   ],
   marketplace: [
     { id: 'browse', label: 'Browse' },
@@ -51,14 +52,15 @@ interface TenantModule {
 }
 
 /** Resolve module sub-nav tabs for a route path (e.g. /admin -> admin tabs).
- * When tenant is provided and path is admin, marketplace/discord tabs shown when visible in Admin. */
+ * When tenant is provided and path is admin, marketplace/discord tabs shown when visible in Admin.
+ * Prefer modules that have subnav (slug and admin both use /admin; slug has no tabs). */
 export function getModuleSubnavForPath(
   path: string,
   tenant?: { modules?: Record<string, TenantModule> } | null,
 ): ModuleSubnavTab[] | null {
-  const moduleId = Object.entries(MODULE_NAV).find(
-    ([, entry]) => path === entry.path || path.startsWith(entry.path + '/'),
-  )?.[0]
+  const moduleId = Object.entries(MODULE_NAV)
+    .filter(([, entry]) => path === entry.path || path.startsWith(entry.path + '/'))
+    .find(([id]) => MODULE_SUBNAV[id])?.[0]
   const tabs = (moduleId && MODULE_SUBNAV[moduleId]) ?? null
   if (!tabs || moduleId !== 'admin' || !tenant?.modules) return tabs
   const marketplaceVisible = isModuleVisibleInAdmin(getModuleState(tenant.modules.marketplace))

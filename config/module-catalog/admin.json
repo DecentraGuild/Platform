@@ -6,13 +6,21 @@
   "image": null,
   "shortDescription": "Manage your dGuild settings, modules, branding, and team.",
   "longDescription": "The Admin module is the control center for your dGuild. Configure branding and theming, enable or disable modules, manage marketplace settings, set up Discord integration, and control who has access to administrative functions.",
-  "keyInfo": [
-    "Configure branding, logos, and theme colors",
-    "Enable, disable, and configure modules",
-    "Manage marketplace and Discord settings",
-    "Control admin access and permissions"
-  ],
+  "keyInfo": ["Configure branding, logos, and theme colors", "Enable, disable, and configure modules", "Manage marketplace and Discord settings", "Control admin access and permissions"],
   "routePath": "/admin",
   "order": 1,
-  "pricing": null
+  "pricing": null,
+  "addons": {
+    "slug": {
+      "id": "slug",
+      "name": "Custom slug",
+      "shortDescription": "Custom subdomain for your dGuild (e.g. skull.dguild.org).",
+      "pricing": {
+        "modelType": "flat_recurring",
+        "name": "Custom slug",
+        "recurringYearly": 10,
+        "yearlyDiscountPercent": 0
+      }
+    }
+  }
 }

@@ -20,7 +20,6 @@
         />
       </template>
       <form v-else class="onboard-form" @submit.prevent="submit">
-        <TextInput v-model="form.slug" label="Slug" placeholder="my-dguild" />
         <TextInput v-model="form.name" label="Name" placeholder="My dGuild" />
         <TextInput v-model="form.description" label="Description" placeholder="Our community hub" />
         <TextInput v-model="form.logo" label="Logo URL" placeholder="https://..." />
@@ -48,12 +47,13 @@ onMounted(() => {
 })
 
 const form = reactive({
-  slug: '',
   name: '',
   description: '',
   logo: '',
   primaryColor: '#00951a',
 })
+
+const config = useRuntimeConfig()
 const saving = ref(false)
 const error = ref<string | null>(null)
 
@@ -64,8 +64,8 @@ async function handleConnectAndSignIn(connectorId: WalletConnectorId) {
 
 async function submit() {
   if (!auth.wallet.value) return
-  if (!form.slug || !form.name) {
-    error.value = 'Slug and name are required'
+  if (!form.name?.trim()) {
+    error.value = 'Name is required'
     return
   }
   saving.value = true
@@ -77,11 +77,10 @@ async function submit() {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        slug: form.slug,
-        name: form.name,
-        description: form.description || undefined,
+        name: form.name.trim(),
+        description: form.description?.trim() || undefined,
         branding: {
-          logo: form.logo || undefined,
+          logo: form.logo?.trim() || undefined,
           theme: form.primaryColor ? { colors: { primary: { main: form.primaryColor } } } : undefined,
         },
         modules: [{ id: 'admin', enabled: true }],
@@ -91,7 +90,16 @@ async function submit() {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.error ?? 'Failed to create')
     }
-    await router.push('/directory')
+    const data = await res.json()
+    const tenant = data.tenant as { id: string; slug?: string | null }
+    const identifier = tenant.slug ?? tenant.id
+    const tenantBaseDomain = config.public.tenantBaseDomain as string
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    if (isLocal) {
+      window.location.href = `http://localhost:3002/admin?tenant=${encodeURIComponent(identifier)}`
+    } else {
+      window.location.href = `https://${identifier}.${tenantBaseDomain}/admin`
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to create org'
   } finally {

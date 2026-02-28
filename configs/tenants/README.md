@@ -1,6 +1,6 @@
 # Tenant configs (static JSON)
 
-Registry of dGuild configs. One file per tenant: `{slug}.json`. Lookup is by slug only; no separate registry index.
+Registry of dGuild configs. One file per tenant: `{id}.json`. Lookup by id or slug. See `configs/README.md` for conventions.
 
 **Only the API reads these files.** Other apps (platform, tenant) get tenant data via the API:
 

@@ -44,7 +44,7 @@
               {{ mint.kind === 'SPL' && mint.decimals != null ? mint.decimals : '—' }}
             </td>
             <td class="discord-mint-catalog__asset">
-              {{ truncate(mint.asset_id) }}
+              {{ truncateAddress(mint.asset_id, 4, 4) }}
             </td>
             <td class="discord-mint-catalog__actions">
               <Button
@@ -104,6 +104,7 @@
 
 <script setup lang="ts">
 import { API_V1 } from '~/utils/apiBase'
+import { truncateAddress } from '@decentraguild/display'
 import { Card, TextInput, Button } from '@decentraguild/ui/components'
 import { Icon } from '@iconify/vue'
 
@@ -136,12 +137,6 @@ const deletePending = ref<Record<number, boolean>>({})
 const canSubmit = computed(
   () => newMint.value.trim().length >= 32 && !creating.value
 )
-
-function truncate(addr: string, head = 4, tail = 4): string {
-  const v = addr.trim()
-  if (!v || v.length <= head + tail) return v
-  return `${v.slice(0, head)}…${v.slice(-tail)}`
-}
 
 async function onCreate() {
   const asset = newMint.value.trim()

@@ -1,10 +1,14 @@
 import { type TenantConfig, normalizeModules } from '@decentraguild/core'
-import { loadTenantBySlug } from '../config/registry.js'
+import { loadTenantBySlug, loadTenantById, loadTenantByIdOrSlug, writeTenantBySlug, writeTenantByIdOrSlug, getTenantConfigDir } from '../config/registry.js'
 import { getPool, query } from './client.js'
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === 'production'
+}
 
 const toDbRow = (t: TenantConfig) => ({
   id: t.id,
-  slug: t.slug,
+  slug: t.slug ?? null,
   name: t.name,
   description: t.description ?? null,
   branding: JSON.stringify(t.branding ?? {}),
@@ -23,7 +27,7 @@ export function rowToTenantConfig(row: Record<string, unknown>): TenantConfig {
   const rawModules = parseJsonField<unknown>(row.modules)
   return {
     id: row.id as string,
-    slug: row.slug as string,
+    slug: (row.slug as string) ?? undefined,
     name: row.name as string,
     description: (row.description as string) ?? undefined,
     branding: parseJsonField<Record<string, unknown>>(row.branding) ?? {},
@@ -44,30 +48,58 @@ export async function getTenantBySlug(slug: string): Promise<TenantConfig | null
   return rowToTenantConfig(rows[0])
 }
 
-/** Resolve tenant by slug: DB if available (with fallback to file), else file only. Single place for DB vs file logic. */
-export async function resolveTenant(slug: string): Promise<TenantConfig | null> {
-  if (!getPool()) return loadTenantBySlug(slug)
-  try {
-    const t = await getTenantBySlug(slug)
-    if (t) return t
-  } catch {
-    // DB query failed
-  }
-  return loadTenantBySlug(slug)
+export async function getTenantById(id: string): Promise<TenantConfig | null> {
+  const { rows } = await query<Record<string, unknown>>(
+    'SELECT * FROM tenant_config WHERE id = $1',
+    [id]
+  )
+  if (rows.length === 0) return null
+  return rowToTenantConfig(rows[0])
 }
 
-/** All tenant slugs from DB. Used by module-lifecycle job to iterate tenants. */
+/**
+ * Resolve tenant by id or slug. Tries slug first (for existing tenants), then id.
+ * Production: DB first, then file fallback.
+ * Local (non-production): file first (when TENANT_CONFIG_PATH set), then DB.
+ */
+export async function resolveTenant(idOrSlug: string): Promise<TenantConfig | null> {
+  const fromDb = async () => {
+    if (!getPool()) return null
+    try {
+      const bySlug = await getTenantBySlug(idOrSlug)
+      if (bySlug) return bySlug
+      const byId = await getTenantById(idOrSlug)
+      if (byId) return byId
+    } catch {
+      // DB query failed
+    }
+    return null
+  }
+  const fromFile = async () => loadTenantByIdOrSlug(idOrSlug)
+
+  if (isProduction()) {
+    const t = await fromDb()
+    if (t) return t
+    return fromFile()
+  }
+  const t = await fromFile()
+  if (t) return t
+  return fromDb()
+}
+
+/** All tenant identifiers (slug or id) from DB. Used by module-lifecycle job to iterate tenants. */
 export async function getAllTenantSlugs(): Promise<string[]> {
-  const { rows } = await query<Record<string, unknown>>('SELECT slug FROM tenant_config')
-  return rows.map((r) => r.slug as string).filter(Boolean)
+  const { rows } = await query<Record<string, unknown>>('SELECT id, slug FROM tenant_config')
+  return rows.map((r) => (r.slug as string) ?? (r.id as string)).filter(Boolean)
 }
 
 export async function upsertTenant(config: TenantConfig): Promise<void> {
   const r = toDbRow(config)
   await query(
     `INSERT INTO tenant_config (id, slug, name, description, branding, modules, admins, treasury, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, COALESCE((SELECT created_at FROM tenant_config WHERE slug = $2), NOW()), NOW())
-     ON CONFLICT (slug) DO UPDATE SET
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, COALESCE((SELECT created_at FROM tenant_config WHERE id = $1), NOW()), NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       slug = EXCLUDED.slug,
        name = EXCLUDED.name,
        description = EXCLUDED.description,
        branding = EXCLUDED.branding,
@@ -82,6 +114,7 @@ export async function upsertTenant(config: TenantConfig): Promise<void> {
 export type TenantSettingsPatch = Partial<{
   name: string
   description: string
+  slug: string | null
   branding: Partial<TenantConfig['branding']>
   modules: TenantConfig['modules']
 }>
@@ -92,7 +125,7 @@ export function mergeTenantPatch(existing: TenantConfig, patch: TenantSettingsPa
     ...existing,
     ...patch,
     id: existing.id,
-    slug: existing.slug,
+    slug: patch.slug !== undefined ? patch.slug ?? undefined : existing.slug,
   }
   if (patch.branding) {
     merged.branding = { ...existing.branding, ...patch.branding }
@@ -126,17 +159,35 @@ export function mergeTenantPatch(existing: TenantConfig, patch: TenantSettingsPa
   return merged
 }
 
-export async function updateTenant(slug: string, patch: TenantSettingsPatch): Promise<TenantConfig | null> {
-  const existing = await resolveTenant(slug)
+/**
+ * Update tenant by id or slug with a patch. Merge is always applied in memory.
+ * Production: persist to DB only.
+ * Local: persist to file first (when TENANT_CONFIG_PATH set), then to DB if available.
+ */
+export async function updateTenant(idOrSlug: string, patch: TenantSettingsPatch): Promise<TenantConfig | null> {
+  const existing = await resolveTenant(idOrSlug)
   if (!existing) return null
-  if (getPool()) {
-    const inDb = await getTenantBySlug(slug).catch(() => null)
-    if (!inDb) await upsertTenant(existing)
-  }
   const merged = mergeTenantPatch(existing, patch)
+
+  if (isProduction()) {
+    if (getPool()) {
+      await upsertTenant(merged)
+      return getTenantById(merged.id)
+    }
+    return merged
+  }
+
+  const configDir = getTenantConfigDir()
+  if (configDir) {
+    try {
+      const fileId = merged.slug ?? merged.id
+      await writeTenantByIdOrSlug(fileId, merged)
+    } catch {
+      // Caller may still want to persist to DB; continue
+    }
+  }
   if (getPool()) {
-    await upsertTenant(merged)
-    return getTenantBySlug(slug)
+    await upsertTenant(merged).catch(() => {})
   }
   return merged
 }

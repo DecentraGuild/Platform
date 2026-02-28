@@ -97,6 +97,7 @@ import { PageSection } from '@decentraguild/ui/components'
 import { useTenantStore } from '~/stores/tenant'
 import { useMarketplaceScope } from '~/composables/useMarketplaceScope'
 import { useMarketplaceTree } from '~/composables/useMarketplaceTree'
+import { FEATURES } from '~/config/feature-flags'
 import { Icon } from '@iconify/vue'
 
 const MarketTree = defineAsyncComponent(() => import('~/modules/marketplace/components/MarketTree.vue'))
@@ -116,9 +117,7 @@ const tenant = computed(() => tenantStore.tenant)
 const marketplaceState = computed(() => getModuleState(tenant.value?.modules?.marketplace))
 const marketplaceActive = computed(() => isModuleVisibleToMembers(marketplaceState.value))
 const marketplaceDeactivating = computed(() => marketplaceState.value === 'deactivating')
-/** Disable create-trade UI for now; button is shown greyed out. Set to false to re-enable. */
-const createTradeDisabled = true
-const createDisabled = computed(() => createTradeDisabled || marketplaceDeactivating.value)
+const createDisabled = computed(() => !FEATURES.marketplace.createTrade || marketplaceDeactivating.value)
 const activeTab = computed(() => (route.query.tab === 'open-trades' ? 'open-trades' : 'browse'))
 
 const { entries } = useMarketplaceScope(slug)

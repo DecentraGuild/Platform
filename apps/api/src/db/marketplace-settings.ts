@@ -30,16 +30,16 @@ export async function getMarketplaceBySlug(slug: string): Promise<MarketplaceCon
   return rowToMarketplaceConfig(rows[0])
 }
 
-/** Resolve marketplace config by slug: DB if available (with fallback to file), else file only. */
-export async function resolveMarketplace(slug: string): Promise<MarketplaceConfig | null> {
-  if (!getPool()) return loadMarketplaceBySlug(slug)
+/** Resolve marketplace config by tenant id: DB if available, else file. */
+export async function resolveMarketplace(tenantId: string): Promise<MarketplaceConfig | null> {
+  if (!getPool()) return loadMarketplaceBySlug(tenantId)
   try {
-    const c = await getMarketplaceBySlug(slug)
+    const c = await getMarketplaceBySlug(tenantId)
     if (c) return c
   } catch {
-    // DB query failed
+    /* DB query failed */
   }
-  return loadMarketplaceBySlug(slug)
+  return loadMarketplaceBySlug(tenantId)
 }
 
 export async function upsertMarketplace(slug: string, tenantId: string | undefined, settings: Omit<MarketplaceConfig, 'tenantSlug' | 'tenantId'>): Promise<void> {

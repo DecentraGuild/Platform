@@ -31,7 +31,7 @@ import {
 import { getMintMetadata, upsertMintMetadata } from '../db/marketplace-metadata.js'
 import { getHolderSnapshot, getHolderWalletsFromSnapshot } from '../db/discord-holder-snapshots.js'
 import { logDiscordAudit } from '../db/discord-audit.js'
-import { normalizeTenantSlug } from '../validate-slug.js'
+import { normalizeTenantIdentifier } from '../validate-slug.js'
 import { resolveTenant } from '../db/tenant.js'
 import { requireTenantAdmin, requireTenantAdminWithDiscordServer } from './tenant-settings.js'
 import { adminWriteRateLimit } from '../rate-limit-strict.js'
@@ -152,7 +152,7 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
       const result = await requireTenantAdmin(request, reply, request.params.slug)
       if (!result) return
       if (!getPool()) return reply.send({ roles: [], assignable_roles: [] })
-      const server = await getDiscordServerByTenantSlug(result.tenant.slug)
+      const server = await getDiscordServerByTenantSlug(result.tenant.id)
       if (!server) return reply.send({ roles: [], assignable_roles: [] })
       const allRoles = await getRolesByGuildId(server.discord_guild_id)
       const roles = allRoles.map((r) => ({
@@ -175,14 +175,14 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
   app.get<{ Params: { slug: string } }>(
     '/api/v1/tenant/:slug/discord/role-cards',
     async (request, reply) => {
-      const slug = normalizeTenantSlug(request.params.slug ?? '')
+      const slug = normalizeTenantIdentifier(request.params.slug ?? '')
       if (!slug) {
         return reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
       }
       const tenant = await resolveTenant(slug)
       if (!tenant) return reply.send({ role_cards: [] })
       if (!getPool()) return reply.send({ role_cards: [] })
-      const server = await getDiscordServerByTenantSlug(tenant.slug)
+      const server = await getDiscordServerByTenantSlug(tenant.id)
       if (!server) return reply.send({ role_cards: [] })
       const guildId = server.discord_guild_id
       const [rules, roles, conditionsByRuleId] = await Promise.all([
@@ -234,7 +234,7 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
         const result = await requireTenantAdmin(request, reply, request.params.slug)
         if (!result) return
         if (!getPool()) return reply.send({ rules: [], configured_mint_count: 0 })
-        const server = await getDiscordServerByTenantSlug(result.tenant.slug)
+        const server = await getDiscordServerByTenantSlug(result.tenant.id)
         if (!server) return reply.send({ rules: [], configured_mint_count: 0 })
         const [rules, conditionsByRuleId] = await Promise.all([
           getRoleRulesByGuildId(server.discord_guild_id),

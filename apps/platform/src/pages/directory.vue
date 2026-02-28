@@ -5,7 +5,7 @@
     <div v-else class="directory__grid">
       <Card
         v-for="t in tenants"
-        :key="t.slug"
+        :key="t.id"
         class="directory__card"
       >
         <img
@@ -16,7 +16,7 @@
         />
         <h3>{{ t.name }}</h3>
         <p v-if="t.description" class="directory__desc">{{ t.description }}</p>
-        <a :href="tenantUrl(t.slug)" target="_blank" rel="noopener">
+        <a :href="tenantUrl(t.slug ?? t.id)" target="_blank" rel="noopener">
           <Button variant="secondary">Visit</Button>
         </a>
       </Card>
@@ -47,9 +47,12 @@ onMounted(async () => {
   }
 })
 
-function tenantUrl(slug: string) {
+function tenantUrl(idOrSlug: string) {
   const baseDomain = config.public.tenantBaseDomain as string
-  return `https://${slug}.${baseDomain}`
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return `http://localhost:3002?tenant=${encodeURIComponent(idOrSlug)}`
+  }
+  return `https://${idOrSlug}.${baseDomain}`
 }
 </script>
 

@@ -2,6 +2,8 @@
  * Server-to-server client for DecentraGuild API. All bot routes require x-bot-secret and x-discord-guild-id.
  */
 
+import { normalizeApiBase } from '@decentraguild/core'
+
 const BOT_SECRET_HEADER = 'x-bot-secret'
 const GUILD_ID_HEADER = 'x-discord-guild-id'
 
@@ -19,10 +21,6 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
   }
-}
-
-function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/+$/, '')
 }
 
 type RequestOptions = {
@@ -52,7 +50,7 @@ async function apiRequest<T>(
   discordGuildId: string,
   options: RequestOptions & { parseJson?: boolean }
 ): Promise<T | void> {
-  const url = `${normalizeBaseUrl(baseUrl)}${path}`
+  const url = `${normalizeApiBase(baseUrl)}${path}`
   const headers: Record<string, string> = {
     [BOT_SECRET_HEADER]: botSecret,
     [GUILD_ID_HEADER]: discordGuildId,
@@ -104,7 +102,7 @@ export async function waitForApi(
   let lastError: Error | null = null
   while (Date.now() - started < timeoutMs) {
     try {
-      const res = await fetch(`${normalizeBaseUrl(baseUrl)}/api/v1/health`)
+      const res = await fetch(`${normalizeApiBase(baseUrl)}/api/v1/health`)
       if (res.ok) return
       lastError = new Error(`Health returned ${res.status}`)
     } catch (e) {

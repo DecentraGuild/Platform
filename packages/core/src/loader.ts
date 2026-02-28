@@ -37,12 +37,15 @@ export async function loadTenantConfig(slug: string): Promise<TenantConfig | nul
   try {
     const raw = await readFile(filePath, 'utf-8')
     const config = JSON.parse(raw) as TenantConfig
-    if (!config.id || !config.slug || !config.name) return null
+    if (!config.id || !config.name) return null
     config.modules = normalizeModules(
       config.modules as TenantModulesMap | Array<{ id: string; enabled?: boolean }> | null | undefined
     )
     return config
-  } catch {
+  } catch (err) {
+    if (existsSync(filePath)) {
+      console.warn(`[core] Failed to parse tenant config ${slug}:`, err)
+    }
     return null
   }
 }

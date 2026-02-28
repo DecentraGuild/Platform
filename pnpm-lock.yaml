@@ -26,6 +26,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@decentraguild/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
+      '@decentraguild/config':
+        specifier: workspace:*
+        version: link:../../config
       '@decentraguild/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -90,6 +96,9 @@ importers:
 
   apps/discord-bot:
     dependencies:
+      '@decentraguild/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       discord.js:
         specifier: ^14.16.0
         version: 14.25.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -158,6 +167,9 @@ importers:
       '@decentraguild/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@decentraguild/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@decentraguild/config':
         specifier: workspace:*
         version: link:../../config
@@ -206,6 +218,10 @@ importers:
         version: 5.9.3
 
   config:
+    dependencies:
+      '@decentraguild/billing':
+        specifier: workspace:*
+        version: link:../packages/billing
     devDependencies:
       tsup:
         specifier: ^8.0.0
@@ -229,6 +245,15 @@ importers:
         specifier: ^3.4.0
         version: 3.5.28(typescript@5.9.3)
     devDependencies:
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/billing:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@microsoft/api-extractor@7.43.0(@types/node@20.19.33))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       typescript:
         specifier: ^5.3.0
         version: 5.9.3

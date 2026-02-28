@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { TenantConfig, MarketplaceSettings } from '@decentraguild/core'
 import { useThemeStore } from '@decentraguild/ui'
 import { API_V1, normalizeApiBase } from '~/utils/apiBase'
@@ -9,7 +9,10 @@ export type { MarketplaceSettings } from '@decentraguild/core'
 export const useTenantStore = defineStore('tenant', () => {
   const tenant = ref<TenantConfig | null>(null)
   const marketplaceSettings = ref<MarketplaceSettings | null>(null)
+  /** Route identifier from URL (subdomain or ?tenant=). Can be id (dg_xxx) or slug. API accepts both. */
   const slug = ref<string | null>(null)
+  /** Canonical tenant id when tenant is loaded. Use for display of permanent identity. */
+  const tenantId = computed(() => tenant.value?.id ?? null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -85,6 +88,7 @@ export const useTenantStore = defineStore('tenant', () => {
 
   return {
     tenant,
+    tenantId,
     marketplaceSettings,
     slug,
     loading,

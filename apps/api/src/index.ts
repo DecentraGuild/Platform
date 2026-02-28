@@ -14,12 +14,14 @@ import { registerDiscordVerifyRoutes } from './routes/discord-verify.js'
 import { registerDiscordServerRoutes } from './routes/discord-server.js'
 import { registerDiscordRulesRoutes } from './routes/discord-rules.js'
 import { registerDiscordSyncRoutes } from './routes/discord-sync.js'
+import { registerBillingRoutes } from './routes/billing.js'
+import { registerBillingPaymentRoutes } from './routes/billing-payments.js'
 import { initPool, getPool } from './db/client.js'
 import { apiError, ErrorCode } from './api-errors.js'
 import { runMigrations } from './db/run-migrations.js'
 import { upsertTenant } from './db/tenant.js'
-import { normalizeTenantSlug } from './validate-slug.js'
-import { getTenantConfigDir, loadTenantBySlug, loadTenantBySlugDiagnostic, listTenantSlugs } from './config/registry.js'
+import { normalizeTenantIdentifier } from './validate-slug.js'
+import { getTenantConfigDir, loadTenantByIdOrSlug, loadTenantBySlugDiagnostic, listTenantSlugs } from './config/registry.js'
 import { loadMarketplaceBySlug, listMarketplaceSlugs } from './config/marketplace-registry.js'
 import { ensureConfigPaths } from './config/ensure-paths.js'
 import {
@@ -102,27 +104,28 @@ async function seedMintMetadataFromConfig(
 
 /** Seed all tenants and marketplace configs from registry (DB + metadata + scope). */
 async function seedDefaultTenants(app: { log: { warn: (obj: unknown, msg?: string) => void } }) {
-  const tenantSlugs = await listTenantSlugs()
-  for (const slug of tenantSlugs) {
-    const tenant = await loadTenantBySlug(slug)
+  const tenantIds = await listTenantSlugs()
+  for (const idOrSlug of tenantIds) {
+    const tenant = await loadTenantByIdOrSlug(idOrSlug)
     if (tenant) await upsertTenant(tenant)
   }
-  const marketplaceSlugs = await listMarketplaceSlugs()
-  for (const slug of marketplaceSlugs) {
-    const config = await loadMarketplaceBySlug(slug)
+  const marketplaceIds = await listMarketplaceSlugs()
+  for (const idOrSlug of marketplaceIds) {
+    const config = await loadMarketplaceBySlug(idOrSlug)
     if (!config) continue
-    const tenant = await loadTenantBySlug(slug)
+    const tenant = await loadTenantByIdOrSlug(idOrSlug)
     if (tenant) await upsertTenant(tenant)
-    await upsertMarketplace(slug, config.tenantId, config)
+    const tenantId = tenant?.id ?? config.tenantId ?? idOrSlug
+    await upsertMarketplace(tenantId, config.tenantId ?? tenantId, config)
     try {
       await seedMintMetadataFromConfig(config, app.log)
     } catch (e) {
-      app.log.warn({ err: e, slug }, 'Mint metadata seed failed')
+      app.log.warn({ err: e, tenantId }, 'Mint metadata seed failed')
     }
     try {
-      await expandAndSaveScope(slug, config, app.log)
+      await expandAndSaveScope(tenantId, config, app.log)
     } catch (e) {
-      app.log.warn({ err: e, slug }, 'Scope expansion failed during seed')
+      app.log.warn({ err: e, tenantId }, 'Scope expansion failed during seed')
     }
   }
 }
@@ -187,7 +190,7 @@ async function main() {
     const slugParam = new URL(request.url, 'http://localhost').searchParams.get('slug')?.trim()
     const slugs = await listTenantSlugs()
     const slug = slugParam
-      ? normalizeTenantSlug(slugParam)
+      ? normalizeTenantIdentifier(slugParam)
       : (slugs[0] ?? null)
     if (!slug) {
       return reply.code(400).send(
@@ -230,6 +233,8 @@ async function main() {
   await registerDiscordServerRoutes(app)
   await registerDiscordRulesRoutes(app)
   await registerDiscordSyncRoutes(app)
+  await registerBillingRoutes(app)
+  await registerBillingPaymentRoutes(app)
 
   const port = Number(process.env.PORT) || DEFAULT_PORT
   await app.listen({ port, host: '0.0.0.0' })

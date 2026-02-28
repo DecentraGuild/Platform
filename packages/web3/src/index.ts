@@ -54,3 +54,10 @@ export type { DasAsset, DasAttribute } from './das/index.js'
 
 export { fetchMintMetadataFromChain } from './mint-metadata.js'
 export type { FetchedMintMetadata } from './mint-metadata.js'
+
+export {
+  buildBillingTransfer,
+  USDC_MINT,
+  USDC_DECIMALS,
+} from './billing/transfer.js'
+export type { BuildBillingTransferParams } from './billing/transfer.js'

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export function ensureConfigPaths(): void {
-  const repoRoot = path.resolve(__dirname, '../../..')
+  const repoRoot = path.resolve(__dirname, '../../../../')
   if (!process.env.TENANT_CONFIG_PATH) {
     const tenantConfigs = path.join(repoRoot, 'configs/tenants')
     try {

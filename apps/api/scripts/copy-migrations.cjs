@@ -12,7 +12,13 @@ if (!fs.existsSync(from)) {
   console.warn('copy-migrations: source dir not found, skipping')
   process.exit(0)
 }
-fs.mkdirSync(to, { recursive: true })
+if (fs.existsSync(to)) {
+  for (const name of fs.readdirSync(to)) {
+    if (name.endsWith('.sql')) fs.unlinkSync(path.join(to, name))
+  }
+} else {
+  fs.mkdirSync(to, { recursive: true })
+}
 for (const name of fs.readdirSync(from)) {
   if (name.endsWith('.sql')) {
     fs.copyFileSync(path.join(from, name), path.join(to, name))

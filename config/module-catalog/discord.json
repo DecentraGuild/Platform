@@ -14,5 +14,32 @@
   ],
   "routePath": "/discord",
   "order": 3,
-  "pricing": null
+  "pricing": {
+    "modelType": "tiered_addons",
+    "conditionKeys": ["mintsCount"],
+    "tiers": [
+      {
+        "id": "tier1",
+        "name": "Starter",
+        "recurringPrice": 0.015,
+        "included": { "mintsCount": 3 }
+      },
+      {
+        "id": "tier2",
+        "name": "Growth",
+        "recurringPrice": 0.019,
+        "included": { "mintsCount": 5 }
+      },
+      {
+        "id": "tier3",
+        "name": "Pro",
+        "recurringPrice": 0.029,
+        "included": { "mintsCount": 10 }
+      }
+    ],
+    "addons": [
+      { "conditionKey": "mintsCount", "name": "Extra mint", "unitSize": 1, "recurringPricePerUnit": 5 }
+    ],
+    "yearlyDiscountPercent": 25
+  }
 }

@@ -4,6 +4,9 @@
  * sellerFeeBasisPoints from the DB so tenant JSON can stay minimal and we resolve by mint.
  */
 
+import { getPool } from '../db/client.js'
+import { getMintMetadataBatch } from '../db/marketplace-metadata.js'
+import { resolveMarketplace } from '../db/marketplace-settings.js'
 import type { MarketplaceConfig } from '../config/marketplace-registry.js'
 import type { MintMetadata } from '../db/marketplace-metadata.js'
 
@@ -54,4 +57,21 @@ export function enrichMarketplaceConfigWithMetadata(
     currencyMints,
     splAssetMints,
   }
+}
+
+/**
+ * Resolve marketplace config for tenant and enrich currency/spl mints with metadata from DB.
+ * Returns null if config not found or DB not available.
+ */
+export async function resolveMarketplaceEnriched(
+  tenantId: string
+): Promise<MarketplaceConfig | null> {
+  const config = await resolveMarketplace(tenantId)
+  if (!config || !getPool()) return config
+  const mints = [
+    ...config.currencyMints.map((c) => c.mint),
+    ...(config.splAssetMints ?? []).map((s) => s.mint),
+  ]
+  const metadataMap = await getMintMetadataBatch(mints)
+  return enrichMarketplaceConfigWithMetadata(config, metadataMap)
 }

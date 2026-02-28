@@ -1,15 +1,6 @@
 <template>
   <div class="theme-settings">
     <div class="theme-settings__form">
-      <section class="theme-settings__section">
-        <h3 class="theme-settings__heading">Branding</h3>
-        <TextInput
-          v-model="branding.logo"
-          label="Logo URL"
-          placeholder="https://..."
-        />
-      </section>
-
       <details class="theme-settings__section" open>
         <summary class="theme-settings__heading">Colors</summary>
         <p class="theme-settings__hint">Set main colours; hover and variants are derived.</p>

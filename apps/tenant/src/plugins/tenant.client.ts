@@ -42,7 +42,9 @@ export default defineNuxtPlugin(async () => {
 
   async function ensureTenantContext(slug: string | null) {
     if (!slug) return
-    if (tenantStore.tenant?.slug === slug) return
+    const tid = tenantStore.tenant?.id
+    const match = tid === slug || tenantStore.tenant?.slug === slug
+    if (match) return
     await tenantStore.fetchTenantContext(slug)
   }
 

@@ -8,14 +8,18 @@ export interface SessionPayload {
   exp: number
 }
 
+let devSecretWarned = false
+
 export function getSessionSecret(): Uint8Array {
   const isProduction = process.env.NODE_ENV === 'production'
-  const secret =
-    process.env.SESSION_SECRET ??
-    process.env.JWT_SECRET ??
-    (!isProduction ? 'dev-secret-min-32-chars-for-session-signing' : undefined)
+  const envSecret = process.env.SESSION_SECRET ?? process.env.JWT_SECRET
+  const secret = envSecret ?? (!isProduction ? 'dev-secret-min-32-chars-for-session-signing' : undefined)
   if (!secret || secret.length < 32) {
     throw new Error('SESSION_SECRET or JWT_SECRET (min 32 chars) required for auth')
+  }
+  if (!envSecret && !devSecretWarned) {
+    devSecretWarned = true
+    console.warn('[auth] Using hardcoded dev secret. Set SESSION_SECRET in production.')
   }
   return new TextEncoder().encode(secret)
 }

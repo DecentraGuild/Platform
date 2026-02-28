@@ -13,6 +13,28 @@ export function isValidTenantSlug(slug: string): boolean {
   return SLUG_REGEX.test(s)
 }
 
+/** Tenant ID format for id-only orgs: dg_ + 8 alphanumeric. Subdomain-safe. */
+const ID_REGEX = /^dg_[a-z0-9]{8}$/
+
+export function isValidTenantId(id: string): boolean {
+  if (typeof id !== 'string') return false
+  const s = id.trim().toLowerCase()
+  return s.length > 0 && ID_REGEX.test(s)
+}
+
+/** Returns true if string is a valid tenant identifier (slug or id). */
+export function isValidTenantIdentifier(idOrSlug: string): boolean {
+  return isValidTenantSlug(idOrSlug) || isValidTenantId(idOrSlug)
+}
+
+/** Returns normalized identifier (slug or id) if valid; otherwise null. */
+export function normalizeTenantIdentifier(idOrSlug: string): string | null {
+  const s = typeof idOrSlug === 'string' ? idOrSlug.trim() : ''
+  if (!s) return null
+  if (isValidTenantId(s)) return s.toLowerCase()
+  return normalizeTenantSlug(s)
+}
+
 /** Returns normalized slug (trimmed, lowercase) if valid; otherwise null. */
 export function normalizeTenantSlug(slug: string): string | null {
   if (typeof slug !== 'string') return null

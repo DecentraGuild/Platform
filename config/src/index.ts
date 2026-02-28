@@ -13,3 +13,12 @@ export {
   getModuleCatalogEntry,
   getModuleCatalogList,
 } from './load-module-catalog.js'
+
+export type {
+  PricingModel,
+  TieredAddonsPricing,
+  OneTimePerUnitPricing,
+  FlatRecurringPricing,
+  TierDefinition,
+  AddonDefinition,
+} from '@decentraguild/billing'

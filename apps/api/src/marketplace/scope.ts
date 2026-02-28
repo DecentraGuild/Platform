@@ -14,7 +14,7 @@ import {
   type MintScopeSource,
 } from '../db/mint-scope.js'
 import type { ScopePaginatedOpts } from '../db/mint-scope.js'
-import { isValidTenantSlug } from '../validate-slug.js'
+import { isValidTenantIdentifier } from '../validate-slug.js'
 
 export interface ScopeEntry {
   mint: string
@@ -22,25 +22,25 @@ export interface ScopeEntry {
   collectionMint?: string | null
 }
 
-function getScopeFilePath(slug: string): string | null {
-  if (!isValidTenantSlug(slug)) return null
+function getScopeFilePath(tenantId: string): string | null {
+  if (!isValidTenantIdentifier(tenantId)) return null
   const envPath = process.env.MARKETPLACE_CONFIG_PATH
   const cwd = process.cwd()
   const baseDir = envPath ? path.resolve(envPath) : path.join(cwd, '..', '..', 'configs', 'marketplace')
-  const filePath = path.join(baseDir, `${slug}-scope.json`)
+  const filePath = path.join(baseDir, `${tenantId}-scope.json`)
   return existsSync(path.dirname(filePath)) ? filePath : null
 }
 
-export async function getScopeForTenant(slug: string): Promise<string[]> {
-  const entries = await getScopeEntriesForTenant(slug)
+export async function getScopeForTenant(tenantId: string): Promise<string[]> {
+  const entries = await getScopeEntriesForTenant(tenantId)
   return entries.map((e) => e.mint)
 }
 
-export async function getScopeEntriesForTenant(slug: string): Promise<ScopeEntry[]> {
-  if (!isValidTenantSlug(slug)) return []
+export async function getScopeEntriesForTenant(tenantId: string): Promise<ScopeEntry[]> {
+  if (!isValidTenantIdentifier(tenantId)) return []
   const pool = getPool()
   if (pool) {
-    const rows = await getScopeRowsForTenant(slug)
+    const rows = await getScopeRowsForTenant(tenantId)
     return rows.map((r) => ({
       mint: r.mint,
       source: r.source,
@@ -48,7 +48,7 @@ export async function getScopeEntriesForTenant(slug: string): Promise<ScopeEntry
     }))
   }
 
-  const filePath = getScopeFilePath(slug)
+  const filePath = getScopeFilePath(tenantId)
   if (!filePath || !existsSync(filePath)) return []
 
   try {
@@ -87,13 +87,13 @@ function filterEntries(
 }
 
 export async function getScopeEntriesPaginated(
-  slug: string,
+  tenantId: string,
   opts: ScopePaginatedOpts
 ): Promise<{ entries: ScopeEntry[]; total: number }> {
-  if (!isValidTenantSlug(slug)) return { entries: [], total: 0 }
+  if (!isValidTenantIdentifier(tenantId)) return { entries: [], total: 0 }
   const pool = getPool()
   if (pool) {
-    const { entries, total } = await getScopeEntriesPaginatedDb(slug, opts)
+    const { entries, total } = await getScopeEntriesPaginatedDb(tenantId, opts)
     return {
       entries: entries.map((r) => ({
         mint: r.mint,
@@ -104,7 +104,7 @@ export async function getScopeEntriesPaginated(
     }
   }
 
-  const allEntries = await getScopeEntriesForTenant(slug)
+  const allEntries = await getScopeEntriesForTenant(tenantId)
   const filtered = filterEntries(allEntries, opts)
   const total = filtered.length
   const page = Math.max(1, opts.page ?? 1)
@@ -114,15 +114,15 @@ export async function getScopeEntriesPaginated(
   return { entries, total }
 }
 
-export async function saveScopeForTenant(slug: string, entries: ScopeEntry[]): Promise<void> {
-  if (!isValidTenantSlug(slug)) throw new Error('Invalid tenant slug')
+export async function saveScopeForTenant(tenantId: string, entries: ScopeEntry[]): Promise<void> {
+  if (!isValidTenantIdentifier(tenantId)) throw new Error('Invalid tenant identifier')
   const pool = getPool()
   if (pool) {
-    await replaceScopeForTenant(slug, entries)
+    await replaceScopeForTenant(tenantId, entries)
     return
   }
 
-  const filePath = getScopeFilePath(slug)
+  const filePath = getScopeFilePath(tenantId)
   if (!filePath) {
     throw new Error('MARKETPLACE_CONFIG_PATH not set and DB not configured')
   }

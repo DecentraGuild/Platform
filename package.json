@@ -4,7 +4,7 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency 15",
     "lint": "pnpm exec eslint apps packages",
     "build:platform": "pnpm exec turbo run build --filter=./packages/* && pnpm --filter platform generate",
     "build:tenant": "pnpm exec turbo run build --filter=./packages/* && pnpm --filter tenant generate"

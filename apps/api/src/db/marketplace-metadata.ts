@@ -80,9 +80,13 @@ export async function getMintMetadataBatch(mints: string[]): Promise<Map<string,
   return map
 }
 
+export type MintMetadataUpsert = Partial<
+  Pick<MintMetadata, 'name' | 'symbol' | 'image' | 'decimals' | 'sellerFeeBasisPoints'>
+>
+
 export async function upsertMintMetadata(
   mint: string,
-  data: Partial<Pick<MintMetadata, 'name' | 'symbol' | 'image' | 'decimals' | 'traits' | 'sellerFeeBasisPoints'>>
+  data: MintMetadataUpsert & { traits?: MintTrait[] | null }
 ): Promise<void> {
   const name = sanitizeText(data.name ?? null)
   const symbol = sanitizeText(data.symbol ?? null)
@@ -109,4 +113,17 @@ export async function upsertMintMetadata(
       data.sellerFeeBasisPoints ?? null,
     ]
   )
+}
+
+/** Upsert mint metadata for multiple mints. Logs and skips failed upserts. */
+export async function upsertMintMetadataBatch(
+  mints: Array<{ mint: string } & MintMetadataUpsert>,
+  onError?: (err: unknown, mint: string) => void
+): Promise<void> {
+  for (const { mint, ...data } of mints) {
+    if (!mint?.trim()) continue
+    await upsertMintMetadata(mint.trim(), data).catch((e) => {
+      onError?.(e, mint.trim())
+    })
+  }
 }

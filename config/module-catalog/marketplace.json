@@ -14,5 +14,33 @@
   ],
   "routePath": "/market",
   "order": 2,
-  "pricing": null
+  "pricing": {
+    "modelType": "tiered_addons",
+    "conditionKeys": ["mintsCount", "baseCurrenciesCount", "customCurrenciesCount", "monetizeStorefront"],
+    "tiers": [
+      {
+        "id": "tier1",
+        "name": "Starter",
+        "recurringPrice": 0.0019,
+        "included": { "mintsCount": 5, "baseCurrenciesCount": 4, "customCurrenciesCount": 0, "monetizeStorefront": false }
+      },
+      {
+        "id": "tier2",
+        "name": "Growth",
+        "recurringPrice": 0.0029,
+        "included": { "mintsCount": 50, "baseCurrenciesCount": 4, "customCurrenciesCount": 1, "monetizeStorefront": false }
+      },
+      {
+        "id": "tier3",
+        "name": "Pro",
+        "recurringPrice": 0.0039,
+        "included": { "mintsCount": 250, "baseCurrenciesCount": 4, "customCurrenciesCount": 2, "monetizeStorefront": true }
+      }
+    ],
+    "addons": [
+      { "conditionKey": "mintsCount", "name": "Extra mints (50 pack)", "unitSize": 50, "recurringPricePerUnit": 5 },
+      { "conditionKey": "customCurrenciesCount", "name": "Custom currency", "unitSize": 1, "recurringPricePerUnit": 5 }
+    ],
+    "yearlyDiscountPercent": 25
+  }
 }

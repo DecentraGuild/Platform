@@ -1,34 +1,23 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { getPool } from '../db/client.js'
 import { getDiscordServerByTenantSlug, type DiscordServerRow } from '../db/discord-servers.js'
-import { resolveTenant, updateTenant, mergeTenantPatch, type TenantSettingsPatch } from '../db/tenant.js'
-import { getMarketplaceBySlug, resolveMarketplace, upsertMarketplace } from '../db/marketplace-settings.js'
-import type { TenantConfig } from '@decentraguild/core'
-import type { ModuleState } from '@decentraguild/core'
+import { getTenantBySlug, resolveTenant, updateTenant, type TenantSettingsPatch } from '../db/tenant.js'
+import { resolveMarketplace, upsertMarketplace } from '../db/marketplace-settings.js'
+import type { TenantConfig, ModuleState } from '@decentraguild/core'
+import { BASE_CURRENCY_MINTS } from '@decentraguild/core'
 import { getWalletFromRequest } from './auth.js'
-import {
-  loadTenantBySlug,
-  writeTenantBySlug,
-  getTenantConfigDir,
-} from '../config/registry.js'
+import { getTenantConfigDir, loadTenantByIdOrSlug } from '../config/registry.js'
 import {
   writeMarketplaceBySlug,
   getMarketplaceConfigDir,
   type MarketplaceConfig,
 } from '../config/marketplace-registry.js'
 import { expandAndSaveScope } from '../marketplace/expand-collections.js'
-import { getMintMetadataBatch, upsertMintMetadata } from '../db/marketplace-metadata.js'
-import { enrichMarketplaceConfigWithMetadata } from '../marketplace/enrich-config.js'
-import { normalizeTenantSlug } from '../validate-slug.js'
+import { upsertMintMetadataBatch } from '../db/marketplace-metadata.js'
+import { resolveMarketplaceEnriched } from '../marketplace/enrich-config.js'
+import { normalizeTenantIdentifier, normalizeTenantSlug } from '../validate-slug.js'
 import { adminWriteRateLimit } from '../rate-limit-strict.js'
 import { apiError, ErrorCode } from '../api-errors.js'
-
-const BASE_CURRENCY_MINTS: MarketplaceConfig['currencyMints'] = [
-  { mint: 'So11111111111111111111111111111111111111112', name: 'Wrapped SOL', symbol: 'SOL' },
-  { mint: '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh', name: 'Wrapped Bitcoin (Portal)', symbol: 'WBTC' },
-  { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', name: 'USD Coin', symbol: 'USDC' },
-  { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', name: 'Tether USD', symbol: 'USDT' },
-]
 
 const DEFAULT_WHITELIST = {
   programId: 'whi5uDPWK4rAE9Sus6hdxdHwsG1hjDBn6kXM6pyqwTn',
@@ -123,9 +112,9 @@ export async function requireTenantAdmin(
   reply: FastifyReply,
   slugParam: string
 ): Promise<{ wallet: string; tenant: TenantConfig } | null> {
-  const slug = normalizeTenantSlug(slugParam)
+  const slug = normalizeTenantIdentifier(slugParam)
   if (!slug) {
-    reply.status(400).send(apiError('Invalid tenant slug', ErrorCode.INVALID_SLUG))
+    reply.status(400).send(apiError('Invalid tenant identifier', ErrorCode.INVALID_SLUG))
     return null
   }
   const wallet = await getWalletFromRequest(request)
@@ -161,7 +150,7 @@ export async function requireTenantAdminWithDiscordServer(
     reply.status(503).send(apiError('Database not available', ErrorCode.SERVICE_UNAVAILABLE))
     return null
   }
-  const server = await getDiscordServerByTenantSlug(result.tenant.slug)
+  const server = await getDiscordServerByTenantSlug(result.tenant.id)
   if (!server) {
     reply.status(400).send(apiError('Discord server not connected', ErrorCode.DISCORD_SERVER_NOT_CONNECTED))
     return null
@@ -170,6 +159,28 @@ export async function requireTenantAdminWithDiscordServer(
 }
 
 export async function registerTenantSettingsRoutes(app: FastifyInstance) {
+  app.get<{
+    Params: { slug: string }
+    Querystring: { slug?: string }
+  }>('/api/v1/tenant/:slug/slug/check', async (request, reply) => {
+    const result = await requireTenantAdmin(request, reply, request.params.slug)
+    if (!result) return
+    const desired = request.query.slug
+    if (!desired || typeof desired !== 'string') {
+      return reply.status(400).send(apiError('slug query parameter is required', ErrorCode.BAD_REQUEST))
+    }
+    const normalized = normalizeTenantSlug(desired.trim())
+    if (!normalized) {
+      return reply.status(400).send(apiError('Invalid slug: use only lowercase letters, numbers, and hyphens (1–64 chars)', ErrorCode.INVALID_SLUG))
+    }
+    if (result.tenant.slug === normalized) {
+      return { available: true }
+    }
+    const existingDb = await getTenantBySlug(normalized)
+    const existingFile = await loadTenantByIdOrSlug(normalized)
+    return { available: !existingDb && !existingFile }
+  })
+
   app.get<{ Params: { slug: string } }>('/api/v1/tenant/:slug/settings', async (request, reply) => {
     const { slug } = request.params
     const result = await requireTenantAdmin(request, reply, slug)
@@ -183,7 +194,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
   }>('/api/v1/tenant/:slug/settings', { preHandler: [adminWriteRateLimit] }, async (request, reply) => {
     const result = await requireTenantAdmin(request, reply, request.params.slug)
     if (!result) return
-    const slug = result.tenant.slug
+    const tenantId = result.tenant.id
     const body = (request.body ?? {}) as Record<string, unknown>
     const ALLOWED_KEYS = ['name', 'description', 'branding', 'modules'] as const
     const patch: TenantSettingsPatch = {}
@@ -194,45 +205,22 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
       return reply.status(400).send(apiError('Admin module cannot be turned off', ErrorCode.BAD_REQUEST))
     }
 
-    if (getPool()) {
-      const updated = await updateTenant(slug, patch)
-      if (!updated) {
-        return reply.status(404).send(apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND))
-      }
-      return { tenant: updated }
-    }
-
-    const configDir = getTenantConfigDir()
-    if (!configDir) {
+    if (!getPool() && !getTenantConfigDir()) {
       return reply.status(503).send(apiError('Database not configured and TENANT_CONFIG_PATH not set', ErrorCode.CONFIG_REQUIRED))
     }
-    const existing = await loadTenantBySlug(slug)
-    if (!existing) {
+
+    const updated = await updateTenant(result.tenant.id, patch)
+    if (!updated) {
       return reply.status(404).send(apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND))
     }
-    const merged = mergeTenantPatch(existing, patch)
-    try {
-      await writeTenantBySlug(slug, merged)
-    } catch (e) {
-      request.log.warn({ err: e, slug }, 'Failed to write tenant config file')
-      return reply.status(503).send(apiError('Failed to save tenant config', ErrorCode.SERVICE_UNAVAILABLE))
-    }
-    return { tenant: merged }
+    return { tenant: updated }
   })
 
   app.get<{ Params: { slug: string } }>('/api/v1/tenant/:slug/marketplace-settings', async (request, reply) => {
     const result = await requireTenantAdmin(request, reply, request.params.slug)
     if (!result) return
-    const slug = result.tenant.slug
-    let config = await resolveMarketplace(slug)
-    if (config && getPool()) {
-      const mints = [
-        ...config.currencyMints.map((c) => c.mint),
-        ...(config.splAssetMints ?? []).map((s) => s.mint),
-      ]
-      const metadataMap = await getMintMetadataBatch(mints)
-      config = enrichMarketplaceConfigWithMetadata(config, metadataMap)
-    }
+    const tenantId = result.tenant.id
+    const config = await resolveMarketplaceEnriched(tenantId)
     const settings = config
       ? {
           collectionMints: config.collectionMints,
@@ -251,54 +239,31 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
   }>('/api/v1/tenant/:slug/marketplace-settings', { preHandler: [adminWriteRateLimit] }, async (request, reply) => {
     const result = await requireTenantAdmin(request, reply, request.params.slug)
     if (!result) return
-    const slug = result.tenant.slug
+    const tenantId = result.tenant.id
     const body = (request.body ?? {}) as Record<string, unknown>
-    const config = normalizeToMarketplaceConfig(body, slug, result.tenant.id)
+    const config = normalizeToMarketplaceConfig(body, tenantId, result.tenant.id)
 
     if (getPool()) {
-      await upsertMarketplace(slug, result.tenant.id, {
+      await upsertMarketplace(tenantId, result.tenant.id, {
         collectionMints: config.collectionMints,
         currencyMints: config.currencyMints,
         splAssetMints: config.splAssetMints ?? [],
         whitelist: config.whitelist,
         shopFee: config.shopFee,
       })
-      for (const c of config.currencyMints) {
-        if (c.mint?.trim()) {
-          await upsertMintMetadata(c.mint.trim(), {
-            name: c.name ?? null,
-            symbol: c.symbol ?? null,
-            image: c.image ?? null,
-            decimals: c.decimals ?? null,
-            sellerFeeBasisPoints: c.sellerFeeBasisPoints ?? null,
-          }).catch((e) => request.log.warn({ err: e, mint: c.mint?.trim() }, 'Mint metadata upsert skipped'))
-        }
-      }
-      for (const s of config.splAssetMints ?? []) {
-        if (s.mint?.trim()) {
-          await upsertMintMetadata(s.mint.trim(), {
-            name: s.name ?? null,
-            symbol: s.symbol ?? null,
-            image: s.image ?? null,
-            decimals: s.decimals ?? null,
-            sellerFeeBasisPoints: s.sellerFeeBasisPoints ?? null,
-          }).catch((e) => request.log.warn({ err: e, mint: s.mint?.trim() }, 'Mint metadata upsert skipped'))
-        }
-      }
+      await upsertMintMetadataBatch(
+        [
+          ...config.currencyMints.filter((c) => c.mint?.trim()),
+          ...(config.splAssetMints ?? []).filter((s) => s.mint?.trim()),
+        ],
+        (e, mint) => request.log.warn({ err: e, mint }, 'Mint metadata upsert skipped')
+      )
       try {
-        await expandAndSaveScope(slug, config, request.log)
+        await expandAndSaveScope(tenantId, config, request.log)
       } catch (e) {
-        request.log.warn({ err: e, slug }, 'Scope expansion failed; scope may be stale')
+        request.log.warn({ err: e, tenantId }, 'Scope expansion failed; scope may be stale')
       }
-      let updated = await getMarketplaceBySlug(slug)
-      if (updated) {
-        const mints = [
-          ...updated.currencyMints.map((c) => c.mint),
-          ...(updated.splAssetMints ?? []).map((s) => s.mint),
-        ]
-        const metadataMap = await getMintMetadataBatch(mints)
-        updated = enrichMarketplaceConfigWithMetadata(updated, metadataMap)
-      }
+      const updated = await resolveMarketplaceEnriched(tenantId)
       return {
         settings: updated
           ? {
@@ -317,14 +282,14 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
       return reply.status(503).send(apiError('MARKETPLACE_CONFIG_PATH not set', ErrorCode.CONFIG_REQUIRED))
     }
     try {
-      await writeMarketplaceBySlug(slug, config)
+      await writeMarketplaceBySlug(tenantId, config)
       try {
-        await expandAndSaveScope(slug, config, request.log)
+        await expandAndSaveScope(tenantId, config, request.log)
       } catch (e) {
-        request.log.warn({ err: e, slug }, 'Scope expansion failed; scope may be stale')
+        request.log.warn({ err: e, tenantId }, 'Scope expansion failed; scope may be stale')
       }
     } catch (e) {
-      request.log.warn({ err: e, slug }, 'Failed to write marketplace config file')
+      request.log.warn({ err: e, tenantId }, 'Failed to write marketplace config file')
       return reply.status(503).send(apiError('Failed to save marketplace settings', ErrorCode.SERVICE_UNAVAILABLE))
     }
     return {

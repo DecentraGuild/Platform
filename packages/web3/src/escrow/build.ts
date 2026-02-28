@@ -30,7 +30,6 @@ import {
   calculateSolToTransfer,
   addWrappedSolInstructions,
 } from './wrapped-sol.js'
-import { TRANSACTION_COSTS } from './constants.js'
 import type { Wallet } from './types.js'
 
 export interface BuildInitializeParams {
@@ -298,15 +297,13 @@ export async function buildExchangeTransaction(params: BuildExchangeParams): Pro
   const feeAccount = toPublicKey(contractFeeAccount ?? CONTRACT_FEE_ACCOUNT)
 
   /* Add create-ATA instructions only when missing (C2C order: request then deposit). */
-  const { takerAtaExists, totalCost: ataCost } = await prepareTakerATAs({
+  const { takerAtaExists } = await prepareTakerATAs({
     transaction,
     requestTokenMint: requestTokenPubkey,
     depositTokenMint: depositTokenPubkey,
     taker: takerPubkey,
     connection,
   })
-
-  let _totalCostToFund = ataCost
 
   if (isWrappedSol(requestTokenMint)) {
     const wrappedSolAccount = getWrappedSolAccount(takerPubkey)
@@ -332,8 +329,6 @@ export async function buildExchangeTransaction(params: BuildExchangeParams): Pro
       accountExists: takerAtaExists,
     })
   }
-
-  _totalCostToFund += TRANSACTION_COSTS.TRANSACTION_FEE
 
   const program = getEscrowProgram(connection, wallet)
   const amountBN = toBN(amount)

@@ -38,26 +38,17 @@ export async function consumeNonce(wallet: string, message: string): Promise<boo
   const pool = getPool()
   if (pool) {
     const { rows } = await query<{ nonce: string; expires_at: Date }>(
-      'SELECT nonce, expires_at FROM auth_nonce WHERE wallet = $1',
+      'DELETE FROM auth_nonce WHERE wallet = $1 RETURNING nonce, expires_at',
       [wallet]
     )
     if (rows.length === 0) return false
     const row = rows[0]
-    if (row.expires_at.getTime() <= Date.now()) {
-      await query('DELETE FROM auth_nonce WHERE wallet = $1', [wallet])
-      return false
-    }
-    if (row.nonce !== message) return false
-    await query('DELETE FROM auth_nonce WHERE wallet = $1', [wallet])
-    return true
+    if (row.expires_at.getTime() <= Date.now()) return false
+    return row.nonce === message
   }
   const entry = memoryStore.get(wallet)
   if (!entry) return false
-  if (entry.expiresAt <= Date.now()) {
-    memoryStore.delete(wallet)
-    return false
-  }
-  if (entry.nonce !== message) return false
   memoryStore.delete(wallet)
-  return true
+  if (entry.expiresAt <= Date.now()) return false
+  return entry.nonce === message
 }

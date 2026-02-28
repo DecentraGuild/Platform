@@ -118,7 +118,7 @@
       <h3>Currencies</h3>
       <p class="marketplace-settings__hint">Base: SOL, WBTC, USDC, USDT. Add custom by mint.</p>
       <div class="marketplace-settings__base-toggles">
-        <label v-for="b in BASE_CURRENCIES" :key="b.symbol" class="marketplace-settings__checkbox">
+        <label v-for="b in BASE_CURRENCY_MINTS" :key="b.symbol" class="marketplace-settings__checkbox">
           <input
             :checked="form.currencyMints.some((c) => c.mint === b.mint)"
             type="checkbox"
@@ -183,46 +183,54 @@
       </div>
     </Card>
 
-    <Card class="marketplace-settings__fee-section marketplace-settings__fee-section--disabled">
-      <h3>Fees</h3>
-      <p class="marketplace-settings__hint">Not available yet.</p>
-      <TextInput
-        v-model="form.shopFee.wallet"
-        label="Fee recipient wallet"
-        placeholder="Wallet address"
-        disabled
-      />
-      <div class="marketplace-settings__fee-row">
+    <Card>
+      <h3>Marketplace fees</h3>
+      <p class="marketplace-settings__hint">
+        These fees will be enforced at the escrow program level. Fields are shown here for planning but are not yet active.
+      </p>
+      <div class="marketplace-settings__fees">
         <TextInput
-          v-model.number="form.shopFee.makerFlatFee"
-          type="number"
-          label="Maker flat fee (SOL)"
-          placeholder="0"
+          v-model="form.shopFee.wallet"
+          label="Fee wallet"
+          placeholder="Wallet to receive marketplace fees"
           disabled
         />
-        <TextInput
-          v-model.number="form.shopFee.takerFlatFee"
-          type="number"
-          label="Taker flat fee (SOL)"
-          placeholder="0"
-          disabled
-        />
-      </div>
-      <div class="marketplace-settings__fee-row">
-        <TextInput
-          v-model.number="form.shopFee.makerPercentFee"
-          type="number"
-          label="Maker % (basis points)"
-          placeholder="0"
-          disabled
-        />
-        <TextInput
-          v-model.number="form.shopFee.takerPercentFee"
-          type="number"
-          label="Taker % (basis points)"
-          placeholder="0"
-          disabled
-        />
+        <div class="marketplace-settings__fee-row">
+          <TextInput
+            v-model.number="form.shopFee.makerFlatFee"
+            label="Maker flat fee (SOL)"
+            type="number"
+            min="0"
+            step="0.000000001"
+            disabled
+          />
+          <TextInput
+            v-model.number="form.shopFee.takerFlatFee"
+            label="Taker flat fee (SOL)"
+            type="number"
+            min="0"
+            step="0.000000001"
+            disabled
+          />
+        </div>
+        <div class="marketplace-settings__fee-row">
+          <TextInput
+            v-model.number="form.shopFee.makerPercentFee"
+            label="Maker fee (bps)"
+            type="number"
+            min="0"
+            step="1"
+            disabled
+          />
+          <TextInput
+            v-model.number="form.shopFee.takerPercentFee"
+            label="Taker fee (bps)"
+            type="number"
+            min="0"
+            step="1"
+            disabled
+          />
+        </div>
       </div>
     </Card>
 
@@ -264,6 +272,7 @@
 <script setup lang="ts">
 import { API_V1 } from '~/utils/apiBase'
 import { Icon } from '@iconify/vue'
+import { BASE_CURRENCY_MINTS } from '@decentraguild/core'
 import { Card, TextInput, Button } from '@decentraguild/ui/components'
 import AdminCollectionDetailModal from './AdminCollectionDetailModal.vue'
 import { reactive, ref, watch, computed, nextTick } from 'vue'
@@ -316,12 +325,6 @@ interface WhitelistSettings {
   account: string
 }
 
-const BASE_CURRENCIES: CurrencyMint[] = [
-  { mint: 'So11111111111111111111111111111111111111112', name: 'Wrapped SOL', symbol: 'SOL' },
-  { mint: '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh', name: 'Wrapped Bitcoin (Portal)', symbol: 'WBTC' },
-  { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', name: 'USD Coin', symbol: 'USDC' },
-  { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', name: 'Tether USD', symbol: 'USDT' },
-]
 
 const DEFAULT_WHITELIST: WhitelistSettings = {
   programId: 'whi5uDPWK4rAE9Sus6hdxdHwsG1hjDBn6kXM6pyqwTn',
@@ -362,7 +365,7 @@ const form = reactive<MarketplaceForm>({
 })
 
 const customCurrencies = computed(() => {
-  const baseMints = new Set(BASE_CURRENCIES.map((b) => b.mint))
+  const baseMints = new Set(BASE_CURRENCY_MINTS.map((b) => b.mint))
   return form.currencyMints.filter((c) => !baseMints.has(c.mint))
 })
 
@@ -425,7 +428,7 @@ watch(
       sellerFeeBasisPoints: m.sellerFeeBasisPoints,
     }))
     const cmu = (s.currencyMints as CurrencyMint[]) ?? []
-    form.currencyMints = cmu.length > 0 ? cmu.map((c) => ({ ...c, _loading: false, _error: undefined })) : [...BASE_CURRENCIES]
+    form.currencyMints = cmu.length > 0 ? cmu.map((c) => ({ ...c, _loading: false, _error: undefined })) : [...BASE_CURRENCY_MINTS]
     const sf = s.shopFee as Partial<ShopFee> | undefined
     if (sf) {
       form.shopFee.wallet = sf.wallet ?? ''
@@ -463,7 +466,7 @@ async function fillMissingCollectionCounts() {
 }
 
 function onBaseToggle(symbol: string, checked: boolean) {
-  const base = BASE_CURRENCIES.find((b) => b.symbol === symbol)
+  const base = BASE_CURRENCY_MINTS.find((b) => b.symbol === symbol)
   if (!base) return
   if (checked) {
     if (!form.currencyMints.some((c) => c.mint === base.mint)) {
@@ -567,7 +570,7 @@ async function lookupAndAddCurrency() {
     addCurrencyError.value = 'Invalid mint address'
     return
   }
-  const baseMints = new Set(BASE_CURRENCIES.map((b) => b.mint))
+  const baseMints = new Set(BASE_CURRENCY_MINTS.map((b) => b.mint))
   if (baseMints.has(mint)) {
     addCurrencyError.value = 'Already in base currencies'
     return
@@ -607,7 +610,7 @@ async function lookupAndAddCurrency() {
 }
 
 function removeCustomCurrency(idx: number) {
-  const baseMints = new Set(BASE_CURRENCIES.map((b) => b.mint))
+  const baseMints = new Set(BASE_CURRENCY_MINTS.map((b) => b.mint))
   const custom = form.currencyMints.filter((c) => !baseMints.has(c.mint))
   const removed = custom[idx]
   if (removed) {
@@ -670,6 +673,8 @@ async function save() {
     saving.value = false
   }
 }
+
+defineExpose({ save, form })
 </script>
 
 <style scoped>
@@ -683,11 +688,6 @@ async function save() {
   font-size: var(--theme-font-sm);
   color: var(--theme-text-muted);
   margin-bottom: var(--theme-space-md);
-}
-
-.marketplace-settings__fee-section--disabled {
-  opacity: 0.7;
-  pointer-events: none;
 }
 
 .marketplace-settings__add-mint {
@@ -847,14 +847,22 @@ button.marketplace-settings__mint-row {
   color: var(--theme-text-muted);
 }
 
-.marketplace-settings__fee-row {
+.marketplace-settings__fees {
   display: flex;
+  flex-direction: column;
   gap: var(--theme-space-md);
-  margin-top: var(--theme-space-md);
 }
 
-.marketplace-settings__fee-row .text-input {
-  flex: 1;
+.marketplace-settings__fee-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--theme-space-md);
+}
+
+@media (max-width: var(--theme-breakpoint-sm)) {
+  .marketplace-settings__fee-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .marketplace-settings__actions {

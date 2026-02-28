@@ -13,7 +13,7 @@ import type {
   MarketplaceCollectionMint,
   MarketplaceCurrencyMint,
 } from '@decentraguild/core'
-import { isValidTenantSlug } from '../validate-slug.js'
+import { isValidTenantIdentifier } from '../validate-slug.js'
 
 export type { MarketplaceGroupPath }
 
@@ -53,11 +53,11 @@ export function getMarketplaceConfigDir(): string | null {
   return resolveMarketplaceConfigDir()
 }
 
-export async function loadMarketplaceBySlug(slug: string): Promise<MarketplaceConfig | null> {
-  if (!isValidTenantSlug(slug)) return null
+export async function loadMarketplaceBySlug(idOrSlug: string): Promise<MarketplaceConfig | null> {
+  if (!isValidTenantIdentifier(idOrSlug)) return null
   const dir = getMarketplaceConfigDir()
   if (!dir) return null
-  const filePath = path.join(dir, `${slug}.json`)
+  const filePath = path.join(dir, `${idOrSlug}.json`)
   try {
     const raw = await readFile(filePath, 'utf-8')
     const config = JSON.parse(raw) as MarketplaceConfig
@@ -71,11 +71,11 @@ export async function loadMarketplaceBySlug(slug: string): Promise<MarketplaceCo
   }
 }
 
-export async function writeMarketplaceBySlug(slug: string, config: MarketplaceConfig): Promise<void> {
-  if (!isValidTenantSlug(slug)) throw new Error('Invalid tenant slug')
+export async function writeMarketplaceBySlug(idOrSlug: string, config: MarketplaceConfig): Promise<void> {
+  if (!isValidTenantIdentifier(idOrSlug)) throw new Error('Invalid tenant identifier')
   const dir = getMarketplaceConfigDir()
   if (!dir) throw new Error('MARKETPLACE_CONFIG_PATH not set')
-  const filePath = path.join(dir, `${slug}.json`)
+  const filePath = path.join(dir, `${idOrSlug}.json`)
   const payload = JSON.stringify(config, null, 2)
   await writeFile(filePath, payload, 'utf-8')
 }

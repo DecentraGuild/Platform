@@ -10,9 +10,12 @@
     "worker:dev": "tsx watch src/worker.ts",
     "lint": "eslint src",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:clear": "tsx scripts/clear-db.ts"
   },
   "dependencies": {
+    "@decentraguild/billing": "workspace:*",
+    "@decentraguild/config": "workspace:*",
     "@decentraguild/contracts": "workspace:*",
     "@decentraguild/core": "workspace:*",
     "@decentraguild/web3": "workspace:*",

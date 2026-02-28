@@ -33,7 +33,7 @@ export async function registerDiscordServerRoutes(app: FastifyInstance) {
       if (!getPool()) {
         return reply.send({ connected: false })
       }
-      const row = await getDiscordServerByTenantSlug(result.tenant.slug)
+      const row = await getDiscordServerByTenantSlug(result.tenant.id)
       if (!row) {
         return reply.send({ connected: false })
       }
@@ -64,16 +64,16 @@ export async function registerDiscordServerRoutes(app: FastifyInstance) {
       const guildName = request.body?.guild_name?.trim() ?? null
       try {
         await linkDiscordServer({
-          tenant_slug: result.tenant.slug,
+          tenant_slug: result.tenant.id,
           discord_guild_id: discordGuildId,
           guild_name: guildName,
         })
         await logDiscordAudit(
           'server_link',
-          { tenant_slug: result.tenant.slug, discord_guild_id: discordGuildId },
+          { tenant_slug: result.tenant.id, discord_guild_id: discordGuildId },
           discordGuildId
         )
-        const row = await getDiscordServerByTenantSlug(result.tenant.slug)
+        const row = await getDiscordServerByTenantSlug(result.tenant.id)
         return reply.send({
           connected: true,
           discord_guild_id: row!.discord_guild_id,
@@ -95,11 +95,11 @@ export async function registerDiscordServerRoutes(app: FastifyInstance) {
       if (!getPool()) {
         return reply.status(503).send(apiError('Database not available', ErrorCode.SERVICE_UNAVAILABLE))
       }
-      const row = await getDiscordServerByTenantSlug(result.tenant.slug)
+      const row = await getDiscordServerByTenantSlug(result.tenant.id)
       const guildId = row?.discord_guild_id ?? null
-      const removed = await disconnectDiscordServer(result.tenant.slug)
+      const removed = await disconnectDiscordServer(result.tenant.id)
       if (removed && guildId) {
-        await logDiscordAudit('server_unlink', { tenant_slug: result.tenant.slug }, guildId)
+        await logDiscordAudit('server_unlink', { tenant_slug: result.tenant.id }, guildId)
       }
       return reply.send({ connected: false, disconnected: removed })
     }

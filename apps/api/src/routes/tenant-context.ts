@@ -1,13 +1,10 @@
 import type { FastifyInstance } from 'fastify'
 import { getTenantSlugFromHost, isModuleVisibleToMembers, getModuleState } from '@decentraguild/core'
 import type { TenantConfigDiagnostic } from '../config/registry.js'
-import { normalizeTenantSlug } from '../validate-slug.js'
+import { normalizeTenantIdentifier } from '../validate-slug.js'
 import { loadTenantBySlugDiagnostic } from '../config/registry.js'
-import { getPool } from '../db/client.js'
 import { resolveTenant } from '../db/tenant.js'
-import { resolveMarketplace } from '../db/marketplace-settings.js'
-import { getMintMetadataBatch } from '../db/marketplace-metadata.js'
-import { enrichMarketplaceConfigWithMetadata } from '../marketplace/enrich-config.js'
+import { resolveMarketplaceEnriched } from '../marketplace/enrich-config.js'
 import { getWalletFromRequest } from './auth.js'
 import { apiError, ErrorCode } from '../api-errors.js'
 
@@ -25,10 +22,10 @@ export async function registerTenantContextRoutes(app: FastifyInstance) {
       process.env.NODE_ENV === 'production'
         ? getTenantSlugFromHost(host) ?? null
         : (slugParam ?? getTenantSlugFromHost(host, searchParams))
-    const slug = rawSlug ? normalizeTenantSlug(rawSlug) : null
+    const slug = rawSlug ? normalizeTenantIdentifier(rawSlug) : null
 
     if (!slug) {
-      return reply.status(404).send(apiError(rawSlug ? 'Invalid tenant slug' : 'Tenant slug required', ErrorCode.INVALID_SLUG))
+      return reply.status(404).send(apiError(rawSlug ? 'Invalid tenant identifier' : 'Tenant identifier required', ErrorCode.INVALID_SLUG))
     }
 
     const tenant = await resolveTenant(slug)
@@ -47,16 +44,8 @@ export async function registerTenantContextRoutes(app: FastifyInstance) {
     }
 
     let marketplaceSettings = null
-    if (isModuleVisibleToMembers(getModuleState(tenant.modules?.marketplace))) {
-      marketplaceSettings = await resolveMarketplace(slug)
-      if (marketplaceSettings && getPool()) {
-        const mints = [
-          ...marketplaceSettings.currencyMints.map((c) => c.mint),
-          ...(marketplaceSettings.splAssetMints ?? []).map((s) => s.mint),
-        ]
-        const metadataMap = await getMintMetadataBatch(mints)
-        marketplaceSettings = enrichMarketplaceConfigWithMetadata(marketplaceSettings, metadataMap)
-      }
+    if (tenant.id && isModuleVisibleToMembers(getModuleState(tenant.modules?.marketplace))) {
+      marketplaceSettings = await resolveMarketplaceEnriched(tenant.id)
     }
 
     return { tenant, marketplaceSettings: marketplaceSettings ?? undefined }

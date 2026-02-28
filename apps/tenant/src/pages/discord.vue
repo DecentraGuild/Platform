@@ -11,6 +11,11 @@
         <p class="discord-page__intro">
           Your Discord link and linked wallets are shared across all communities. Role eligibility is based on the combined holdings of all linked wallets.
         </p>
+        <p v-if="discordServerInviteLink" class="discord-page__server-invite">
+          <a :href="discordServerInviteLink" target="_blank" rel="noopener" class="discord-page__server-invite-link">
+            Join our Discord
+          </a>
+        </p>
 
         <template v-if="loadingMe">
           <p class="discord-page__loading">
@@ -115,6 +120,10 @@ const tenant = computed(() => tenantStore.tenant)
 const discordState = computed(() => getModuleState(tenant.value?.modules?.discord))
 const discordVisible = computed(() => isModuleVisibleToMembers(discordState.value))
 const discordDeactivating = computed(() => discordState.value === 'deactivating')
+const discordServerInviteLink = computed(() => {
+  const link = tenant.value?.branding?.discordServerInviteLink
+  return link && link.trim() ? link.trim() : ''
+})
 
 interface DiscordMe {
   discord_user_id: string | null
@@ -285,6 +294,19 @@ onUnmounted(() => {
 .discord-page__intro {
   margin-bottom: var(--theme-space-md);
   color: var(--theme-text-secondary);
+}
+
+.discord-page__server-invite {
+  margin: 0 0 var(--theme-space-md);
+}
+
+.discord-page__server-invite-link {
+  color: var(--theme-primary);
+  text-decoration: none;
+}
+
+.discord-page__server-invite-link:hover {
+  text-decoration: underline;
 }
 
 .discord-page__loading,
