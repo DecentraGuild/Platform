@@ -14,6 +14,7 @@
     "db:clear": "tsx scripts/clear-db.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1000.0",
     "@decentraguild/billing": "workspace:*",
     "@decentraguild/config": "workspace:*",
     "@decentraguild/contracts": "workspace:*",

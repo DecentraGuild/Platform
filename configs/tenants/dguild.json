@@ -1,0 +1,150 @@
+{
+  "id": "dg_5lta04ha",
+  "slug": "dguild",
+  "name": "Decentra Guild",
+  "description": "Decentra Guild Envirement",
+  "branding": {
+    "logo": "https://www.decentraguild.com/logo/dguild-logo.svg",
+    "theme": {
+      "fonts": {
+        "mono": [
+          "JetBrains Mono",
+          "Fira Code",
+          "monospace"
+        ],
+        "primary": [
+          "Inter",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif"
+        ]
+      },
+      "colors": {
+        "text": {
+          "muted": "#6b6b80",
+          "primary": "#ffffff",
+          "secondary": "#a0a0b3"
+        },
+        "trade": {
+          "buy": "#00ff00",
+          "sell": "#ff0000",
+          "swap": "#6366f1",
+          "trade": "#ffaa00",
+          "buyHover": "#00cc00",
+          "buyLight": "#33ff33",
+          "sellHover": "#cc0000",
+          "sellLight": "#ff3333",
+          "swapHover": "#4f46e5",
+          "swapLight": "#818cf8",
+          "tradeHover": "#cc8800",
+          "tradeLight": "#ffbb33"
+        },
+        "accent": {
+          "main": "#8b5cf6",
+          "hover": "#7c3aed"
+        },
+        "border": {
+          "light": "#3a3a4e",
+          "default": "#2a2a3e"
+        },
+        "status": {
+          "info": "#00d4ff",
+          "error": "#cf0000",
+          "success": "#00951a",
+          "warning": "#ff6b35"
+        },
+        "window": {
+          "border": "#2a2a3e",
+          "header": "#141420",
+          "background": "#1a1a2e"
+        },
+        "primary": {
+          "dark": "#007a14",
+          "main": "#00951a",
+          "hover": "#00b820",
+          "light": "#00cc22"
+        },
+        "secondary": {
+          "dark": "#990000",
+          "main": "#cf0000",
+          "hover": "#b30000",
+          "light": "#ff3333"
+        },
+        "background": {
+          "card": "#1a1a2e",
+          "primary": "#0a0a0f",
+          "secondary": "#141420"
+        }
+      },
+      "shadows": {
+        "card": "0 8px 32px rgba(0, 0, 0, 0.4)",
+        "glow": "0 0 20px rgba(0, 149, 26, 0.3)",
+        "glowHover": "0 0 40px rgba(0, 149, 26, 0.6)"
+      },
+      "spacing": {
+        "lg": "1.5rem",
+        "md": "1rem",
+        "sm": "0.75rem",
+        "xl": "2rem",
+        "xs": "0.5rem",
+        "2xl": "3rem"
+      },
+      "fontSize": {
+        "lg": "1.125rem",
+        "sm": "0.875rem",
+        "xl": "1.25rem",
+        "xs": "0.75rem",
+        "2xl": "1.5rem",
+        "3xl": "1.875rem",
+        "4xl": "2.25rem",
+        "5xl": "3rem",
+        "base": "1rem"
+      },
+      "gradients": {
+        "accent": "linear-gradient(135deg, #00951a 0%, #cf0000 100%)",
+        "primary": "linear-gradient(135deg, #00951a 0%, #00cc22 50%, #007a14 100%)",
+        "secondary": "linear-gradient(135deg, #ff6b35 0%, #f59e0b 100%)"
+      },
+      "borderWidth": {
+        "thin": "1px",
+        "thick": "4px",
+        "medium": "2px"
+      },
+      "borderRadius": {
+        "lg": "1rem",
+        "md": "0.75rem",
+        "sm": "0.5rem",
+        "xl": "1.25rem",
+        "full": "9999px"
+      }
+    },
+    "discordInviteLink": "https://discord.gg/huRYtt63sM"
+  },
+  "modules": {
+    "admin": {
+      "state": "active",
+      "deactivatedate": null,
+      "deactivatingUntil": null,
+      "settingsjson": {}
+    },
+    "marketplace": {
+      "state": "staging",
+      "deactivatedate": null,
+      "deactivatingUntil": null,
+      "settingsjson": {}
+    },
+    "discord": {
+      "state": "staging",
+      "deactivatedate": null,
+      "deactivatingUntil": null,
+      "settingsjson": {}
+    }
+  },
+  "admins": [
+    "89s4gjt2STRy83XQrxmYrWRkQBH3CL228BRVs6Qbed2Q"
+  ],
+  "createdAt": "2026-03-01T03:25:26.781Z",
+  "updatedAt": "2026-03-01T03:36:27.983Z"
+}

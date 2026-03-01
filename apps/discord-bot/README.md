@@ -19,7 +19,7 @@ Standalone bot that serves all linked dGuild Discord servers. It does not connec
 2. Set `DISCORD_BOT_TOKEN` (Discord Developer Portal → Bot → Reset Token).
 3. Set `DISCORD_BOT_API_SECRET` to the same value as the API’s `DISCORD_BOT_API_SECRET`.
 4. Set `API_BASE_URL` (e.g. `http://localhost:3001` for local dev).
-5. Optionally set `VERIFY_URL_TEMPLATE` and `DISCORD_APPLICATION_ID` (for slash command registration).
+5. For local dev: set `VERIFY_URL_TEMPLATE=http://localhost:3002/verify?token={{token}}` so /verify links point to the tenant app.
 
 ## Run
 

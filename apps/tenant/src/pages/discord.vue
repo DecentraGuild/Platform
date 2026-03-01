@@ -121,7 +121,7 @@ const discordState = computed(() => getModuleState(tenant.value?.modules?.discor
 const discordVisible = computed(() => isModuleVisibleToMembers(discordState.value))
 const discordDeactivating = computed(() => discordState.value === 'deactivating')
 const discordServerInviteLink = computed(() => {
-  const link = tenant.value?.branding?.discordServerInviteLink
+  const link = tenant.value?.discordServerInviteLink
   return link && link.trim() ? link.trim() : ''
 })
 

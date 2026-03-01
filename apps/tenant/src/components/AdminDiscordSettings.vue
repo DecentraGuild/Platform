@@ -17,7 +17,7 @@
       :slug="slug"
       :catalog-mints="catalogMints"
       :catalog-loading="catalogMintsLoading"
-      @mints-changed="fetchMints"
+      @mints-changed="onMintsChanged"
     />
     <AdminDiscordRulesCard
       v-if="server.connected && !loading"
@@ -176,6 +176,16 @@ async function disconnect() {
     disconnecting.value = false
   }
 }
+
+const emit = defineEmits<{ 'conditions-changed': [conditions: { mintsCount: number }] }>()
+
+function onMintsChanged() {
+  void fetchMints()
+}
+
+watch(catalogMints, (mints) => {
+  emit('conditions-changed', { mintsCount: mints.length })
+}, { immediate: true })
 
 onMounted(load)
 </script>

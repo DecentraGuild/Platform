@@ -85,7 +85,7 @@
           placeholder="https://..."
         />
         <TextInput
-          v-model="form.branding.discordServerInviteLink"
+          v-model="form.discordServerInviteLink"
           label="Invite link to Discord"
           placeholder="https://discord.gg/..."
         />

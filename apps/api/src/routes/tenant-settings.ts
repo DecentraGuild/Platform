@@ -196,7 +196,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
     if (!result) return
     const tenantId = result.tenant.id
     const body = (request.body ?? {}) as Record<string, unknown>
-    const ALLOWED_KEYS = ['name', 'description', 'branding', 'modules'] as const
+    const ALLOWED_KEYS = ['name', 'description', 'discordServerInviteLink', 'branding', 'modules'] as const
     const patch: TenantSettingsPatch = {}
     for (const k of ALLOWED_KEYS) {
       if (k in body && body[k] !== undefined) patch[k] = body[k] as TenantSettingsPatch[typeof k]

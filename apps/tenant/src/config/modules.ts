@@ -24,6 +24,9 @@ export const IMPLEMENTED_MODULES = new Set(
   catalog.filter((m: ModuleCatalogEntry) => isModuleNavigable(m.status)).map((m) => m.id),
 )
 
+/** Nav order from catalog (by order field). Ensures deterministic SSR/client output; new catalog entries auto-included. */
+export const NAV_ORDER = catalog.map((m) => m.id)
+
 /** Sub-nav (topbar tabs) per module. Key = module id. */
 export interface ModuleSubnavTab {
   id: string

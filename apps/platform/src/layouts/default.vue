@@ -3,8 +3,9 @@
     <header class="platform-header">
       <NuxtLink to="/" class="platform-header__brand">DecentraGuild</NuxtLink>
       <nav class="platform-header__nav">
+        <NuxtLink to="/docs" :prefetch="false">Docs</NuxtLink>
         <NuxtLink to="/directory">Discover</NuxtLink>
-        <span class="platform-header__nav-disabled">Create org</span>
+        <NuxtLink to="/onboard">Create org</NuxtLink>
         <AuthWidget />
       </nav>
     </header>
@@ -53,12 +54,6 @@ import { AuthWidget } from '@decentraguild/auth'
 
 .platform-header__nav a:hover {
   color: var(--theme-primary);
-}
-
-.platform-header__nav-disabled {
-  color: var(--theme-text-muted);
-  cursor: default;
-  pointer-events: none;
 }
 
 .platform-main {

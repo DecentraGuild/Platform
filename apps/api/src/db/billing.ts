@@ -6,7 +6,7 @@ import type { ConditionSet, PriceResult, BillingPeriod } from '@decentraguild/bi
 /* ------------------------------------------------------------------ */
 
 export type PaymentStatus = 'pending' | 'confirmed' | 'failed' | 'expired'
-export type PaymentType = 'initial' | 'upgrade_prorate' | 'renewal' | 'extend'
+export type PaymentType = 'initial' | 'upgrade_prorate' | 'renewal' | 'extend' | 'registration'
 
 export interface BillingSubscription {
   id: string

@@ -8,7 +8,12 @@
     <template v-else-if="price?.billable && selectedTier">
       <div class="pricing-widget__tier">
         <span class="pricing-widget__tier-name">{{ selectedTier.name }}</span>
-        <span class="pricing-widget__tier-price">{{ formatUsdc(price.recurringMonthly) }} USDC/mo</span>
+        <span class="pricing-widget__tier-price">
+          {{ formatUsdc(selectedPeriod === 'yearly' ? price.recurringYearly / 12 : price.recurringMonthly) }} USDC/mo
+          <span v-if="selectedPeriod === 'yearly' && price.appliedYearlyDiscount" class="pricing-widget__tier-note">
+            ({{ price.appliedYearlyDiscount }}% off yearly)
+          </span>
+        </span>
       </div>
 
       <div class="pricing-widget__usage">
@@ -276,7 +281,7 @@ const moduleIdRef = computed(() => props.moduleId)
 
 const hasLiveConditions = computed(() => props.conditions != null && Object.keys(props.conditions).length > 0)
 
-const { conditions: apiConditions, price: apiPrice, loading, error, refresh } = usePricePreview(slug, moduleIdRef)
+const { conditions: apiConditions, price: apiPrice, loading, error, refresh } = usePricePreview(slug, moduleIdRef, selectedPeriod)
 
 defineExpose({ refresh, selectedPeriod })
 
@@ -430,6 +435,12 @@ const addonComponents = computed(() => {
   font-size: var(--theme-font-md);
   color: var(--theme-primary);
   font-weight: 600;
+}
+
+.pricing-widget__tier-note {
+  font-size: var(--theme-font-xs);
+  font-weight: 400;
+  color: var(--theme-text-secondary);
 }
 
 .pricing-widget__usage {

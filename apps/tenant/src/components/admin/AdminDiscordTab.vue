@@ -1,12 +1,17 @@
 <template>
   <div class="admin__split">
     <div class="admin__panel">
-      <AdminDiscordSettings :slug="slug" />
+      <AdminDiscordSettings
+        ref="settingsRef"
+        :slug="slug"
+        @conditions-changed="(e: { mintsCount: number }) => liveConditions = e"
+      />
     </div>
     <AdminPricingWidget
       ref="pricingRef"
       module-id="discord"
       :module-state="moduleState"
+      :conditions="liveConditions"
       :subscription="subscription"
       :saving="saving"
       :deploying="deploying"
@@ -38,4 +43,9 @@ const emit = defineEmits<{
   deploy: [period: BillingPeriod]
   reactivate: [period: BillingPeriod]
 }>()
+
+const settingsRef = ref<InstanceType<typeof AdminDiscordSettings> | null>(null)
+const pricingRef = ref<InstanceType<typeof AdminPricingWidget> | null>(null)
+
+const liveConditions = ref<{ mintsCount: number } | null>(null)
 </script>

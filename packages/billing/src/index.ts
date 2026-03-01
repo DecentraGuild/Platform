@@ -8,6 +8,7 @@ export type {
   TieredAddonsPricing,
   OneTimePerUnitPricing,
   FlatRecurringPricing,
+  FlatOneTimePricing,
   PricingModel,
 } from './types.js'
 

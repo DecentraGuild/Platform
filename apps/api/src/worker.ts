@@ -12,6 +12,7 @@ import {
 import { initPool } from './db/client.js'
 import { runMigrations } from './db/run-migrations.js'
 import { syncAllLinkedGuilds } from './discord/holder-sync.js'
+import { runDbBackup, isBackupConfigured } from './jobs/db-backup.js'
 import { runModuleLifecycle } from './jobs/module-lifecycle.js'
 
 const log = {
@@ -54,6 +55,14 @@ async function main(): Promise<void> {
 
   if (syncIntervalMinutes <= 0 && lifecycleIntervalMinutes <= 0) {
     log.warn({}, 'No job intervals configured (DISCORD_SYNC_INTERVAL_MINUTES, MODULE_LIFECYCLE_INTERVAL_MINUTES); worker idle')
+  }
+
+  const backupIntervalMs = 24 * 60 * 60 * 1000
+  if (isBackupConfigured()) {
+    const runBackup = () => runDbBackup(log).catch((err) => log.error({ err }, 'DB backup failed'))
+    setTimeout(runBackup, 60 * 1000)
+    setInterval(runBackup, backupIntervalMs)
+    log.info({ intervalHours: 24 }, 'DB backup scheduled (first run in 1 min, then daily)')
   }
 }
 

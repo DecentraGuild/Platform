@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const uiVarsCss = path.resolve(dirname, '../../packages/ui/src/theme/vars.css')
@@ -17,12 +18,27 @@ export default defineNuxtConfig({
   },
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt'],
   css: [uiVarsCss, '~/assets/global.css'],
-  plugins: ['~/plugins/buffer.server', '~/plugins/tenant.server', '~/plugins/buffer.client', '~/plugins/tenant.client', '@decentraguild/auth/plugin.client'],
+  plugins: ['~/plugins/buffer.server', '~/plugins/tenant.server', '~/plugins/theme-inject.server', '~/plugins/buffer.client', '~/plugins/tenant.client', '@decentraguild/auth/plugin.client'],
+  routeRules:
+    process.env.NODE_ENV === 'development'
+      ? { '/api/**': { proxy: 'http://localhost:3001' } }
+      : {},
   nitro: {
     preset: 'static',
   },
   build: {
     transpile: ['@decentraguild/ui', '@decentraguild/auth', '@decentraguild/web3', '@decentraguild/contracts'],
+  },
+  hooks: {
+    'vite:extendConfig'(config) {
+      config.plugins = config.plugins || []
+      config.plugins.push(
+        nodePolyfills({
+          include: ['buffer'],
+          globals: { Buffer: true },
+        })
+      )
+    },
   },
   vite: {
     resolve: {

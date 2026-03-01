@@ -33,7 +33,11 @@ Tenant config: API reads from `TENANT_CONFIG_PATH` or infers `configs/tenants` i
 | Discord bot | `DISCORD_BOT_API_SECRET` | Yes | Same as API (server-to-server). |
 | Discord bot | `API_BASE_URL` | No | Default `http://localhost:3001`. |
 | Discord bot | `DISCORD_APPLICATION_ID` | No | Optional; bot can fetch at runtime. |
-| Discord bot | `VERIFY_URL_TEMPLATE` | No | Placeholders `{{slug}}`, `{{token}}`. Default `https://{{slug}}.dguild.org/verify?token={{token}}`. |
+| Discord bot | `VERIFY_URL_TEMPLATE` | No | Placeholders `{{slug}}`, `{{token}}`. Default `https://{{slug}}.dguild.org/verify?token={{token}}`. Local dev: `http://localhost:3002/verify?token={{token}}` (verify page is on tenant app). |
+| **Worker** | `DATABASE_URL` | Yes | Same as API. |
+| **Worker** | `BACKUP_BUCKET`, `BACKUP_ACCESS_KEY_ID`, `BACKUP_SECRET_ACCESS_KEY`, `BACKUP_ENDPOINT` | No | R2 backup. Add to worker service on Railway for daily DB backups. |
+
+**Restore:** See [docs/db-restore.md](db-restore.md) for restoring from an R2 backup.
 
 Deploy (GitHub/Netlify): set `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_HELIUS_RPC` in build env.
 

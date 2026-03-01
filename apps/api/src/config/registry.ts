@@ -17,7 +17,7 @@ export function getTenantConfigDir(): string | null {
 
 function parseAndValidate(raw: string, slugRequired = false): { config: TenantConfig; error: null } | { config: null; error: string } {
   try {
-    const config = JSON.parse(raw) as TenantConfig
+    const config = JSON.parse(raw) as TenantConfig & { branding?: { discordServerInviteLink?: string } }
     if (!config.id || !config.name) {
       return { config: null, error: 'Config missing required fields: id or name' }
     }
@@ -26,6 +26,10 @@ function parseAndValidate(raw: string, slugRequired = false): { config: TenantCo
     }
     config.modules = normalizeModules(config.modules as unknown)
     if (!Array.isArray(config.admins)) config.admins = []
+    if (!config.discordServerInviteLink && config.branding?.discordServerInviteLink) {
+      config.discordServerInviteLink = config.branding.discordServerInviteLink
+      delete config.branding.discordServerInviteLink
+    }
     return { config, error: null }
   } catch (e) {
     return { config: null, error: e instanceof Error ? e.message : String(e) }

@@ -13,16 +13,16 @@ import type { TenantConfig } from '@decentraguild/core'
 export interface AdminForm {
   name: string
   description: string
+  discordServerInviteLink: string
   branding: {
     logo: string
-    discordServerInviteLink: string
     theme: ReturnType<typeof mergeTheme>
   }
   modulesById: Record<string, ModuleState>
 }
 
 function buildBrandingForm(
-  tenant: { branding?: { logo?: string; discordServerInviteLink?: string; theme?: unknown } } | null
+  tenant: { branding?: { logo?: string; theme?: unknown }; discordServerInviteLink?: string } | null
 ): AdminForm['branding'] {
   const theme = mergeTheme(
     DEFAULT_TENANT_THEME,
@@ -30,7 +30,6 @@ function buildBrandingForm(
   )
   return {
     logo: tenant?.branding?.logo ?? '',
-    discordServerInviteLink: tenant?.branding?.discordServerInviteLink ?? '',
     theme,
   }
 }
@@ -46,6 +45,7 @@ export function useAdminForm(subscriptions: Record<string, { periodEnd?: string 
   const form = reactive<AdminForm>({
     name: '',
     description: '',
+    discordServerInviteLink: '',
     branding: buildBrandingForm(null),
     modulesById: {},
   })
@@ -63,6 +63,7 @@ export function useAdminForm(subscriptions: Record<string, { periodEnd?: string 
       }
       form.name = t.name ?? ''
       form.description = t.description ?? ''
+      form.discordServerInviteLink = t.discordServerInviteLink ?? ''
       form.branding = buildBrandingForm(t)
       const mods = t.modules ?? {}
       form.modulesById = Object.fromEntries(
@@ -112,9 +113,9 @@ export function useAdminForm(subscriptions: Record<string, { periodEnd?: string 
         body: JSON.stringify({
           name: form.name,
           description: form.description,
+          discordServerInviteLink: form.discordServerInviteLink || undefined,
           branding: {
             logo: form.branding.logo,
-            discordServerInviteLink: form.branding.discordServerInviteLink || undefined,
             theme: form.branding.theme,
           },
           modules,

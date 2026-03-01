@@ -16,6 +16,7 @@ import { registerDiscordRulesRoutes } from './routes/discord-rules.js'
 import { registerDiscordSyncRoutes } from './routes/discord-sync.js'
 import { registerBillingRoutes } from './routes/billing.js'
 import { registerBillingPaymentRoutes } from './routes/billing-payments.js'
+import { registerRegisterRoutes } from './routes/register.js'
 import { initPool, getPool } from './db/client.js'
 import { apiError, ErrorCode } from './api-errors.js'
 import { runMigrations } from './db/run-migrations.js'
@@ -235,6 +236,7 @@ async function main() {
   await registerDiscordSyncRoutes(app)
   await registerBillingRoutes(app)
   await registerBillingPaymentRoutes(app)
+  await registerRegisterRoutes(app)
 
   const port = Number(process.env.PORT) || DEFAULT_PORT
   await app.listen({ port, host: '0.0.0.0' })

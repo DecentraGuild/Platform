@@ -6,16 +6,21 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === 'production'
 }
 
-const toDbRow = (t: TenantConfig) => ({
-  id: t.id,
-  slug: t.slug ?? null,
-  name: t.name,
-  description: t.description ?? null,
-  branding: JSON.stringify(t.branding ?? {}),
-  modules: JSON.stringify(t.modules ?? {}),
-  admins: JSON.stringify(t.admins ?? []),
-  treasury: t.treasury ?? null,
-})
+const toDbRow = (t: TenantConfig) => {
+  const branding = { ...(t.branding ?? {}) }
+  delete (branding as Record<string, unknown>).discordServerInviteLink
+  return {
+    id: t.id,
+    slug: t.slug ?? null,
+    name: t.name,
+    description: t.description ?? null,
+    discordServerInviteLink: t.discordServerInviteLink?.trim() || null,
+    branding: JSON.stringify(branding),
+    modules: JSON.stringify(t.modules ?? {}),
+    admins: JSON.stringify(t.admins ?? []),
+    treasury: t.treasury ?? null,
+  }
+}
 
 function parseJsonField<T>(val: unknown): T {
   if (typeof val === 'string') return JSON.parse(val) as T
@@ -25,12 +30,18 @@ function parseJsonField<T>(val: unknown): T {
 /** Map a tenant_config row (JSONB as string or object) to TenantConfig. */
 export function rowToTenantConfig(row: Record<string, unknown>): TenantConfig {
   const rawModules = parseJsonField<unknown>(row.modules)
+  const branding = parseJsonField<Record<string, unknown>>(row.branding) ?? {}
+  const discordFromColumn = (row.discord_server_invite_link as string)?.trim()
+  const discordFromBranding = (branding.discordServerInviteLink as string)?.trim()
+  const discordServerInviteLink = discordFromColumn || discordFromBranding || undefined
+  if (discordServerInviteLink && 'discordServerInviteLink' in branding) delete branding.discordServerInviteLink
   return {
     id: row.id as string,
     slug: (row.slug as string) ?? undefined,
     name: row.name as string,
     description: (row.description as string) ?? undefined,
-    branding: parseJsonField<Record<string, unknown>>(row.branding) ?? {},
+    discordServerInviteLink,
+    branding,
     modules: normalizeModules(rawModules),
     admins: parseJsonField<string[]>(row.admins) ?? [],
     treasury: (row.treasury as string) ?? undefined,
@@ -96,18 +107,19 @@ export async function getAllTenantSlugs(): Promise<string[]> {
 export async function upsertTenant(config: TenantConfig): Promise<void> {
   const r = toDbRow(config)
   await query(
-    `INSERT INTO tenant_config (id, slug, name, description, branding, modules, admins, treasury, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, COALESCE((SELECT created_at FROM tenant_config WHERE id = $1), NOW()), NOW())
+    `INSERT INTO tenant_config (id, slug, name, description, discord_server_invite_link, branding, modules, admins, treasury, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9, COALESCE((SELECT created_at FROM tenant_config WHERE id = $1), NOW()), NOW())
      ON CONFLICT (id) DO UPDATE SET
        slug = EXCLUDED.slug,
        name = EXCLUDED.name,
        description = EXCLUDED.description,
+       discord_server_invite_link = EXCLUDED.discord_server_invite_link,
        branding = EXCLUDED.branding,
        modules = EXCLUDED.modules,
        admins = EXCLUDED.admins,
        treasury = EXCLUDED.treasury,
        updated_at = NOW()`,
-    [r.id, r.slug, r.name, r.description, r.branding, r.modules, r.admins, r.treasury]
+    [r.id, r.slug, r.name, r.description, r.discordServerInviteLink, r.branding, r.modules, r.admins, r.treasury]
   )
 }
 
@@ -115,6 +127,7 @@ export type TenantSettingsPatch = Partial<{
   name: string
   description: string
   slug: string | null
+  discordServerInviteLink: string | null
   branding: Partial<TenantConfig['branding']>
   modules: TenantConfig['modules']
 }>
@@ -126,6 +139,9 @@ export function mergeTenantPatch(existing: TenantConfig, patch: TenantSettingsPa
     ...patch,
     id: existing.id,
     slug: patch.slug !== undefined ? patch.slug ?? undefined : existing.slug,
+    discordServerInviteLink: patch.discordServerInviteLink !== undefined
+      ? (patch.discordServerInviteLink?.trim() || undefined)
+      : existing.discordServerInviteLink,
   }
   if (patch.branding) {
     merged.branding = { ...existing.branding, ...patch.branding }

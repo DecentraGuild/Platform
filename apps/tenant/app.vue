@@ -1,5 +1,5 @@
 <template>
-  <div v-if="tenantStore.loading" class="loading">Loading...</div>
+  <div v-if="tenantStore.loading && !tenantStore.tenant" class="loading">Loading...</div>
   <div v-else-if="!tenantStore.tenant" class="no-tenant">
     No tenant. Use ?tenant=<slug> for local development (default: {{ devTenantSlug }}).
   </div>
@@ -22,5 +22,7 @@ const devTenantSlug = (config.public.devTenantSlug as string) || 'skull'
   padding: 2rem;
   text-align: center;
   color: var(--theme-text-muted);
+  background: var(--theme-bg-primary);
+  min-height: 100vh;
 }
 </style>

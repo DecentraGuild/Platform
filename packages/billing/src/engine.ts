@@ -161,6 +161,33 @@ function computeOneTimePerUnit(
 /*  flat_recurring                                                    */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  flat_one_time                                                     */
+/* ------------------------------------------------------------------ */
+
+function computeFlatOneTime(
+  moduleId: string,
+  pricing: { name: string; amount: number },
+): PriceResult {
+  const amount = pricing.amount
+  return {
+    moduleId,
+    billable: amount > 0,
+    components: amount > 0
+      ? [{ type: 'one-time', name: pricing.name, quantity: 1, unitPrice: amount, amount }]
+      : [],
+    oneTimeTotal: amount,
+    recurringMonthly: 0,
+    recurringYearly: 0,
+    appliedYearlyDiscount: null,
+    selectedTierId: null,
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  flat_recurring                                                    */
+/* ------------------------------------------------------------------ */
+
 function computeFlatRecurring(
   moduleId: string,
   pricing: { name: string; recurringPrice?: number; recurringYearly?: number; yearlyDiscountPercent: number },
@@ -215,6 +242,8 @@ export function computePrice(
       return computeOneTimePerUnit(moduleId, conditions, pricingModel)
     case 'flat_recurring':
       return computeFlatRecurring(moduleId, pricingModel, billingPeriod)
+    case 'flat_one_time':
+      return computeFlatOneTime(moduleId, pricingModel)
     default:
       return emptyResult(moduleId)
   }

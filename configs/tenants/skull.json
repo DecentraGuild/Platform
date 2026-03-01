@@ -54,7 +54,10 @@
           "sellLight": "#feb2b2",
           "trade": "#b794f4",
           "tradeHover": "#9f7aea",
-          "tradeLight": "#d6bcfa"
+          "tradeLight": "#d6bcfa",
+          "swap": "#6366f1",
+          "swapHover": "#4f46e5",
+          "swapLight": "#818cf8"
         },
         "window": {
           "background": "#2d3748",
@@ -104,8 +107,19 @@
         "accent": "linear-gradient(135deg, #4a5568 0%, #a0aec0 100%)"
       },
       "fonts": {
-        "primary": ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
-        "mono": ["JetBrains Mono", "Fira Code", "monospace"]
+        "primary": [
+          "Inter",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif"
+        ],
+        "mono": [
+          "JetBrains Mono",
+          "Fira Code",
+          "monospace"
+        ]
       }
     }
   },
@@ -122,24 +136,6 @@
       "deactivatingUntil": null,
       "settingsjson": {}
     },
-    "raffles": {
-      "state": "off",
-      "deactivatedate": null,
-      "deactivatingUntil": null,
-      "settingsjson": {}
-    },
-    "whitelist": {
-      "state": "off",
-      "deactivatedate": null,
-      "deactivatingUntil": null,
-      "settingsjson": {}
-    },
-    "minting": {
-      "state": "off",
-      "deactivatedate": null,
-      "deactivatingUntil": null,
-      "settingsjson": {}
-    },
     "discord": {
       "state": "active",
       "deactivatedate": null,
@@ -147,7 +143,9 @@
       "settingsjson": {}
     }
   },
-  "admins": ["89s4gjt2STRy83XQrxmYrWRkQBH3CL228BRVs6Qbed2Q"],
+  "admins": [
+    "89s4gjt2STRy83XQrxmYrWRkQBH3CL228BRVs6Qbed2Q"
+  ],
   "createdAt": "2025-02-10T00:00:00.000Z",
   "updatedAt": "2025-02-10T00:00:00.000Z"
 }

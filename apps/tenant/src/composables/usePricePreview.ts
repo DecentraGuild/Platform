@@ -1,7 +1,11 @@
+import type { BillingPeriod, ConditionSet, PriceResult } from '@decentraguild/billing'
 import { API_V1 } from '~/utils/apiBase'
-import type { ConditionSet, PriceResult } from '@decentraguild/billing'
 
-export function usePricePreview(slug: Ref<string | null>, moduleId: Ref<string>) {
+export function usePricePreview(
+  slug: Ref<string | null>,
+  moduleId: Ref<string>,
+  billingPeriod?: Ref<BillingPeriod>,
+) {
   const apiBase = useApiBase()
 
   const conditions = ref<ConditionSet | null>(null)
@@ -18,13 +22,13 @@ export function usePricePreview(slug: Ref<string | null>, moduleId: Ref<string>)
       return
     }
 
+    const period = billingPeriod?.value ?? 'monthly'
+    const url = `${apiBase.value}${API_V1}/tenant/${encodeURIComponent(s)}/billing/price-preview?moduleId=${encodeURIComponent(m)}&billingPeriod=${encodeURIComponent(period)}`
+
     loading.value = true
     error.value = null
     try {
-      const res = await fetch(
-        `${apiBase.value}${API_V1}/tenant/${encodeURIComponent(s)}/billing/price-preview?moduleId=${encodeURIComponent(m)}`,
-        { credentials: 'include' },
-      )
+      const res = await fetch(url, { credentials: 'include' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = (await res.json()) as { conditions?: ConditionSet; price?: PriceResult }
       conditions.value = data.conditions ?? null
@@ -39,7 +43,7 @@ export function usePricePreview(slug: Ref<string | null>, moduleId: Ref<string>)
   }
 
   watch(
-    [slug, moduleId],
+    [slug, moduleId, () => billingPeriod?.value],
     () => refresh(),
     { immediate: true },
   )

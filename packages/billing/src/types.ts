@@ -67,7 +67,14 @@ export interface FlatRecurringPricing {
   yearlyDiscountPercent: number
 }
 
+export interface FlatOneTimePricing {
+  modelType: 'flat_one_time'
+  name: string
+  amount: number
+}
+
 export type PricingModel =
   | TieredAddonsPricing
   | OneTimePerUnitPricing
   | FlatRecurringPricing
+  | FlatOneTimePricing

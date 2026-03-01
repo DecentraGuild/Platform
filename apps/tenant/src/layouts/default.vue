@@ -76,7 +76,7 @@ import TransactionToastContainer from '~/components/TransactionToastContainer.vu
 import { useThemeStore } from '@decentraguild/ui'
 import { useTenantStore } from '~/stores/tenant'
 import { isModuleVisibleToMembers, getModuleState } from '@decentraguild/core'
-import { MODULE_NAV, IMPLEMENTED_MODULES, getModuleSubnavForPath } from '~/config/modules'
+import { MODULE_NAV, IMPLEMENTED_MODULES, NAV_ORDER, getModuleSubnavForPath } from '~/config/modules'
 
 const route = useRoute()
 const tenantStore = useTenantStore()
@@ -113,11 +113,17 @@ const isAdmin = computed(() => {
   return !!(w && admins.includes(w))
 })
 
+// Avoid hydration mismatch: isAdmin is only known after client mount (wallet from /me).
+// Server and first client paint both use false; after mount we update.
+const navReady = ref(false)
+onMounted(() => { navReady.value = true })
+const isAdminForNav = computed(() => navReady.value && isAdmin.value)
+
 const navModules = computed(() => {
   const mods = tenant.value?.modules ?? {}
-  return Object.entries(mods)
+  const entries = Object.entries(mods)
     .filter(([id, e]) => isModuleVisibleToMembers(getModuleState(e)) && IMPLEMENTED_MODULES.has(id))
-    .filter(([id]) => id !== 'admin' || isAdmin.value)
+    .filter(([id]) => id !== 'admin' || isAdminForNav.value)
     .map(([id]) => {
       const entry = MODULE_NAV[id]
       return {
@@ -127,6 +133,12 @@ const navModules = computed(() => {
         icon: entry?.icon ?? 'mdi:circle',
       }
     })
+  entries.sort((a, b) => {
+    const ai = NAV_ORDER.indexOf(a.id)
+    const bi = NAV_ORDER.indexOf(b.id)
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+  })
+  return entries
 })
 
 const subnavTabs = computed(() => getModuleSubnavForPath(route.path, tenant.value) ?? [])

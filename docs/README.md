@@ -20,5 +20,6 @@ Essential reference so we don't make mistakes. For repo layout and running local
 | Doc | Purpose |
 |-----|---------|
 | [Environments](environments.md) | Env vars by app, run locally, deploy (API/Tenant/Platform), migrations, Discord reference |
+| [DB restore](db-restore.md) | Restore Postgres from R2 backup (disaster recovery, migration) |
 | [Architecture](architecture-overview.md) | Flows, tenant resolution, API routes, DB tables, deploy targets, module routing |
 | [Security notes](security-audit.md) | What was fixed (tenant takeover, path traversal), rate limits, debug off in prod |

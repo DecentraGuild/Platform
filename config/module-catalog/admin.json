@@ -9,7 +9,7 @@
   "keyInfo": ["Configure branding, logos, and theme colors", "Enable, disable, and configure modules", "Manage marketplace and Discord settings", "Control admin access and permissions"],
   "routePath": "/admin",
   "order": 1,
-  "pricing": null,
+  "pricing": {"modelType": "flat_one_time", "name": "dGuild registration", "amount": 0.00010},
   "addons": {
     "slug": {
       "id": "slug",
@@ -18,7 +18,7 @@
       "pricing": {
         "modelType": "flat_recurring",
         "name": "Custom slug",
-        "recurringYearly": 10,
+        "recurringYearly": 0.00010,
         "yearlyDiscountPercent": 0
       }
     }

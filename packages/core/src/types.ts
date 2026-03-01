@@ -124,8 +124,6 @@ export interface TenantBranding {
   logo?: string
   name?: string
   shortName?: string
-  /** dGuild's Discord server invite link (for users to join the community). Editable in Admin > General. */
-  discordServerInviteLink?: string
   theme?: TenantTheme
   themeRef?: string
 }
@@ -136,6 +134,8 @@ export interface TenantConfig {
   slug?: string | null
   name: string
   description?: string
+  /** Discord server invite link (for users to join the community). General setting, editable in Admin > General. */
+  discordServerInviteLink?: string
   branding: TenantBranding
   /** Modules keyed by id. Use normalizeModules() when reading from JSON that may be legacy array. */
   modules: TenantModulesMap
