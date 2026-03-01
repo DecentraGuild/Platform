@@ -3,16 +3,13 @@
     <div class="theme-settings__form">
       <details class="theme-settings__section" open>
         <summary class="theme-settings__heading">Colors</summary>
-        <p class="theme-settings__hint">Set main colours; hover and variants are derived.</p>
+        <p class="theme-settings__hint">
+          Core colours used across the app. Hover and variants are derived automatically.
+        </p>
         <div class="theme-settings__grid theme-settings__grid--two">
           <div class="theme-settings__group">
-            <h4 class="theme-settings__sub">Brand</h4>
+            <h4 class="theme-settings__sub">Core</h4>
             <ColorInput v-model="simpleColors.primary" label="Primary (buttons, links)" />
-            <ColorInput v-model="simpleColors.secondary" label="Secondary" />
-            <ColorInput v-model="simpleColors.accent" label="Accent" />
-          </div>
-          <div class="theme-settings__group">
-            <h4 class="theme-settings__sub">Surfaces &amp; text</h4>
             <ColorInput v-model="simpleColors.backgroundPage" label="Background (page)" />
             <ColorInput v-model="simpleColors.textPrimary" label="Text" />
             <ColorInput v-model="simpleColors.textMuted" label="Text muted" />
@@ -26,7 +23,7 @@
             <ColorInput v-model="simpleColors.statusInfo" label="Info" />
           </div>
           <div class="theme-settings__group">
-            <h4 class="theme-settings__sub">Trade (market)</h4>
+            <h4 class="theme-settings__sub">Trade (marketplace)</h4>
             <ColorInput v-model="simpleColors.tradeBuy" label="Buy" />
             <ColorInput v-model="simpleColors.tradeSell" label="Sell" />
             <ColorInput v-model="simpleColors.tradeTrade" label="Trade" />
@@ -36,18 +33,9 @@
 
       <details class="theme-settings__section">
         <summary class="theme-settings__heading">Typography</summary>
-        <p class="theme-settings__hint">Three sizes control the scale: small (labels, captions), body (main text), heading (titles).</p>
+        <p class="theme-settings__hint">Font family and size scale: small (labels), body (main text), heading (titles).</p>
         <div class="theme-settings__group">
-          <TextInput
-            v-model="fontsPrimaryStr"
-            label="Font family (primary)"
-            placeholder="Inter, sans-serif"
-          />
-          <TextInput
-            v-model="fontsMonoStr"
-            label="Font family (mono)"
-            placeholder="JetBrains Mono, monospace"
-          />
+          <Select v-model="fontFamilyId" label="Font" :options="FONT_OPTIONS" />
         </div>
         <div class="theme-settings__typography-row">
           <TextInput v-model="typographySmall" label="Small (rem)" placeholder="0.875" />
@@ -57,8 +45,12 @@
       </details>
 
       <details class="theme-settings__section">
-        <summary class="theme-settings__heading">Rounding</summary>
-        <p class="theme-settings__hint">One slider sets corner radius for the whole theme.</p>
+        <summary class="theme-settings__heading">Spacing &amp; rounding</summary>
+        <p class="theme-settings__hint">
+          Corner radius, spacing scale, and border width. One value controls each.
+        </p>
+
+        <h4 class="theme-settings__sub">Corner radius</h4>
         <div class="theme-settings__slider-row">
           <label class="theme-settings__slider-label" :for="sliderId">Sharp</label>
           <input
@@ -71,39 +63,42 @@
             class="theme-settings__slider"
           />
           <label class="theme-settings__slider-label">Round</label>
+          <span class="theme-settings__slider-value">{{ radiusLabels[radiusLevel] }}</span>
         </div>
-        <p class="theme-settings__slider-value">{{ radiusLabels[radiusLevel] }}</p>
-      </details>
 
-      <details class="theme-settings__section">
-        <summary class="theme-settings__heading">Spacing &amp; effects</summary>
-        <div class="theme-settings__grid theme-settings__grid--small">
-          <TextInput v-model="branding.theme.spacing.xs" label="Space xs" />
-          <TextInput v-model="branding.theme.spacing.sm" label="Space sm" />
-          <TextInput v-model="branding.theme.spacing.md" label="Space md" />
-          <TextInput v-model="branding.theme.spacing.lg" label="Space lg" />
-          <TextInput v-model="branding.theme.spacing.xl" label="Space xl" />
-          <TextInput v-model="branding.theme.spacing['2xl']" label="Space 2xl" />
+        <h4 class="theme-settings__sub">Spacing</h4>
+        <div class="theme-settings__slider-row">
+          <label :for="spacingSliderId" class="theme-settings__slider-label">Tight</label>
+          <input
+            :id="spacingSliderId"
+            v-model.number="spacingLevel"
+            type="range"
+            min="0"
+            max="10"
+            step="1"
+            class="theme-settings__slider"
+            @input="applySpacingFromSlider"
+          />
+          <label class="theme-settings__slider-label">Loose</label>
+          <span class="theme-settings__slider-value">{{ spacingBaseRem }} base</span>
         </div>
-        <div class="theme-settings__grid theme-settings__grid--small">
-          <TextInput v-model="branding.theme.borderWidth.thin" label="Border thin" />
-          <TextInput v-model="branding.theme.borderWidth.medium" label="Border medium" />
-          <TextInput v-model="branding.theme.borderWidth.thick" label="Border thick" />
+
+        <h4 class="theme-settings__sub">Border width (px)</h4>
+        <div class="theme-settings__slider-row">
+          <label :for="borderSliderId" class="theme-settings__slider-label">1px</label>
+          <input
+            :id="borderSliderId"
+            v-model.number="borderWidthPx"
+            type="range"
+            min="1"
+            max="10"
+            step="1"
+            class="theme-settings__slider"
+            @input="applyBorderFromSlider"
+          />
+          <label class="theme-settings__slider-label">10px</label>
+          <span class="theme-settings__slider-value">{{ borderWidthPx }}px</span>
         </div>
-        <TextInput
-          v-model="branding.theme.shadows.glow"
-          label="Shadow glow"
-          placeholder="0 0 20px rgba(...)"
-        />
-        <TextInput v-model="branding.theme.shadows.glowHover" label="Shadow glow hover" />
-        <TextInput v-model="branding.theme.shadows.card" label="Shadow card" />
-        <TextInput
-          v-model="branding.theme.gradients.primary"
-          label="Gradient primary"
-          placeholder="linear-gradient(...)"
-        />
-        <TextInput v-model="branding.theme.gradients.secondary" label="Gradient secondary" />
-        <TextInput v-model="branding.theme.gradients.accent" label="Gradient accent" />
       </details>
     </div>
 
@@ -141,7 +136,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick } from 'vue'
-import { TextInput, ColorInput } from '@decentraguild/ui/components'
+import { TextInput, ColorInput, Select } from '@decentraguild/ui/components'
 import { themeToCssVars } from '@decentraguild/ui'
 import type { TenantTheme, TenantThemeColors } from '@decentraguild/core'
 import {
@@ -164,10 +159,39 @@ const sliderId = `radius-slider-${Math.random().toString(36).slice(2)}`
 
 const radiusLabels = ['None', 'Slight', 'Medium', 'Rounded', 'Full']
 
+const FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'inter', label: 'Inter' },
+  { value: 'system', label: 'System' },
+  { value: 'roboto', label: 'Roboto' },
+  { value: 'open-sans', label: 'Open Sans' },
+  { value: 'dm-sans', label: 'DM Sans' },
+]
+
+const FONT_STACKS: Record<string, string[]> = {
+  inter: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+  system: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+  roboto: ['Roboto', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+  'open-sans': ['Open Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+  'dm-sans': ['DM Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+}
+
+const DEFAULT_MONO = ['JetBrains Mono', 'Fira Code', 'monospace']
+
+function fontStackToId(stack: string[] | undefined): string {
+  if (!stack?.[0]) return 'inter'
+  const first = stack[0].toLowerCase()
+  if (first.startsWith('inter')) return 'inter'
+  if (first.startsWith('system')) return 'system'
+  if (first.startsWith('roboto')) return 'roboto'
+  if (first.startsWith('open')) return 'open-sans'
+  if (first.startsWith('dm')) return 'dm-sans'
+  return 'inter'
+}
+
+const fontFamilyId = ref('inter')
+
 const simpleColors = reactive({
   primary: '',
-  secondary: '',
-  accent: '',
   backgroundPage: '',
   textPrimary: '',
   textMuted: '',
@@ -179,6 +203,16 @@ const simpleColors = reactive({
   tradeBuy: '',
   tradeSell: '',
   tradeTrade: '',
+})
+
+const spacingLevel = ref(5) // 0=tight (0.5rem base), 5=default (1rem), 10=loose (2rem base)
+const borderWidthPx = ref(1)
+const spacingSliderId = `spacing-slider-${Math.random().toString(36).slice(2)}`
+const borderSliderId = `border-slider-${Math.random().toString(36).slice(2)}`
+
+const spacingBaseRem = computed(() => {
+  const base = 0.5 + (spacingLevel.value / 10) * 1.5 // 0.5rem at 0, 2rem at 10, ~1rem at 3
+  return `${base}rem`
 })
 
 const typographySmall = ref('0.875')
@@ -201,8 +235,6 @@ function syncSimpleFromTheme() {
   const t = props.branding.theme
   const c = t.colors ?? {}
   simpleColors.primary = c.primary?.main ?? ''
-  simpleColors.secondary = c.secondary?.main ?? ''
-  simpleColors.accent = c.accent?.main ?? ''
   simpleColors.backgroundPage = c.background?.primary ?? ''
   simpleColors.textPrimary = c.text?.primary ?? ''
   simpleColors.textMuted = c.text?.muted ?? ''
@@ -219,6 +251,16 @@ function syncSimpleFromTheme() {
   typographyBody.value = String(parseRem(fs.base ?? '1rem'))
   typographyHeading.value = String(parseRem(fs.lg ?? '1.125rem'))
   radiusLevel.value = getRadiusLevelFromTheme(t)
+  fontFamilyId.value = fontStackToId(t.fonts?.primary)
+
+  // Spacing: derive level from md (0.5rem=0, 1rem=3, 2rem=10)
+  const mdRem = parseRem(t.spacing?.md ?? '1rem')
+  spacingLevel.value = Math.round(Math.max(0, Math.min(10, ((mdRem - 0.5) / 1.5) * 10)))
+
+  // Border: parse px from thin
+  const bw = t.borderWidth?.thin ?? '1px'
+  const pxMatch = bw.match(/^(\d+)px$/)
+  borderWidthPx.value = pxMatch ? Math.min(10, Math.max(1, parseInt(pxMatch[1], 10))) : 1
 }
 
 function applySimpleToTheme() {
@@ -239,8 +281,8 @@ function applySimpleToTheme() {
   const textSec = mixHex(textPri, textMut, 0.5)
 
   const primary = simpleColors.primary && isValidHex(simpleColors.primary) ? norm(simpleColors.primary) : (c.primary?.main ?? '#00951a')
-  const secondary = simpleColors.secondary && isValidHex(simpleColors.secondary) ? norm(simpleColors.secondary) : (c.secondary?.main ?? '#cf0000')
-  const accent = simpleColors.accent && isValidHex(simpleColors.accent) ? norm(simpleColors.accent) : (c.accent?.main ?? '#8b5cf6')
+  const secondary = darkenHex(primary, 0.25)
+  const accent = primary
 
   const colors: TenantThemeColors = {
     primary: {
@@ -331,6 +373,36 @@ function applyRadiusToTheme() {
   }
 }
 
+function applySpacingFromSlider() {
+  const base = 0.5 + (spacingLevel.value / 10) * 1.5
+  const r = (m: number) => `${(base * m).toFixed(3).replace(/\.?0+$/, '')}rem`
+  props.branding.theme.spacing = {
+    xs: r(0.5),
+    sm: r(0.75),
+    md: r(1),
+    lg: r(1.5),
+    xl: r(2),
+    '2xl': r(3),
+  }
+}
+
+function applyBorderFromSlider() {
+  const px = Math.max(1, Math.min(10, borderWidthPx.value))
+  props.branding.theme.borderWidth = {
+    thin: `${px}px`,
+    medium: `${Math.min(10, px * 2)}px`,
+    thick: `${Math.min(10, px * 4)}px`,
+  }
+}
+
+function applyFontFromSelect() {
+  const stack = FONT_STACKS[fontFamilyId.value] ?? FONT_STACKS.inter
+  props.branding.theme.fonts = {
+    primary: stack,
+    mono: props.branding.theme.fonts?.mono ?? DEFAULT_MONO,
+  }
+}
+
 let isSyncing = false
 watch(
   () => props.branding,
@@ -367,21 +439,13 @@ watch(
   { immediate: true }
 )
 
-const fontsPrimaryStr = computed({
-  get: () => (props.branding.theme.fonts?.primary ?? []).join(', '),
-  set: (v: string) => {
-    props.branding.theme.fonts = props.branding.theme.fonts ?? { primary: [], mono: [] }
-    props.branding.theme.fonts.primary = v.split(',').map((s) => s.trim()).filter(Boolean)
+watch(
+  fontFamilyId,
+  () => {
+    if (!isSyncing) applyFontFromSelect()
   },
-})
-
-const fontsMonoStr = computed({
-  get: () => (props.branding.theme.fonts?.mono ?? []).join(', '),
-  set: (v: string) => {
-    props.branding.theme.fonts = props.branding.theme.fonts ?? { primary: [], mono: [] }
-    props.branding.theme.fonts.mono = v.split(',').map((s) => s.trim()).filter(Boolean)
-  },
-})
+  { immediate: true }
+)
 
 const previewStyle = computed(() => {
   const vars = themeToCssVars(props.branding.theme)
@@ -511,6 +575,8 @@ const previewStyle = computed(() => {
   font-size: var(--theme-font-sm);
   color: var(--theme-text-muted);
   margin: 0;
+  min-width: 3rem;
+  text-align: right;
 }
 
 .theme-settings__preview {

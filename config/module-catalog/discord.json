@@ -14,6 +14,16 @@
   ],
   "routePath": "/discord",
   "order": 3,
+  "activationInstructions": {
+    "intro": "Automate Discord role assignment based on token and NFT holdings on Solana.",
+    "steps": [
+      "Invite the bot to your Discord server",
+      "Select the tokens you want to track",
+      "Create rules with up to 5 conditions per role",
+      "Use SPL, NFTs, traits, Discord roles, or whitelists in your conditions"
+    ],
+    "note": "Sync interval depends on holder count: 15 minutes to 6 hours."
+  },
   "pricing": {
     "modelType": "tiered_addons",
     "conditionKeys": ["mintsCount"],

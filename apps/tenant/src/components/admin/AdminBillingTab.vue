@@ -1,5 +1,6 @@
 <template>
-  <div class="admin__panel">
+  <div class="admin__split">
+    <div class="admin__panel">
     <Card>
       <h3>Billing History</h3>
       <div v-if="loading" class="admin__billing-loading">
@@ -50,6 +51,8 @@
         </tbody>
       </table>
     </Card>
+    </div>
+    <div aria-hidden="true" />
   </div>
 </template>
 

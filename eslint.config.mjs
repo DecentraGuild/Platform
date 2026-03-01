@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint'
 import pluginVue from 'eslint-plugin-vue'
 
 export default [
-  { ignores: ['**/dist/**', '**/.nuxt/**', '**/.output/**', '**/node_modules/**'] },
+  { ignores: ['**/dist/**', '**/.nuxt/**', '**/.output/**', '**/node_modules/**', 'apps/api/scripts/*.cjs'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...pluginVue.configs['flat/recommended'],

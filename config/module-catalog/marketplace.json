@@ -5,15 +5,25 @@
   "icon": "mdi:store",
   "image": null,
   "shortDescription": "A peer-to-peer marketplace for trading digital assets within your community.",
-  "longDescription": "The Market module powers a community-driven C2C storefront. Members can list, browse, and trade NFTs and digital assets using on-chain escrow. Supports collection-based browsing, trade management, and configurable shop fees.",
+  "longDescription": "The Market module powers a community-driven P2P storefront. Members can list, browse, and trade NFTs and digital assets using on-chain escrow. Supports collection-based browsing, trade management, and later configurable shop fees.",
   "keyInfo": [
     "Peer-to-peer NFT and digital asset trading",
     "On-chain escrow for secure transactions",
     "Collection-based browsing and filtering",
-    "Configurable shop fees and currency support"
+    "Soon also configurable shop fees"
   ],
   "routePath": "/market",
   "order": 2,
+  "activationInstructions": {
+    "intro": "Your marketplace. Choose which assets your community can trade.",
+    "steps": [
+      "Add the NFT collections you want to trade",
+      "Add the SPL tokens you want to accept",
+      "Select tokens for royalty and store fees (currency)",
+      "Optional: set up a whitelist",
+      "Deploy your marketplace within minutes"
+    ]
+  },
   "pricing": {
     "modelType": "tiered_addons",
     "conditionKeys": ["mintsCount", "baseCurrenciesCount", "customCurrenciesCount", "monetizeStorefront"],

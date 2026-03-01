@@ -170,7 +170,9 @@ async function fetchRoleCards() {
   const slug = tenantStore.slug
   if (!slug) return
   try {
-    const res = await fetch(`${apiBase.value}${API_V1}/tenant/${encodeURIComponent(slug)}/discord/role-cards`)
+    const res = await fetch(`${apiBase.value}${API_V1}/tenant/${encodeURIComponent(slug)}/discord/role-cards`, {
+      credentials: 'include',
+    })
     if (!res.ok) return
     const data = (await res.json()) as { role_cards: RoleCard[] }
     roleCards.value = data.role_cards ?? []
@@ -219,6 +221,7 @@ async function handleAddWallet(connectorId: WalletConnectorId) {
     await doLinkAdditionalWallet(connectorState.value.account)
     showConnectModal.value = false
     await fetchMe()
+    await fetchRoleCards()
   } catch (e) {
     addError.value = e instanceof Error ? e.message : 'Something went wrong'
   } finally {
@@ -235,7 +238,10 @@ async function revokeWallet(addr: string) {
       body: JSON.stringify({ wallet: addr }),
       credentials: 'include',
     })
-    if (res.ok) await fetchMe()
+    if (res.ok) {
+      await fetchMe()
+      await fetchRoleCards()
+    }
   } finally {
     revoking.value = null
   }

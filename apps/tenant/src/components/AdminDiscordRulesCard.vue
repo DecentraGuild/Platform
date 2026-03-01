@@ -60,7 +60,7 @@
             </option>
           </select>
           <p v-if="assignableRoles.length === 0 && !rulesLoading" class="discord-rules-card__roles-hint">
-            Roles are synced by the bot when it starts or joins the server. If the list is empty, ensure the bot is in your Discord server and has been restarted after you linked this server, then refresh this page.
+            Roles are synced by the bot when it joins your server. Link the server first, then invite the bot. If the list is empty, ensure you followed those steps and refresh this page.
           </p>
           <p v-else-if="assignableRoles.length > 0" class="discord-rules-card__roles-hint">
             Only roles the bot can assign are listed (those below its role in the server hierarchy). For conditions, you can use any server role in the "Discord role" condition type below.
@@ -688,7 +688,7 @@ onMounted(() => {
 .discord-rules-card__select {
   padding: var(--theme-space-sm) var(--theme-space-md);
   border: 1px solid var(--theme-border, #ccc);
-  border-radius: 4px;
+  border-radius: var(--theme-radius-md);
   min-width: 200px;
 }
 
@@ -735,9 +735,22 @@ onMounted(() => {
 .discord-rules-card__condition-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   gap: var(--theme-space-sm);
   margin-bottom: var(--theme-space-xs);
+}
+
+.discord-rules-card__condition-row .discord-rules-card__amount-input,
+.discord-rules-card__condition-row .discord-rules-card__trait-input {
+  display: flex;
+  align-items: stretch;
+  height: 2.5rem;
+}
+
+.discord-rules-card__condition-row .discord-rules-card__amount-input :deep(.text-input__field),
+.discord-rules-card__condition-row .discord-rules-card__trait-input :deep(.text-input__field) {
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .discord-rules-card__mint-preview {
@@ -774,9 +787,9 @@ onMounted(() => {
 }
 
 .discord-rules-card__trait-hint {
+  flex-basis: 100%;
   font-size: var(--theme-font-sm);
   color: var(--theme-text-muted, #666);
-  display: block;
   margin-top: var(--theme-space-xs);
 }
 

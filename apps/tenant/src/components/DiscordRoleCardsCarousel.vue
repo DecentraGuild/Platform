@@ -6,6 +6,7 @@
         v-for="card in roleCards"
         :key="card.role_id"
         class="role-card"
+        :class="{ 'role-card--not-eligible': card.eligible === false }"
         :style="roleCardStyle(card)"
       >
         <div class="role-card__icon-wrap">
@@ -27,6 +28,10 @@
           />
         </div>
         <h4 class="role-card__name">{{ card.name }}</h4>
+        <span v-if="card.eligible === true" class="role-card__badge">
+          <Icon icon="mdi:check-circle" class="role-card__badge-icon" />
+          You qualify
+        </span>
         <ul class="role-card__requirements" v-if="card.requirements?.length">
           <template v-for="(item, idx) in card.requirements" :key="idx">
             <li v-if="item.type === 'text'" class="role-card__req-item">
@@ -66,6 +71,8 @@ export interface RoleCard {
   icon?: string
   unicode_emoji?: string
   requirements: RoleCardRequirementItem[]
+  /** When signed in with Discord linked: true = qualifies, false = does not qualify, undefined = not computed */
+  eligible?: boolean
 }
 
 const props = defineProps<{
@@ -127,6 +134,29 @@ function roleCardStyle(card: RoleCard): Record<string, string> {
   border-radius: var(--theme-radius-lg);
   padding: var(--theme-space-xl);
   border-left: 4px solid var(--role-card-accent, var(--theme-primary));
+}
+
+.role-card--not-eligible {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+
+.role-card--not-eligible .role-card__name {
+  color: var(--theme-text-muted);
+}
+
+.role-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-space-xs);
+  margin-bottom: var(--theme-space-sm);
+  font-size: var(--theme-font-xs);
+  font-weight: 600;
+  color: var(--theme-status-success, #22c55e);
+}
+
+.role-card__badge-icon {
+  font-size: 1rem;
 }
 
 .role-card__icon-wrap {

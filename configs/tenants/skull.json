@@ -66,11 +66,11 @@
         }
       },
       "borderRadius": {
-        "sm": "0",
-        "md": "0",
-        "lg": "0",
-        "xl": "0",
-        "full": "0"
+        "sm": "0.75rem",
+        "md": "1rem",
+        "lg": "1.25rem",
+        "xl": "1.5rem",
+        "full": "9999px"
       },
       "fontSize": {
         "xs": "0.75rem",

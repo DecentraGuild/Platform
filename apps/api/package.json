@@ -19,6 +19,7 @@
     "@decentraguild/config": "workspace:*",
     "@decentraguild/contracts": "workspace:*",
     "@decentraguild/core": "workspace:*",
+    "@decentraguild/display": "workspace:*",
     "@decentraguild/web3": "workspace:*",
     "@fastify/cookie": "^11.0.0",
     "@fastify/cors": "^11.0.0",

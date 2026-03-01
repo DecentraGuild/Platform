@@ -24,6 +24,7 @@ export default defineNuxtConfig({
     preset: 'static',
     prerender: {
       routes: [
+        '/modules',
         '/docs',
         '/docs/general/getting-started',
         '/docs/general/creating-a-dguild',
@@ -77,6 +78,7 @@ export default defineNuxtConfig({
       heliusRpc: process.env.NUXT_PUBLIC_HELIUS_RPC ?? '',
       // Base domain for tenant subdomains (e.g. dguild.org -> https://skull.dguild.org). Override via NUXT_PUBLIC_TENANT_BASE_DOMAIN for staging/white-label.
       tenantBaseDomain: process.env.NUXT_PUBLIC_TENANT_BASE_DOMAIN ?? 'dguild.org',
+      platformDocsUrl: process.env.NUXT_PUBLIC_PLATFORM_DOCS_URL ?? 'https://dguild.org/docs',
     },
   },
 })

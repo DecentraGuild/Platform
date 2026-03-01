@@ -64,7 +64,7 @@ async function main(): Promise<void> {
       const guilds = [...client.guilds.cache.values()]
       guilds.forEach((guild, i) => {
         const delayMs = i * GUILD_SYNC_STAGGER_MS
-        const run = () => runRoleSyncForGuild(guild).catch((err) => console.error(`Role sync interval error ${guild.name}:`, err))
+        const run = () => syncLinkedGuild(guild).catch((err) => console.error(`Sync interval error ${guild.name}:`, err))
         if (delayMs === 0) run()
         else setTimeout(run, delayMs)
       })

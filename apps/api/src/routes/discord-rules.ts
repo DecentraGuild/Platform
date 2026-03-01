@@ -4,7 +4,7 @@ import { getSolanaConnection } from '../solana-connection.js'
 import { getPool } from '../db/client.js'
 import { isValidDiscordSnowflake, isValidMintOrGroup } from '../validate-discord.js'
 import { getDiscordServerByTenantSlug } from '../db/discord-servers.js'
-import { getRolesByGuildId } from '../db/discord-guild-roles.js'
+import { getRolesByGuildId, upsertGuildRoles } from '../db/discord-guild-roles.js'
 import {
   getRoleRulesByGuildId,
   getRoleRuleById,
@@ -46,6 +46,9 @@ import {
   type ConditionPayload,
 } from '../discord/rules-helpers.js'
 import { buildCollectionPreview } from '../discord/collection-preview.js'
+import { getWalletFromRequest } from './auth.js'
+import { getLinkByWallet } from '../db/wallet-discord-links.js'
+import { computeEligiblePerRole } from '../discord/rule-engine.js'
 
 /** Returns validated mint from query, or sends 400 and returns null. */
 function parseMintQuery(
@@ -166,12 +169,13 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
       const assignable_roles =
         server.bot_role_position != null
           ? roles.filter((r) => (r.position ?? 0) < server.bot_role_position!)
-          : roles
+          : []
       return reply.send({ roles, assignable_roles })
     }
   )
 
-  /** Public: role cards for Discord page carousel (no admin). Returns human-readable requirements per role. */
+  /** Public: role cards for Discord page carousel (no admin). Returns human-readable requirements per role.
+   * When user is signed in with a Discord-linked wallet, adds eligible per card (based on holdings). */
   app.get<{ Params: { slug: string } }>(
     '/api/v1/tenant/:slug/discord/role-cards',
     async (request, reply) => {
@@ -197,11 +201,28 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
           return r ? { name: r.name } : undefined
         },
       }
+      let eligibleByRoleId = new Map<string, boolean>()
+      const wallet = await getWalletFromRequest(request)
+      if (wallet) {
+        const link = await getLinkByWallet(wallet)
+        if (link?.discord_user_id) {
+          const eligiblePerRole = await computeEligiblePerRole(guildId)
+          for (const { discord_role_id, eligible_discord_user_ids } of eligiblePerRole) {
+            eligibleByRoleId.set(
+              discord_role_id,
+              eligible_discord_user_ids.includes(link.discord_user_id)
+            )
+          }
+        }
+      }
       const role_cards = await Promise.all(
         rules.map(async (rule) => {
           const role = roleById.get(rule.discord_role_id)
           const conditions = conditionsByRuleId.get(rule.id) ?? []
           const requirements = await buildRoleCardRequirements(conditions, roleInfoMap)
+          const eligible = eligibleByRoleId.has(rule.discord_role_id)
+            ? eligibleByRoleId.get(rule.discord_role_id)!
+            : undefined
           return {
             role_id: rule.discord_role_id,
             name: role?.name ?? 'Role',
@@ -210,6 +231,7 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
             unicode_emoji: role?.unicode_emoji ?? undefined,
             position: role?.position ?? 0,
             requirements,
+            eligible,
           }
         })
       )

@@ -1,5 +1,5 @@
 <template>
-  <PageSection title="Admin">
+  <PageSection :title="adminPageTitle">
     <div class="admin">
       <AdminGeneralTab
         v-if="tab === 'general'"
@@ -95,8 +95,10 @@
       </div>
     </div>
 
-    <AdminMarketplaceOnboardingModal
-      v-model="showMarketplaceOnboarding"
+    <AdminModuleActivationModal
+      :model-value="showActivationModal"
+      :module-id="activationModalModuleId"
+      @update:model-value="showActivationModal = $event; if (!$event) activationModalModuleId = null"
     />
 
     <Modal
@@ -141,7 +143,7 @@ import AdminModulesTab from '~/components/admin/AdminModulesTab.vue'
 import AdminMarketplaceTab from '~/components/admin/AdminMarketplaceTab.vue'
 import AdminDiscordTab from '~/components/admin/AdminDiscordTab.vue'
 import AdminBillingTab from '~/components/admin/AdminBillingTab.vue'
-import AdminMarketplaceOnboardingModal from '~/components/AdminMarketplaceOnboardingModal.vue'
+import AdminModuleActivationModal from '~/components/AdminModuleActivationModal.vue'
 import AdminPricingWidget from '~/components/AdminPricingWidget.vue'
 import { useAdminSubscriptions } from '~/composables/useAdminSubscriptions'
 import { useAdminForm } from '~/composables/useAdminForm'
@@ -187,7 +189,13 @@ const slugClaiming = computed(() => slugClaim.slugClaiming.value)
 
 const VALID_TABS = new Set(MODULE_SUBNAV.admin?.map((t) => t.id) ?? ['general', 'modules', 'theming', 'marketplace', 'discord', 'billing'])
 
-const showMarketplaceOnboarding = ref(false)
+const adminPageTitle = computed(() => {
+  const tabEntry = MODULE_SUBNAV.admin?.find((t) => t.id === tab.value)
+  return tabEntry ? `Admin - ${tabEntry.label}` : 'Admin'
+})
+
+const showActivationModal = ref(false)
+const activationModalModuleId = ref<string | null>(null)
 const marketplaceSettings = computed(() => {
   const s = tenantStore.marketplaceSettings
   if (!s) return null
@@ -238,8 +246,9 @@ const pendingDeactivateModuleId = ref<string | null>(null)
 function onModuleToggle(id: string, on: boolean) {
   if (on) {
     form.modulesById[id] = 'staging'
-    if (id === 'marketplace') {
-      showMarketplaceOnboarding.value = true
+    if (getModuleCatalogEntry(id)?.pricing) {
+      activationModalModuleId.value = id
+      showActivationModal.value = true
     }
   } else {
     const current = form.modulesById[id] ?? 'off'
@@ -436,6 +445,54 @@ async function confirmExtend(moduleId: string) {
 .admin__module:last-child {
   border-bottom: none;
 }
+.admin__module-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-space-xs);
+}
+.admin__module-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  border-radius: var(--theme-radius-sm);
+}
+.admin__module-info-btn:hover {
+  color: var(--theme-primary);
+}
+.admin__module-info-icon {
+  font-size: 1rem;
+}
+.admin__module-info-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--theme-space-md);
+}
+.admin__module-info-desc {
+  margin: 0;
+  font-size: var(--theme-font-sm);
+  color: var(--theme-text-secondary);
+  line-height: 1.5;
+}
+.admin__module-info-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--theme-space-xs);
+  font-size: var(--theme-font-sm);
+  color: var(--theme-primary);
+}
+.admin__module-info-link:hover {
+  text-decoration: underline;
+}
+.admin__module-staging-label {
+  font-size: var(--theme-font-sm);
+  font-weight: 500;
+  color: var(--theme-warning);
+}
 .admin__module-controls {
   display: flex;
   align-items: center;
@@ -587,5 +644,11 @@ async function confirmExtend(moduleId: string) {
   gap: var(--theme-space-sm);
   justify-content: flex-end;
   margin-top: var(--theme-space-sm);
+}
+
+/* Staging: toggle uses warning color */
+.admin__module--staging :deep(.toggle__input:checked + .toggle__track) {
+  background-color: var(--theme-warning);
+  border-color: var(--theme-warning);
 }
 </style>

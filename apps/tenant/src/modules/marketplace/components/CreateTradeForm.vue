@@ -169,7 +169,7 @@ import {
   getEscrowWalletFromConnector,
   deriveEscrowAccounts,
 } from '@decentraguild/web3'
-import { ESCROW_PROGRAM_ID } from '@decentraguild/contracts'
+import { ESCROW_PROGRAM_ID, SLIPPAGE_DIVISOR } from '@decentraguild/contracts'
 import { toRawUnits, sanitizeTokenLabel } from '@decentraguild/display'
 import { Connection } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
@@ -255,7 +255,6 @@ const settingsPartialFill = ref(false)
 const settingsSlippage = ref(1)
 
 const SYSTEM_PROGRAM = '11111111111111111111111111111111'
-const SLIPPAGE_DIVISOR = 100_000
 
 const expirePresets = [
   { label: '+12h', minutes: 720 },
@@ -556,7 +555,7 @@ async function create() {
       whitelist: hasWhitelist ? whitelist!.account : null,
     })
 
-    const sig = await sendAndConfirmTransaction(connection, tx, wallet, wallet.publicKey)
+    await sendAndConfirmTransaction(connection, tx, wallet, wallet.publicKey)
 
     const programId = new PublicKey(ESCROW_PROGRAM_ID)
     const { escrow } = deriveEscrowAccounts(wallet.publicKey, seed, programId)

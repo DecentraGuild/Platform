@@ -288,7 +288,7 @@ async function onDelete(id: number) {
   display: inline-flex;
   align-items: center;
   padding: 0 var(--theme-space-xs);
-  border-radius: var(--theme-radius-pill, 999px);
+  border-radius: var(--theme-radius-full);
   border: 1px solid var(--theme-border, #ddd);
   font-size: var(--theme-font-xs, 11px);
   text-transform: uppercase;
@@ -329,7 +329,7 @@ async function onDelete(id: number) {
 
 .discord-mint-catalog__select {
   padding: var(--theme-space-sm) var(--theme-space-md);
-  border-radius: 4px;
+  border-radius: var(--theme-radius-md);
   border: 1px solid var(--theme-border, #ccc);
 }
 

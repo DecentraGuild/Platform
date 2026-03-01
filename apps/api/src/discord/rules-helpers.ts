@@ -15,6 +15,7 @@ import {
   type DISCORDPayload,
 } from '../db/discord-rules.js'
 import { getMintMetadata } from '../db/marketplace-metadata.js'
+import { truncateAddress } from '@decentraguild/display'
 import type { DasAsset } from '@decentraguild/web3'
 
 export type { RoleRuleOperator, RoleConditionType, ConditionPayload }
@@ -175,12 +176,6 @@ export async function buildPayloadFromBody(
     return { payload: { required_role_id: typeof required_role_id === 'string' ? required_role_id : '' } }
   }
   return { payload: {} as ConditionPayload }
-}
-
-/** Truncate address for display when name is missing. */
-function truncateAddress(addr: string, head = 6, tail = 4): string {
-  if (!addr || addr.length <= head + tail) return addr
-  return `${addr.slice(0, head)}...${addr.slice(-tail)}`
 }
 
 export type RoleCardRequirementItem =

@@ -34,6 +34,12 @@ export interface ModuleCatalogEntry {
   pricing: PricingModel | null
   /** Addons (e.g. slug). Billed separately; deactivating addon does not deactivate parent. */
   addons?: Record<string, ModuleCatalogAddon>
+  /** Shown in the activation modal when enabling the module. Steps are rendered as a bullet list. */
+  activationInstructions?: {
+    intro: string
+    steps: string[]
+    note?: string
+  }
 }
 
 /** Statuses where the module code exists and can appear in tenant nav. */

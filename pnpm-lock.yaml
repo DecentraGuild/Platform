@@ -41,6 +41,9 @@ importers:
       '@decentraguild/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@decentraguild/display':
+        specifier: workspace:*
+        version: link:../../packages/display
       '@decentraguild/web3':
         specifier: workspace:*
         version: link:../../packages/web3
