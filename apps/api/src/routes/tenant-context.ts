@@ -18,11 +18,12 @@ export async function registerTenantContextRoutes(app: FastifyInstance) {
     const host = request.headers.host ?? ''
     const debug = searchParams.get('debug') === '1' || searchParams.get('debug') === 'true'
 
-    // In production, use Host only (no ?slug=) to avoid enumerating tenant configs by slug.
+    const slugFromHost = getTenantSlugFromHost(host, searchParams) ?? null
+    // In production, prefer Host-based resolution; fall back to explicit slug when Host does not encode tenant.
     const rawSlug =
       process.env.NODE_ENV === 'production'
-        ? getTenantSlugFromHost(host) ?? null
-        : (slugParam ?? getTenantSlugFromHost(host, searchParams))
+        ? (slugFromHost ?? (slugParam || null))
+        : (slugParam ?? slugFromHost)
     const slug = rawSlug ? normalizeTenantIdentifier(rawSlug) : null
 
     if (!slug) {

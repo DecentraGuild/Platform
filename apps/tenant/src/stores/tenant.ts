@@ -30,7 +30,7 @@ export const useTenantStore = defineStore('tenant', () => {
 
     const config = useRuntimeConfig()
     const apiBase = normalizeApiBase(config.public.apiUrl as string) // same formula as useApiBase()
-    const url = `${apiBase}${API_V1}/tenant-context`
+    const url = `${apiBase}${API_V1}/tenant-context?slug=${slugParam}`
     try {
       const res = await fetch(url, { credentials: 'include' })
       if (!res.ok) {

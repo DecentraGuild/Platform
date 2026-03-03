@@ -30,7 +30,7 @@ export default defineNuxtPlugin(async () => {
   tenantStore.setSlug(slug)
 
   const apiBase = normalizeApiBase(config.public.apiUrl as string)
-  const contextUrl = `${apiBase}${API_V1}/tenant-context`
+  const contextUrl = `${apiBase}${API_V1}/tenant-context?slug=${encodeURIComponent(slug)}`
 
   try {
     const data = await $fetch<{ tenant: TenantConfig; marketplaceSettings?: MarketplaceSettings | null }>(
