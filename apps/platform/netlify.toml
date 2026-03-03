@@ -1,11 +1,11 @@
-# Platform app (dguild.org)
-# Netlify: set Package directory to "apps/platform" for this site.
-# Build runs from repo root. Publish path is relative to base (root).
+# Platform app (www.dguild.org / dguild.org)
+# Netlify: set Base directory to "apps/platform" for this site so this file is used.
+# Publish path is relative to base (apps/platform).
 
 [build]
   base = "."
   command = "pnpm run build:platform"
-  publish = "apps/platform/.output/public"
+  publish = ".output/public"
 
 [build.environment]
   NODE_VERSION = "20"
