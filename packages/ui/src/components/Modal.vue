@@ -10,7 +10,7 @@
         @keydown.escape="onClose"
       >
         <div class="modal__backdrop" aria-hidden="true" @click="onClose" />
-        <div class="modal__content" @click.stop>
+        <div class="modal__content" :class="{ 'modal__content--wide': wide }" @click.stop>
           <div class="modal__header">
             <h2 v-if="title" :id="titleId" class="modal__title">{{ title }}</h2>
             <button
@@ -35,10 +35,15 @@
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 
-defineProps<{
-  modelValue: boolean
-  title?: string
-}>()
+withDefaults(
+  defineProps<{
+    modelValue: boolean
+    title?: string
+    /** When true, modal content is wider (e.g. for forms with many fields) */
+    wide?: boolean
+  }>(),
+  { wide: false }
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -76,9 +81,11 @@ function onClose() {
   max-height: 90vh;
   overflow: auto;
   background: var(--theme-bg-card);
-  border: var(--theme-border-thin) solid var(--theme-border);
   border-radius: var(--theme-radius-lg);
-  box-shadow: var(--theme-shadow-card, 0 8px 32px rgba(0, 0, 0, 0.3));
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+.modal__content--wide {
+  max-width: 42rem;
 }
 
 .modal__header {

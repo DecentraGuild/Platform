@@ -12,6 +12,7 @@ import {
   type NFTPayload,
   type TRAITPayload,
   type DISCORDPayload,
+  type WHITELISTPayload,
 } from '../db/discord-rules.js'
 import {
   getHolderSnapshot,
@@ -21,6 +22,8 @@ import {
   type HolderSnapshot,
 } from '../db/discord-holder-snapshots.js'
 import { getAllWalletLinks } from '../db/wallet-discord-links.js'
+import { fetchWhitelistEntries } from '@decentraguild/web3'
+import { getSolanaConnection } from '../solana-connection.js'
 
 export interface EligibleRole {
   discord_role_id: string
@@ -32,6 +35,8 @@ export interface RuleEngineContext {
   linkedWallets: string[]
   snapshotByAsset: Map<string, HolderSnapshot>
   discordRoleIds: string[]
+  /** Whitelist list address -> set of wallet addresses on that list. Used by WHITELIST evaluator. */
+  whitelistMembersByListAddress: Map<string, Set<string>>
 }
 
 type Evaluator = (condition: DiscordRoleConditionRow, context: RuleEngineContext) => boolean
@@ -105,11 +110,20 @@ function evaluateDISCORD(condition: DiscordRoleConditionRow, context: RuleEngine
   return context.discordRoleIds.includes(payload.required_role_id)
 }
 
+function evaluateWHITELIST(condition: DiscordRoleConditionRow, context: RuleEngineContext): boolean {
+  const payload = condition.payload as WHITELISTPayload
+  if (!payload?.list_address || context.linkedWallets.length === 0) return false
+  const members = context.whitelistMembersByListAddress.get(payload.list_address)
+  if (!members) return false
+  return context.linkedWallets.some((w) => members.has(w))
+}
+
 const EVALUATORS: Record<RoleConditionType, Evaluator> = {
   SPL: evaluateSPL,
   NFT: evaluateNFT,
   TRAIT: evaluateTRAIT,
   DISCORD: evaluateDISCORD,
+  WHITELIST: evaluateWHITELIST,
 }
 
 function getEvaluator(type: RoleConditionType): Evaluator | null {
@@ -147,6 +161,17 @@ function getAssetIdsFromConditions(conditions: DiscordRoleConditionRow[]): strin
   return [...ids]
 }
 
+/** Collect whitelist list addresses from WHITELIST conditions. */
+function getWhitelistListIdsFromConditions(conditions: DiscordRoleConditionRow[]): string[] {
+  const ids = new Set<string>()
+  for (const c of conditions) {
+    if (c.type === 'WHITELIST' && (c.payload as WHITELISTPayload).list_address) {
+      ids.add((c.payload as WHITELISTPayload).list_address)
+    }
+  }
+  return [...ids]
+}
+
 /**
  * Compute eligible Discord user IDs per role for a guild.
  * Batches wallet links in one query; loads snapshots only for asset ids used by SPL/NFT/TRAIT.
@@ -163,14 +188,35 @@ export async function computeEligiblePerRole(
   if (rules.length === 0) return []
 
   const allAssetIds = new Set<string>()
+  const allWhitelistListIds = new Set<string>()
   for (const conditions of conditionsByRule.values()) {
     for (const id of getAssetIdsFromConditions(conditions)) allAssetIds.add(id)
+    for (const id of getWhitelistListIdsFromConditions(conditions)) allWhitelistListIds.add(id)
   }
 
   const snapshotByAsset = new Map<string, HolderSnapshot>()
   for (const assetId of allAssetIds) {
     const snap = await getHolderSnapshot(assetId)
     if (snap) snapshotByAsset.set(assetId, snap)
+  }
+
+  const whitelistMembersByListAddress = new Map<string, Set<string>>()
+  if (allWhitelistListIds.size > 0) {
+    const connection = getSolanaConnection()
+    const listAddresses = [...allWhitelistListIds]
+    const entriesResults = await Promise.all(
+      listAddresses.map(async (listAddress) => {
+        try {
+          const entries = await fetchWhitelistEntries(connection, listAddress)
+          return { listAddress, wallets: new Set(entries.map((e) => e.account.whitelisted.toBase58())) }
+        } catch {
+          return { listAddress, wallets: new Set<string>() }
+        }
+      })
+    )
+    for (const { listAddress, wallets } of entriesResults) {
+      whitelistMembersByListAddress.set(listAddress, wallets)
+    }
   }
 
   const allLinks = await getAllWalletLinks()
@@ -197,6 +243,7 @@ export async function computeEligiblePerRole(
         linkedWallets,
         snapshotByAsset,
         discordRoleIds: memberRolesByUserId.get(discordUserId) ?? [],
+        whitelistMembersByListAddress,
       }
       if (evaluateRule(conditions, context)) {
         eligible.push(discordUserId)

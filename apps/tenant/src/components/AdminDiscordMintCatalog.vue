@@ -3,8 +3,8 @@
     <h3 class="discord-mint-catalog__title">Mint catalog</h3>
     <p class="discord-mint-catalog__hint">
       Configure the SPL tokens and NFT collections this dGuild uses for Discord rules.
-      Define them once here, then pick them from dropdowns when creating rules. The first three mints are
-      usually enough; adding more may increase RPC and indexing costs over time.
+      Define them once here, then pick them from dropdowns when creating rules. Our indexer will
+      fetch each mint every 15min-6hr (depending on total token holders).
     </p>
 
     <div v-if="catalogLoading" class="discord-mint-catalog__loading">

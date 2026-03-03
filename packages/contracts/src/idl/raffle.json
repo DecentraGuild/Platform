@@ -1,0 +1,200 @@
+{
+  "version": "0.30.1",
+  "name": "raffle",
+  "address": "rafxXxjw9fkAuQhCJ1A4gmX1oqgvRrSeXyRPUE9K2Yx",
+  "metadata": {
+    "name": "raffle",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        { "name": "creator", "isMut": true, "isSigner": true },
+        { "name": "raffle", "isMut": true, "isSigner": false },
+        { "name": "tickets", "isMut": true, "isSigner": false },
+        { "name": "ticketsAta", "isMut": true, "isSigner": false },
+        { "name": "ticketsMint", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false },
+        { "name": "whitelist", "isMut": false, "isSigner": false, "isOptional": true }
+      ],
+      "args": [
+        { "name": "name", "type": "string" },
+        { "name": "description", "type": "string" },
+        { "name": "ticketPrice", "type": "u64" },
+        { "name": "ticketAmount", "type": "u32" },
+        { "name": "seed", "type": "u64" }
+      ]
+    },
+    {
+      "name": "prepare",
+      "accounts": [
+        { "name": "creator", "isMut": true, "isSigner": true },
+        { "name": "raffle", "isMut": true, "isSigner": false },
+        { "name": "from", "isMut": true, "isSigner": false },
+        { "name": "prizeVault", "isMut": true, "isSigner": false },
+        { "name": "prizeMint", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false },
+        { "name": "feeAccount", "isMut": true, "isSigner": false }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" },
+        { "name": "imageUrl", "type": "string" }
+      ]
+    },
+    {
+      "name": "enable",
+      "accounts": [
+        { "name": "creator", "writable": true, "signer": true },
+        { "name": "raffle", "writable": true }
+      ],
+      "args": []
+    },
+    {
+      "name": "disable",
+      "accounts": [
+        { "name": "creator", "writable": true, "signer": true },
+        { "name": "raffle", "writable": true }
+      ],
+      "args": []
+    },
+    {
+      "name": "buy_tickets",
+      "accounts": [
+        { "name": "raffle", "writable": true },
+        { "name": "tickets", "writable": true },
+        { "name": "ticket_vault", "writable": true },
+        { "name": "buyer", "writable": true, "signer": true },
+        { "name": "buyer_ata", "writable": true },
+        { "name": "fee_account", "writable": true },
+        { "name": "token_program" },
+        { "name": "whitelist", "optional": true },
+        { "name": "whitelist_entry", "optional": true }
+      ],
+      "args": [{ "name": "amount", "type": "u32" }]
+    },
+    {
+      "name": "reveal_winners",
+      "accounts": [
+        { "name": "raffle", "writable": true },
+        { "name": "recent_blockhashes" }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_prize",
+      "accounts": [
+        { "name": "raffle", "writable": true },
+        { "name": "prize_vault", "writable": true },
+        { "name": "winner", "writable": true, "signer": true },
+        { "name": "winner_ata", "writable": true },
+        { "name": "token_program" },
+        { "name": "associated_token_program" },
+        { "name": "system_program" }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_tickets",
+      "accounts": [
+        { "name": "raffle", "writable": true },
+        { "name": "ticket_vault", "writable": true },
+        { "name": "creator", "writable": true, "signer": true },
+        { "name": "creator_ata", "writable": true },
+        { "name": "token_program" }
+      ],
+      "args": []
+    },
+    {
+      "name": "edit",
+      "accounts": [
+        { "name": "raffle", "writable": true },
+        { "name": "creator", "writable": true, "signer": true }
+      ],
+      "args": [
+        { "name": "name", "type": "string" },
+        { "name": "description", "type": "string" },
+        { "name": "url", "type": "string" }
+      ]
+    },
+    {
+      "name": "close",
+      "accounts": [
+        { "name": "raffle", "writable": true },
+        { "name": "creator", "writable": true, "signer": true }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Raffle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "seed", "type": "u64" },
+          { "name": "bump", "type": "u8" },
+          { "name": "creator", "type": "pubkey" },
+          { "name": "state", "type": { "defined": "RaffleState" } },
+          { "name": "name", "type": "string" },
+          { "name": "description", "type": "string" },
+          { "name": "url", "type": "string" },
+          { "name": "ticketMint", "type": "pubkey" },
+          { "name": "ticketPrice", "type": "u64" },
+          { "name": "ticketDecimals", "type": "u8" },
+          { "name": "prizeMint", "type": "pubkey" },
+          { "name": "prizeVaultCount", "type": "u32" },
+          { "name": "prizeDecimals", "type": "u8" },
+          { "name": "tickets", "type": "pubkey" },
+          { "name": "winner", "type": "pubkey" },
+          { "name": "randomness", "type": { "option": { "array": ["u8", 32] } } },
+          { "name": "useWhitelist", "type": "bool" },
+          { "name": "whitelist", "type": "pubkey" }
+        ]
+      }
+    },
+    {
+      "name": "Tickets",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "sold", "type": "u32" },
+          { "name": "total", "type": "u32" }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "RaffleState",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "created" },
+          { "name": "ready" },
+          { "name": "running" },
+          { "name": "paused" },
+          { "name": "full" },
+          { "name": "claimprize" },
+          { "name": "claimtickets" },
+          { "name": "done" }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InsufficientFundsForTransaction", "msg": "Insufficient funds" },
+    { "code": 6001, "name": "SignerIsNotCreator", "msg": "Signer is not the creator" },
+    { "code": 6002, "name": "NotEnoughTicketsLeft", "msg": "Not enough tickets left" },
+    { "code": 6003, "name": "RaffleIsNotRunning", "msg": "Raffle is not running" },
+    { "code": 6004, "name": "WinnersAlreadyDrawn", "msg": "Winners already drawn" },
+    { "code": 6005, "name": "WinnerNotDrawn", "msg": "Winner not drawn" },
+    { "code": 6006, "name": "UnclaimedPrizes", "msg": "Unclaimed prizes" }
+  ]
+}

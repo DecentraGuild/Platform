@@ -6,6 +6,7 @@ export type {
   TierDefinition,
   AddonDefinition,
   TieredAddonsPricing,
+  TieredWithOneTimePerUnitPricing,
   OneTimePerUnitPricing,
   AddUnitPricing,
   FlatRecurringPricing,
@@ -13,4 +14,4 @@ export type {
   PricingModel,
 } from './types.js'
 
-export { computePrice } from './engine.js'
+export { computePrice, getOneTimePerUnitForTier } from './engine.js'

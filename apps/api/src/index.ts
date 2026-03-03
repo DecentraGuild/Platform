@@ -18,6 +18,7 @@ import { registerBillingRoutes } from './routes/billing.js'
 import { registerBillingPaymentRoutes } from './routes/billing-payments.js'
 import { registerRegisterRoutes } from './routes/register.js'
 import { registerWhitelistRoutes } from './routes/whitelist.js'
+import { registerRaffleRoutes } from './routes/raffle.js'
 import { initPool } from './db/client.js'
 import { apiError, ErrorCode } from './api-errors.js'
 import { runMigrations } from './db/run-migrations.js'
@@ -239,6 +240,7 @@ async function main() {
   await registerBillingPaymentRoutes(app)
   await registerRegisterRoutes(app)
   await registerWhitelistRoutes(app)
+  await registerRaffleRoutes(app)
 
   const port = Number(process.env.PORT) || DEFAULT_PORT
   await app.listen({ port, host: '0.0.0.0' })

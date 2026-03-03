@@ -5,7 +5,7 @@
  */
 
 import type { BillingPeriod, ConditionSet, PriceResult } from '@decentraguild/billing'
-import { computePrice } from '@decentraguild/billing'
+import { computePrice, getOneTimePerUnitForTier } from '@decentraguild/billing'
 import { getModuleCatalogEntry } from '@decentraguild/config'
 import { getConditions } from './conditions.js'
 import { calculateCharge, calculateExtension } from './prorate.js'
@@ -347,4 +347,77 @@ export async function extendSubscription(
 /** Billing key for a tenant (id, not slug). */
 export function tenantBillingKey(tenant: TenantForBilling): string {
   return tenant.id
+}
+
+export interface CreateRafflePaymentIntentParams {
+  tenant: TenantForBilling
+  payerWallet: string
+}
+
+export type CreateRafflePaymentIntentResult =
+  | { noPaymentRequired: true }
+  | PaymentIntentCreatedResponse
+
+/**
+ * Create a payment intent for the one-time "per raffle" fee when creating a new raffle.
+ * Uses getOneTimePerUnitForTier from subscription; if no subscription, treats as base tier.
+ * Returns noPaymentRequired if amount is 0 (Grow/Pro) or slot limit would be exceeded.
+ */
+export async function createRafflePaymentIntent(
+  params: CreateRafflePaymentIntentParams,
+): Promise<CreateRafflePaymentIntentResult> {
+  const { tenant, payerWallet } = params
+  const catalogEntry = getModuleCatalogEntry('raffles')
+  const pricing = catalogEntry?.pricing
+  if (!pricing || pricing.modelType !== 'tiered_with_one_time_per_unit') {
+    throw new Error('Raffle module pricing not configured')
+  }
+
+  const billingKey = tenant.id
+  const conditions = await getConditions('raffles', billingKey)
+  const price = computePrice('raffles', conditions, pricing, { billingPeriod: 'monthly' })
+
+  const subscription = await getSubscription(billingKey, 'raffles')
+  const selectedTierId = subscription?.priceSnapshot?.selectedTierId ?? price.selectedTierId ?? 'base'
+  const oneTimeAmount = getOneTimePerUnitForTier(pricing, selectedTierId)
+
+  const tier = pricing.tiers.find((t) => t.id === selectedTierId)
+  const slotLimit = tier ? (tier.included?.raffleSlotsUsed as number) ?? 1 : 1
+  const currentSlots = (conditions.raffleSlotsUsed as number) ?? 0
+  if (currentSlots >= slotLimit) {
+    throw new Error('Raffle slot limit reached. Close an existing raffle to create a new one.')
+  }
+
+  if (oneTimeAmount <= 0) {
+    return { noPaymentRequired: true }
+  }
+
+  await expireStalePendingPayments().catch(() => {})
+
+  const enrichedSnapshot: Record<string, unknown> = { ...price, oneTimePerUnitForSelectedTier: oneTimeAmount }
+  const payment = await insertPaymentIntent({
+    tenantSlug: billingKey,
+    moduleId: 'raffles',
+    paymentType: 'add_unit',
+    amountUsdc: oneTimeAmount,
+    billingPeriod: 'monthly',
+    periodStart: new Date(),
+    periodEnd: new Date(),
+    payerWallet,
+    conditionsSnapshot: conditions,
+    priceSnapshot: enrichedSnapshot as unknown as PriceResult,
+  })
+
+  const { BILLING_WALLET, BILLING_WALLET_ATA } = await import('./verify-payment.js')
+  return {
+    noPaymentRequired: false,
+    paymentId: payment.id,
+    amountUsdc: payment.amountUsdc,
+    memo: payment.memo,
+    recipientWallet: BILLING_WALLET.toBase58(),
+    recipientAta: BILLING_WALLET_ATA.toBase58(),
+    billingPeriod: 'monthly',
+    periodStart: payment.periodStart.toISOString(),
+    periodEnd: payment.periodEnd.toISOString(),
+  }
 }

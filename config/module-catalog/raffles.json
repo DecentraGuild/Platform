@@ -1,0 +1,57 @@
+{
+  "id": "raffles",
+  "status": "available",
+  "name": "Raffle",
+  "icon": "mdi:ticket-percent",
+  "image": null,
+  "shortDescription": "On-chain raffles for your community. Create raffles, add prizes, sell tickets, reveal winners.",
+  "longDescription": "The Raffle module lets admins create and run on-chain raffles. Set ticket price and max entrants, add prizes, start selling, and reveal winners. Members buy tickets with the configured token. Optional whitelist for eligibility per raffle.",
+  "keyInfo": [
+    "Create raffles with configurable ticket price and max entrants",
+    "Add prizes (multiple tokens). Start, pause, reveal winner",
+    "Base tier: 5 USDC per raffle; Grow/Pro: 0 USDC",
+    "Optional whitelist per raffle for eligibility"
+  ],
+  "routePath": "/raffle",
+  "order": 4,
+  "goActiveImmediately": true,
+  "activationInstructions": {
+    "intro": "Run raffles for your community. Create raffles, add prizes, sell tickets, reveal winners.",
+    "steps": [
+      "Set default whitelist for raffles (optional)",
+      "Create a raffle (5 USDC on Base tier; 0 on Grow/Pro)",
+      "Add prizes, start, and sell tickets"
+    ],
+    "note": "Module is active immediately; billing is per raffle when you create one on Base tier."
+  },
+  "pricing": {
+    "modelType": "tiered_with_one_time_per_unit",
+    "conditionKeys": ["raffleSlotsUsed"],
+    "tiers": [
+      {
+        "id": "base",
+        "name": "Base",
+        "recurringPrice": 0,
+        "included": { "raffleSlotsUsed": 1 },
+        "oneTimePerUnit": 5
+      },
+      {
+        "id": "grow",
+        "name": "Grow",
+        "recurringPrice": 15,
+        "included": { "raffleSlotsUsed": 3 },
+        "oneTimePerUnit": 0
+      },
+      {
+        "id": "pro",
+        "name": "Pro",
+        "recurringPrice": 25,
+        "included": { "raffleSlotsUsed": 999 },
+        "oneTimePerUnit": 0
+      }
+    ],
+    "addons": [],
+    "yearlyDiscountPercent": 25,
+    "oneTimeUnitName": "Per raffle"
+  }
+}

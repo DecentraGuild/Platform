@@ -21,7 +21,7 @@
             v-if="showSlugPricingWidget"
             module-id="slug"
             :module-state="slugModuleState"
-            :subscription="subscriptions.slug"
+            :subscription="subscriptions.slug ?? null"
             :yearly-only="true"
             :saving="saving"
             :deploying="slugClaiming"
@@ -59,7 +59,7 @@
         :slug="slug ?? ''"
         :settings="marketplaceSettings"
         :module-state="marketplaceModuleState"
-        :subscription="subscriptions.marketplace"
+        :subscription="subscriptions.marketplace ?? null"
         :saving="saving"
         :deploying="deploying"
         :save-error="saveError"
@@ -73,13 +73,26 @@
         v-else-if="tab === 'discord'"
         :slug="slug ?? ''"
         :module-state="discordModuleState"
-        :subscription="subscriptions.discord"
+        :subscription="subscriptions.discord ?? null"
         :saving="saving"
         :deploying="deploying"
         :save-error="saveError"
         @save="(p: BillingPeriod) => saveWithBilling('discord', p)"
         @deploy="(p: BillingPeriod) => deployModule('discord', p)"
         @reactivate="(p: BillingPeriod) => reactivateModule('discord', p)"
+      />
+
+      <AdminRaffleTab
+        v-else-if="tab === 'raffle'"
+        ref="raffleTabRef"
+        :slug="slug ?? ''"
+        :module-state="raffleModuleState"
+        :subscription="subscriptions.raffles ?? null"
+        :saving="saving"
+        :deploying="deploying"
+        :save-error="saveError"
+        @save="(p: BillingPeriod, cond?: Record<string, number>) => handleRaffleBilling(p, cond)"
+        @deploy="(p: BillingPeriod, cond?: Record<string, number>) => handleRaffleBilling(p, cond)"
       />
 
       <AdminWhitelistTab
@@ -149,6 +162,7 @@ import AdminThemingTab from '~/components/admin/AdminThemingTab.vue'
 import AdminModulesTab from '~/components/admin/AdminModulesTab.vue'
 import AdminMarketplaceTab from '~/components/admin/AdminMarketplaceTab.vue'
 import AdminDiscordTab from '~/components/admin/AdminDiscordTab.vue'
+import AdminRaffleTab from '~/components/admin/AdminRaffleTab.vue'
 import AdminWhitelistTab from '~/components/admin/AdminWhitelistTab.vue'
 import AdminBillingTab from '~/components/admin/AdminBillingTab.vue'
 import AdminModuleActivationModal from '~/components/AdminModuleActivationModal.vue'
@@ -218,6 +232,7 @@ const marketplaceSettings = computed(() => {
 
 const marketplaceModuleState = computed(() => getModuleState(tenant.value?.modules?.marketplace))
 const discordModuleState = computed(() => getModuleState(tenant.value?.modules?.discord))
+const raffleModuleState = computed(() => getModuleState(tenant.value?.modules?.raffles))
 const whitelistModuleState = computed(() => getModuleState(tenant.value?.modules?.whitelist))
 
 const slugModuleState = computed((): 'off' | 'staging' | 'active' | 'deactivating' => {
@@ -227,7 +242,7 @@ const slugModuleState = computed((): 'off' | 'staging' | 'active' | 'deactivatin
 
 const showSlugPricingWidget = computed(() => Boolean(tenant.value))
 
-const WIDGET_TABS = new Set(['marketplace', 'discord', 'whitelist'])
+const WIDGET_TABS = new Set(['marketplace', 'discord', 'raffle', 'whitelist'])
 const tab = computed(() => {
   const q = route.query.tab
   return typeof q === 'string' && VALID_TABS.has(q) ? q : 'general'
@@ -237,6 +252,22 @@ const hasWidgetTab = computed(() => WIDGET_TABS.has(tab.value))
 async function saveWithBilling(moduleId: string, billingPeriod: BillingPeriod) {
   await save()
   await handleBillingPayment(moduleId, billingPeriod)
+}
+
+const raffleTabRef = ref<InstanceType<typeof AdminRaffleTab> | null>(null)
+
+async function handleRaffleBilling(period: BillingPeriod, conditions?: Record<string, number>) {
+  deploying.value = true
+  saveError.value = null
+  try {
+    await handleBillingPayment('raffles', period, undefined, conditions)
+    await fetchSubscription('raffles')
+    raffleTabRef.value?.clearUpgradeConditions?.()
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : 'Billing failed'
+  } finally {
+    deploying.value = false
+  }
 }
 
 function formatDeactivationDate(iso: string): string {
@@ -335,6 +366,7 @@ watch(tab, (t) => {
   if (t === 'general') fetchSubscription('slug')
   if (t === 'marketplace') fetchSubscription('marketplace')
   if (t === 'discord') fetchSubscription('discord')
+  if (t === 'raffle') fetchSubscription('raffles')
   if (t === 'modules') {
     for (const id of moduleIds.value) {
       if (id !== 'admin' && getModuleCatalogEntry(id)?.pricing) fetchSubscription(id)

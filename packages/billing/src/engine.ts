@@ -5,6 +5,7 @@ import type {
   PriceResult,
   PricingModel,
   TieredAddonsPricing,
+  TieredWithOneTimePerUnitPricing,
   TierDefinition,
   AddonDefinition,
 } from './types.js'
@@ -126,6 +127,34 @@ function computeTieredAddons(
     recurringYearly,
     appliedYearlyDiscount: yearlyDiscount > 0 ? yearlyDiscount : null,
     selectedTierId: best.tier.id,
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  tiered_with_one_time_per_unit: tiered + per-tier one-time per unit */
+/* ------------------------------------------------------------------ */
+
+function computeTieredWithOneTimePerUnit(
+  moduleId: string,
+  conditions: ConditionSet,
+  pricing: TieredWithOneTimePerUnitPricing,
+  billingPeriod: BillingPeriod,
+): PriceResult {
+  const baseResult = computeTieredAddons(
+    moduleId,
+    conditions,
+    { ...pricing, modelType: 'tiered_addons' } as TieredAddonsPricing,
+    billingPeriod,
+  )
+  if (!baseResult.billable || !baseResult.selectedTierId) return baseResult
+
+  const tier = pricing.tiers.find((t) => t.id === baseResult.selectedTierId)
+  const oneTimePerUnit = tier?.oneTimePerUnit ?? 0
+
+  return {
+    ...baseResult,
+    oneTimePerUnitForSelectedTier: oneTimePerUnit,
+    oneTimeUnitName: pricing.oneTimeUnitName,
   }
 }
 
@@ -261,6 +290,8 @@ export function computePrice(
   switch (pricingModel.modelType) {
     case 'tiered_addons':
       return computeTieredAddons(moduleId, conditions, pricingModel, billingPeriod)
+    case 'tiered_with_one_time_per_unit':
+      return computeTieredWithOneTimePerUnit(moduleId, conditions, pricingModel, billingPeriod)
     case 'one_time_per_unit':
       return computeOneTimePerUnit(moduleId, conditions, pricingModel)
     case 'add_unit':
@@ -272,4 +303,18 @@ export function computePrice(
     default:
       return emptyResult(moduleId)
   }
+}
+
+/**
+ * Return the one-time fee for adding one unit on the given tier.
+ * Used by create flows (e.g. raffle) when they have selectedTierId from subscription.
+ * Returns 0 for non-matching models or unknown tier.
+ */
+export function getOneTimePerUnitForTier(
+  pricingModel: PricingModel | null,
+  tierId: string,
+): number {
+  if (!pricingModel || pricingModel.modelType !== 'tiered_with_one_time_per_unit') return 0
+  const tier = pricingModel.tiers.find((t) => t.id === tierId)
+  return tier?.oneTimePerUnit ?? 0
 }

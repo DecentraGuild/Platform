@@ -2,7 +2,7 @@
   <Card class="discord-rules-card">
     <h3>Role rules</h3>
     <p class="discord-rules-card__hint">
-      Assign a Discord role when members meet conditions (SPL balance, NFT collection, trait, or Discord role). Choose mints from the catalog above; for Trait conditions, select a collection and trait key/value dropdowns will load. After each condition choose AND or OR before the next. Max 5 conditions per rule.
+      Assign a Discord role when members meet conditions (SPL balance, NFT collection, trait, Discord role, or Whitelist membership). Choose mints from the catalog above; for Trait conditions, select a collection and trait key/value dropdowns will load. After each condition choose AND or OR before the next. Max 5 conditions per rule.
     </p>
     <p v-if="configuredMintCount !== null" class="discord-rules-card__mint-count">
       Mints used: {{ configuredMintCount }}{{ mintCap != null ? ` / ${mintCap}` : '' }}
@@ -185,6 +185,22 @@
                   <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
                 </select>
               </template>
+              <template v-else-if="cond.type === 'WHITELIST'">
+                <select
+                  v-model="cond.mint_or_group"
+                  class="discord-rules-card__select discord-rules-card__select--themed discord-rules-card__select--mint"
+                  aria-label="Whitelist list"
+                >
+                  <option value="">Whitelist list</option>
+                  <option
+                    v-for="list in whitelistLists"
+                    :key="list.address"
+                    :value="list.address"
+                  >
+                    {{ list.name }}
+                  </option>
+                </select>
+              </template>
               <select
                 v-model="cond.logic_to_next"
                 class="discord-rules-card__select discord-rules-card__select--sm discord-rules-card__select--themed"
@@ -273,6 +289,7 @@ interface Rule {
 
 const roles = ref<DiscordRole[]>([])
 const assignableRoles = ref<DiscordRole[]>([])
+const whitelistLists = ref<Array<{ address: string; name: string }>>([])
 const rules = ref<Rule[]>([])
 const rulesLoading = ref(false)
 const rulesError = ref<string | null>(null)
@@ -304,10 +321,14 @@ function onConditionTypeChange(cond: (typeof form.conditions)[number]) {
   if (cond.type === 'DISCORD' && typeof cond.required_role_id !== 'string') {
     cond.required_role_id = ''
   }
+  if (cond.type === 'WHITELIST' && !cond.mint_or_group) {
+    cond.mint_or_group = ''
+  }
 }
 function isConditionFilled(c: (typeof form.conditions)[number]): boolean {
   if (typeNeedsMint(c.type)) return !!c.mint_or_group?.trim()
   if (c.type === 'DISCORD') return !!c.required_role_id?.trim()
+  if (c.type === 'WHITELIST') return !!c.mint_or_group?.trim()
   return false
 }
 
@@ -372,6 +393,7 @@ function addCondition() {
     logic_to_next: null,
     amount: defaultType === 'NFT' || defaultType === 'TRAIT' ? '1' : undefined,
     ...(defaultType === 'DISCORD' ? { required_role_id: '' } : {}),
+    ...(defaultType === 'WHITELIST' ? {} : {}),
   })
 }
 function removeCondition(idx: number) {
@@ -389,6 +411,7 @@ function resetForm() {
     logic_to_next: null,
     amount: defaultType === 'NFT' || defaultType === 'TRAIT' ? '1' : undefined,
     ...(defaultType === 'DISCORD' ? { required_role_id: '' } : {}),
+    ...(defaultType === 'WHITELIST' ? {} : {}),
   }]
   editingRuleId.value = null
 }
@@ -399,6 +422,12 @@ function conditionSummary(c: RuleCondition, nextLogic?: string | null): string {
   if (c.type === 'DISCORD') {
     const name = c.required_role_id ? roleName(c.required_role_id) : '(no role)'
     const base = `DISCORD ${name}`
+    return nextLogic ? `${base} ${nextLogic}` : base
+  }
+  if (c.type === 'WHITELIST') {
+    const list = whitelistLists.value.find((l) => l.address === c.mint_or_group)
+    const name = list?.name ?? c.mint_or_group ?? '(no list)'
+    const base = `WHITELIST ${name}`
     return nextLogic ? `${base} ${nextLogic}` : base
   }
   const mintLabel =
@@ -417,17 +446,28 @@ async function fetchRules() {
   rulesLoading.value = true
   rulesError.value = null
   try {
-    const [typesRes, rolesRes, rulesRes] = await Promise.all([
+    const [typesRes, rolesRes, rulesRes, whitelistRes] = await Promise.all([
       fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/condition-types`, { credentials: 'include' }),
       fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/roles`, { credentials: 'include' }),
       fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/discord/rules`, { credentials: 'include' }),
+      fetch(`${apiBase.value}${API_V1}/tenant/${props.slug}/whitelist/lists/public`, { credentials: 'include' }),
     ])
     if (typesRes.ok) {
       const d = (await typesRes.json()) as { types?: Array<{ id: string; label: string }> }
       conditionTypes.value = d.types ?? []
     }
     if (conditionTypes.value.length === 0) {
-      conditionTypes.value = [{ id: 'SPL', label: 'SPL' }, { id: 'NFT', label: 'NFT' }, { id: 'TRAIT', label: 'Trait' }, { id: 'DISCORD', label: 'Discord role' }]
+      conditionTypes.value = [
+        { id: 'SPL', label: 'SPL' },
+        { id: 'NFT', label: 'NFT' },
+        { id: 'TRAIT', label: 'Trait' },
+        { id: 'DISCORD', label: 'Discord role' },
+        { id: 'WHITELIST', label: 'Whitelist' },
+      ]
+    }
+    if (whitelistRes.ok) {
+      const d = (await whitelistRes.json()) as { lists?: Array<{ address: string; name: string }> }
+      whitelistLists.value = d.lists ?? []
     }
     if (rolesRes.ok) {
       const d = (await rolesRes.json()) as { roles?: DiscordRole[]; assignable_roles?: DiscordRole[] }
@@ -470,6 +510,7 @@ function startEdit(rule: Rule) {
       logic_to_next: null,
       amount: defaultType === 'NFT' || defaultType === 'TRAIT' ? '1' : undefined,
       ...(defaultType === 'DISCORD' ? { required_role_id: '' } : {}),
+      ...(defaultType === 'WHITELIST' ? {} : {}),
     }]
 }
 function cancelEdit() {
@@ -489,6 +530,9 @@ async function saveRule() {
       }
       if (c.type === 'DISCORD') {
         return { ...base, required_role_id: (c.required_role_id ?? '').trim() }
+      }
+      if (c.type === 'WHITELIST') {
+        return { ...base, mint_or_group: (c.mint_or_group ?? '').trim() }
       }
       return {
         ...base,

@@ -5,6 +5,7 @@ import { normalizeTenantIdentifier } from '../validate-slug.js'
 import { loadTenantBySlugDiagnostic } from '../config/registry.js'
 import { resolveTenant } from '../db/tenant.js'
 import { resolveMarketplaceEnriched } from '../marketplace/enrich-config.js'
+import { getRaffleSettings } from '../db/raffle.js'
 import { getWalletFromRequest } from './auth.js'
 import { apiError, ErrorCode } from '../api-errors.js'
 
@@ -43,11 +44,14 @@ export async function registerTenantContextRoutes(app: FastifyInstance) {
       reply.header('Cache-Control', `public, max-age=${CACHE_MAX_AGE_SECONDS}`)
     }
 
-    let marketplaceSettings = null
-    if (tenant.id && isModuleVisibleToMembers(getModuleState(tenant.modules?.marketplace))) {
-      marketplaceSettings = await resolveMarketplaceEnriched(tenant.id)
-    }
+    const isMarketplaceVisible = tenant.id && isModuleVisibleToMembers(getModuleState(tenant.modules?.marketplace))
+    const isRafflesVisible = tenant.id && isModuleVisibleToMembers(getModuleState(tenant.modules?.raffles))
 
-    return { tenant, marketplaceSettings: marketplaceSettings ?? undefined }
+    const [marketplaceSettings, raffleSettings] = await Promise.all([
+      isMarketplaceVisible ? resolveMarketplaceEnriched(tenant.id) : Promise.resolve(null),
+      isRafflesVisible ? getRaffleSettings(tenant.id) : Promise.resolve(null),
+    ])
+
+    return { tenant, marketplaceSettings: marketplaceSettings ?? undefined, raffleSettings: raffleSettings ?? undefined }
   })
 }

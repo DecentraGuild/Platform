@@ -1,7 +1,7 @@
 import { query } from './client.js'
 
 export type RoleRuleOperator = 'AND' | 'OR'
-export type RoleConditionType = 'SPL' | 'NFT' | 'TRAIT' | 'DISCORD'
+export type RoleConditionType = 'SPL' | 'NFT' | 'TRAIT' | 'DISCORD' | 'WHITELIST'
 
 /** Single source of truth for condition types. API and tenant use this to drive dropdowns and validation. */
 export const DISCORD_CONDITION_TYPES: Array<{ id: RoleConditionType; label: string }> = [
@@ -9,6 +9,7 @@ export const DISCORD_CONDITION_TYPES: Array<{ id: RoleConditionType; label: stri
   { id: 'NFT', label: 'NFT' },
   { id: 'TRAIT', label: 'Trait' },
   { id: 'DISCORD', label: 'Discord role' },
+  { id: 'WHITELIST', label: 'Whitelist' },
 ]
 
 export interface DiscordRoleRuleRow {
@@ -32,8 +33,9 @@ export type TRAITPayload = {
   amount?: number
 }
 export type DISCORDPayload = { required_role_id: string }
+export type WHITELISTPayload = { list_address: string }
 
-export type ConditionPayload = SPLPayload | NFTPayload | TRAITPayload | DISCORDPayload
+export type ConditionPayload = SPLPayload | NFTPayload | TRAITPayload | DISCORDPayload | WHITELISTPayload
 
 export interface DiscordRoleConditionRow {
   id: number
@@ -57,6 +59,7 @@ export interface DiscordRoleConditionRowRaw {
 function parsePayload(type: string, payload: unknown): ConditionPayload {
   if (payload == null || typeof payload !== 'object') {
     if (type === 'DISCORD') return { required_role_id: '' }
+    if (type === 'WHITELIST') return { list_address: '' }
     if (type === 'SPL') return { mint: '', threshold_raw: 1 }
     if (type === 'NFT') return { collection_or_mint: '', amount: 1 }
     if (type === 'TRAIT') return { collection_or_mint: '', trait_key: '', trait_value: '', amount: 1 }
@@ -93,6 +96,15 @@ function parsePayload(type: string, payload: unknown): ConditionPayload {
       ? (p.required_role_ids as string[])[0]!
       : ''
     return { required_role_id: fromSingle || fromLegacy }
+  }
+  if (type === 'WHITELIST') {
+    const list_address =
+      typeof p.list_address === 'string'
+        ? p.list_address
+        : typeof p.mint_or_group === 'string'
+          ? p.mint_or_group
+          : ''
+    return { list_address: list_address.trim() }
   }
   return payload as ConditionPayload
 }
@@ -217,7 +229,8 @@ export async function getConditionTypesByGuildId(discordGuildId: string): Promis
   )
   const set = new Set<RoleConditionType>()
   for (const r of rows) {
-    if (r.type === 'SPL' || r.type === 'NFT' || r.type === 'TRAIT' || r.type === 'DISCORD') set.add(r.type)
+    if (r.type === 'SPL' || r.type === 'NFT' || r.type === 'TRAIT' || r.type === 'DISCORD' || r.type === 'WHITELIST')
+      set.add(r.type)
   }
   return [...set]
 }

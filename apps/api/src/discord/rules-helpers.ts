@@ -13,6 +13,7 @@ import {
   type NFTPayload,
   type TRAITPayload,
   type DISCORDPayload,
+  type WHITELISTPayload,
 } from '../db/discord-rules.js'
 import { getMintMetadata } from '../db/marketplace-metadata.js'
 import { truncateAddress } from '@decentraguild/display'
@@ -26,7 +27,7 @@ export function parseOperator(v: unknown): RoleRuleOperator {
 }
 
 export function parseConditionType(v: unknown): RoleConditionType {
-  if (v === 'NFT' || v === 'TRAIT' || v === 'DISCORD') return v
+  if (v === 'NFT' || v === 'TRAIT' || v === 'DISCORD' || v === 'WHITELIST') return v
   return 'SPL'
 }
 
@@ -96,6 +97,9 @@ export async function conditionsForResponse(
     } else if (c.type === 'DISCORD') {
       const disc = p as DISCORDPayload
       required_role_id = disc.required_role_id ?? ''
+    } else if (c.type === 'WHITELIST') {
+      const wl = p as WHITELISTPayload
+      mint_or_group = wl.list_address ?? ''
     }
     out.push({
       id: c.id,
@@ -175,6 +179,15 @@ export async function buildPayloadFromBody(
       (payload.required_role_id as string) ?? body.required_role_id ?? ''
     return { payload: { required_role_id: typeof required_role_id === 'string' ? required_role_id : '' } }
   }
+  if (type === 'WHITELIST') {
+    const list_address =
+      (payload.list_address as string) ??
+      body.mint_or_group ??
+      (payload.mint_or_group as string) ??
+      ''
+    const trimmed = typeof list_address === 'string' ? list_address.trim() : ''
+    return { payload: { list_address: trimmed }, mintOrGroupForValidation: trimmed }
+  }
   return { payload: {} as ConditionPayload }
 }
 
@@ -190,10 +203,12 @@ export interface RoleInfoMap {
 /**
  * Build human-readable requirement lines for a single rule's conditions.
  * Inserts "OR" or "and" between items based on logic_to_next.
+ * @param whitelistNameByAddress - Optional map of whitelist list address -> display name for WHITELIST conditions.
  */
 export async function buildRoleCardRequirements(
   conditions: DiscordRoleConditionRow[],
-  roleInfoMap: RoleInfoMap
+  roleInfoMap: RoleInfoMap,
+  whitelistNameByAddress?: Map<string, string>
 ): Promise<RoleCardRequirementItem[]> {
   const out: RoleCardRequirementItem[] = []
   for (let i = 0; i < conditions.length; i++) {
@@ -231,6 +246,11 @@ export async function buildRoleCardRequirements(
       const id = disc.required_role_id ?? ''
       const name = id ? (roleInfoMap.get(id)?.name ?? truncateAddress(id)) : ''
       text = name ? `Have ${name} on Discord` : 'Have role on Discord'
+    } else if (c.type === 'WHITELIST') {
+      const wl = p as WHITELISTPayload
+      const addr = wl.list_address ?? ''
+      const name = addr ? (whitelistNameByAddress?.get(addr) ?? truncateAddress(addr)) : ''
+      text = name ? `Member of whitelist ${name}` : 'Member of whitelist'
     }
     if (text) out.push({ type: 'text', text })
   }

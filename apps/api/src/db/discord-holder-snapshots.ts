@@ -56,3 +56,24 @@ export async function getLastUpdatedByAssetIds(assetIds: string[]): Promise<Reco
   for (const r of rows) out[r.asset_id] = r.last_updated
   return out
 }
+
+export interface HolderSnapshotInfo {
+  assetId: string
+  lastUpdated: string
+  holderCount: number
+}
+
+/** Fetch asset_id, last_updated, and holder count for sync scheduling. Used to skip assets not yet due. */
+export async function getHolderSnapshotInfo(assetIds: string[]): Promise<HolderSnapshotInfo[]> {
+  if (assetIds.length === 0) return []
+  const { rows } = await query<{ asset_id: string; last_updated: string; holder_count: number }>(
+    `SELECT asset_id, last_updated::text, jsonb_array_length(holder_wallets)::int AS holder_count
+     FROM discord_holder_snapshots WHERE asset_id = ANY($1::text[])`,
+    [assetIds]
+  )
+  return rows.map((r) => ({
+    assetId: r.asset_id,
+    lastUpdated: r.last_updated,
+    holderCount: r.holder_count,
+  }))
+}

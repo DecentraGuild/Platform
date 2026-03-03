@@ -155,10 +155,23 @@ const effectiveMarketplaceWhitelist = computed(() =>
 const marketplaceListAddress = computed(() => effectiveMarketplaceWhitelist.value?.account?.trim() || null)
 const { listed: isOnMarketplaceList } = useWalletOnList(slug, marketplaceListAddress, wallet)
 
+const raffleSettings = computed(() => tenantStore.raffleSettings)
+const raffleModuleWhitelistForEffective = computed(() => {
+  const rw = raffleSettings.value?.defaultWhitelist
+  if (rw === 'use-default' || rw === undefined) return undefined
+  if (rw === null) return { programId: '', account: '' }
+  return rw
+})
+const effectiveRaffleWhitelist = computed(() =>
+  getEffectiveWhitelist(tenant.value?.defaultWhitelist ?? null, raffleModuleWhitelistForEffective.value)
+)
+const raffleListAddress = computed(() => effectiveRaffleWhitelist.value?.account?.trim() || null)
+const { listed: isOnRaffleList } = useWalletOnList(slug, raffleListAddress, wallet)
+
 const hasAnyPublicModule = computed(() => {
-  if (!tenant.value?.modules?.marketplace) return false
-  if (!isModuleVisibleToMembers(getModuleState(tenant.value.modules.marketplace))) return false
-  return effectiveMarketplaceWhitelist.value === null
+  if (tenant.value?.modules?.marketplace && isModuleVisibleToMembers(getModuleState(tenant.value.modules.marketplace)) && effectiveMarketplaceWhitelist.value === null) return true
+  if (tenant.value?.modules?.raffles && isModuleVisibleToMembers(getModuleState(tenant.value.modules.raffles)) && effectiveRaffleWhitelist.value === null) return true
+  return false
 })
 
 const showTenantGatedMessage = computed(() => {
@@ -176,6 +189,7 @@ const navModules = computed(() => {
     .filter(([id]) => {
       if (id === 'whitelist') return whitelistListed.value === true
       if (id === 'marketplace' && effectiveMarketplaceWhitelist.value && !isOnMarketplaceList.value) return false
+      if (id === 'raffles' && effectiveRaffleWhitelist.value && !isOnRaffleList.value) return false
       return true
     })
     .map(([id]) => {

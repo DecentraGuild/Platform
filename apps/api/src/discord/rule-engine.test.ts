@@ -25,6 +25,14 @@ vi.mock('../db/wallet-discord-links.js', () => ({
   getAllWalletLinks: vi.fn(),
 }))
 
+vi.mock('../solana-connection.js', () => ({
+  getSolanaConnection: vi.fn(),
+}))
+
+vi.mock('@decentraguild/web3', () => ({
+  fetchWhitelistEntries: vi.fn(),
+}))
+
 const { getRoleRulesByGuildId, getConditionsByGuildId } = await import('../db/discord-rules.js')
 const { getHolderSnapshot } = await import('../db/discord-holder-snapshots.js')
 const { getAllWalletLinks } = await import('../db/wallet-discord-links.js')
@@ -48,7 +56,7 @@ function rule(id: number, roleId: string): DiscordRoleRuleRow {
 function condition(
   id: number,
   ruleId: number,
-  type: 'SPL' | 'NFT' | 'TRAIT' | 'DISCORD',
+  type: 'SPL' | 'NFT' | 'TRAIT' | 'DISCORD' | 'WHITELIST',
   payload: DiscordRoleConditionRow['payload'],
   logicToNext: 'AND' | 'OR' | null = null
 ): DiscordRoleConditionRow {
@@ -205,6 +213,52 @@ describe('rule-engine', () => {
         conditionsMap([[1, [condition(1, 1, 'NFT', { collection_or_mint: collection, amount: 3 }, null)]]])
       )
       mockGetHolderSnapshot.mockResolvedValue([{ wallet: 'walletA', amount: '2' }])
+      mockGetAllWalletLinks.mockResolvedValue([
+        { wallet_address: 'walletA', discord_user_id: 'user1' },
+      ])
+
+      const result = await computeEligiblePerRole(GUILD_ID)
+
+      expect(result[0].eligible_discord_user_ids).not.toContain('user1')
+    })
+
+    it('WHITELIST passes when linked wallet is on list', async () => {
+      const listAddress = 'Whitelist1111111111111111111111111111111111111'
+      const { fetchWhitelistEntries } = await import('@decentraguild/web3')
+      vi.mocked(fetchWhitelistEntries).mockResolvedValue([
+        {
+          publicKey: {} as import('@solana/web3.js').PublicKey,
+          account: { parent: {} as import('@solana/web3.js').PublicKey, whitelisted: { toBase58: () => 'walletA' } as unknown as import('@solana/web3.js').PublicKey },
+        },
+      ])
+      mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role1')])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'WHITELIST', { list_address: listAddress }, null)]]])
+      )
+      mockGetAllWalletLinks.mockResolvedValue([
+        { wallet_address: 'walletA', discord_user_id: 'user1' },
+      ])
+
+      const result = await computeEligiblePerRole(GUILD_ID)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].discord_role_id).toBe('role1')
+      expect(result[0].eligible_discord_user_ids).toContain('user1')
+    })
+
+    it('WHITELIST fails when linked wallet is not on list', async () => {
+      const listAddress = 'Whitelist1111111111111111111111111111111111111'
+      const { fetchWhitelistEntries } = await import('@decentraguild/web3')
+      vi.mocked(fetchWhitelistEntries).mockResolvedValue([
+        {
+          publicKey: {} as import('@solana/web3.js').PublicKey,
+          account: { parent: {} as import('@solana/web3.js').PublicKey, whitelisted: { toBase58: () => 'walletX' } as unknown as import('@solana/web3.js').PublicKey },
+        },
+      ])
+      mockGetRoleRulesByGuildId.mockResolvedValue([rule(1, 'role1')])
+      mockGetConditionsByGuildId.mockResolvedValue(
+        conditionsMap([[1, [condition(1, 1, 'WHITELIST', { list_address: listAddress }, null)]]])
+      )
       mockGetAllWalletLinks.mockResolvedValue([
         { wallet_address: 'walletA', discord_user_id: 'user1' },
       ])

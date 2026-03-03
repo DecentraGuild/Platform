@@ -4,7 +4,7 @@
  */
 
 import type { ModuleState } from '@decentraguild/core'
-import type { BillingPeriod } from '@decentraguild/billing'
+import type { BillingPeriod, ConditionSet } from '@decentraguild/billing'
 import { getModuleCatalogEntry } from '@decentraguild/config'
 import { PublicKey } from '@solana/web3.js'
 import {
@@ -47,6 +47,7 @@ export function useAdminBilling(opts: {
     moduleId: string,
     billingPeriod: BillingPeriod,
     slugToClaim?: string,
+    conditions?: ConditionSet,
   ): Promise<boolean> {
     const s = slug.value
     if (!s) return false
@@ -54,6 +55,7 @@ export function useAdminBilling(opts: {
 
     const body: Record<string, unknown> = { moduleId, billingPeriod }
     if (moduleId === 'slug' && slugToClaim) body.slug = slugToClaim
+    if (conditions && typeof conditions === 'object') body.conditions = conditions
 
     const intentRes = await fetch(`${base}${API_V1}/tenant/${s}/billing/payment-intent`, {
       method: 'POST',

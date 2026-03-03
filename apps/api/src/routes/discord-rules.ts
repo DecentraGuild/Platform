@@ -18,6 +18,7 @@ import {
   getConfiguredMintsByGuildId,
   DISCORD_CONDITION_TYPES,
   type DISCORDPayload,
+  type WHITELISTPayload,
 } from '../db/discord-rules.js'
 import {
   getDiscordMintsByGuildId,
@@ -30,6 +31,7 @@ import {
 import { getMintMetadata, upsertMintMetadata } from '../db/marketplace-metadata.js'
 import { getHolderSnapshot, getHolderWalletsFromSnapshot } from '../db/discord-holder-snapshots.js'
 import { logDiscordAudit } from '../db/discord-audit.js'
+import { loadWhitelistByTenantId } from '../config/whitelist-registry.js'
 import { normalizeTenantIdentifier } from '../validate-slug.js'
 import { resolveTenant } from '../db/tenant.js'
 import { requireTenantAdmin, requireTenantAdminWithDiscordServer } from './tenant-settings.js'
@@ -200,6 +202,11 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
           return r ? { name: r.name } : undefined
         },
       }
+      const whitelistConfig = await loadWhitelistByTenantId(tenant.id)
+      const whitelistNameByAddress = new Map<string, string>()
+      for (const list of whitelistConfig?.lists ?? []) {
+        if (list.address?.trim()) whitelistNameByAddress.set(list.address, list.name || list.address)
+      }
       const eligibleByRoleId = new Map<string, boolean>()
       const wallet = await getWalletFromRequest(request)
       if (wallet) {
@@ -218,7 +225,7 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
         rules.map(async (rule) => {
           const role = roleById.get(rule.discord_role_id)
           const conditions = conditionsByRuleId.get(rule.id) ?? []
-          const requirements = await buildRoleCardRequirements(conditions, roleInfoMap)
+          const requirements = await buildRoleCardRequirements(conditions, roleInfoMap, whitelistNameByAddress)
           const eligible = eligibleByRoleId.has(rule.discord_role_id)
             ? eligibleByRoleId.get(rule.discord_role_id)!
             : undefined
@@ -345,6 +352,10 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
             const disc = built.payload as DISCORDPayload
             if (!disc.required_role_id?.trim()) continue
           }
+          if (type === 'WHITELIST') {
+            const wl = built.payload as WHITELISTPayload
+            if (!wl.list_address?.trim()) continue
+          }
           const logicToNext = c.logic_to_next === 'OR' ? 'OR' : c.logic_to_next === 'AND' ? 'AND' : null
           await createRoleCondition({
             role_rule_id: rule.id,
@@ -447,6 +458,10 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
           if (type === 'DISCORD') {
             const disc = built.payload as DISCORDPayload
             if (!disc.required_role_id?.trim()) continue
+          }
+          if (type === 'WHITELIST') {
+            const wl = built.payload as WHITELISTPayload
+            if (!wl.list_address?.trim()) continue
           }
           const logicToNext = c.logic_to_next === 'OR' ? 'OR' : c.logic_to_next === 'AND' ? 'AND' : null
           await createRoleCondition({

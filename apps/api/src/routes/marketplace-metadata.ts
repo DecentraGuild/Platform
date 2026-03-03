@@ -10,11 +10,22 @@ import { apiError, ErrorCode } from '../api-errors.js'
 
 const MAX_MINTS_PER_REFRESH = 50
 const MIN_MINT_LENGTH = 32
+const MAX_MINT_LENGTH = 44
+const BASE58_REGEX = /^[1-9A-HJ-NP-Za-km-z]+$/
+
+function isValidMintFormat(mint: string): boolean {
+  return (
+    typeof mint === 'string' &&
+    mint.length >= MIN_MINT_LENGTH &&
+    mint.length <= MAX_MINT_LENGTH &&
+    BASE58_REGEX.test(mint)
+  )
+}
 
 export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
   app.get<{ Params: { mint: string } }>('/api/v1/marketplace/metadata/mint/:mint', async (request, reply) => {
     const { mint } = request.params
-    if (!mint || mint.length < MIN_MINT_LENGTH) {
+    if (!isValidMintFormat(mint)) {
       return reply.status(400).send(apiError('Invalid mint address', ErrorCode.BAD_REQUEST))
     }
 
@@ -86,24 +97,24 @@ export async function registerMarketplaceMetadataRoutes(app: FastifyInstance) {
     }
 
     const connection = getSolanaConnection()
-    const results: Array<{ mint: string; ok: boolean }> = []
-
-    for (const mint of mints) {
-      try {
-        const fetched = await fetchMintMetadataFromChain(connection, mint)
-        await upsertMintMetadata(mint, {
-          name: fetched.name,
-          symbol: fetched.symbol,
-          image: fetched.image,
-          decimals: fetched.decimals,
-          sellerFeeBasisPoints: fetched.sellerFeeBasisPoints ?? undefined,
-        })
-        results.push({ mint, ok: true })
-      } catch (e) {
-        request.log.warn({ err: e, mint }, 'Failed to fetch mint metadata')
-        results.push({ mint, ok: false })
-      }
-    }
+    const results = await Promise.all(
+      mints.map(async (mint) => {
+        try {
+          const fetched = await fetchMintMetadataFromChain(connection, mint)
+          await upsertMintMetadata(mint, {
+            name: fetched.name,
+            symbol: fetched.symbol,
+            image: fetched.image,
+            decimals: fetched.decimals,
+            sellerFeeBasisPoints: fetched.sellerFeeBasisPoints ?? undefined,
+          })
+          return { mint, ok: true as const }
+        } catch (e) {
+          request.log.warn({ err: e, mint }, 'Failed to fetch mint metadata')
+          return { mint, ok: false as const }
+        }
+      })
+    )
 
     return { refreshed: results }
   })

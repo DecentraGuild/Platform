@@ -1,14 +1,19 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { TenantConfig, MarketplaceSettings } from '@decentraguild/core'
+import type { TenantConfig, MarketplaceSettings, MarketplaceWhitelistSettings } from '@decentraguild/core'
 import { useThemeStore } from '@decentraguild/ui'
 import { API_V1, normalizeApiBase } from '~/utils/apiBase'
 
 export type { MarketplaceSettings } from '@decentraguild/core'
 
+export interface RaffleSettings {
+  defaultWhitelist?: MarketplaceWhitelistSettings | 'use-default' | null
+}
+
 export const useTenantStore = defineStore('tenant', () => {
   const tenant = ref<TenantConfig | null>(null)
   const marketplaceSettings = ref<MarketplaceSettings | null>(null)
+  const raffleSettings = ref<RaffleSettings | null>(null)
   /** Route identifier from URL (subdomain or ?tenant=). Can be id (dg_xxx) or slug. API accepts both. */
   const slug = ref<string | null>(null)
   /** Canonical tenant id when tenant is loaded. Use for display of permanent identity. */
@@ -21,6 +26,7 @@ export const useTenantStore = defineStore('tenant', () => {
     error.value = null
     slug.value = slugParam
     marketplaceSettings.value = null
+    raffleSettings.value = null
 
     const config = useRuntimeConfig()
     const apiBase = normalizeApiBase(config.public.apiUrl as string) // same formula as useApiBase()
@@ -36,11 +42,13 @@ export const useTenantStore = defineStore('tenant', () => {
       applyTenantContext(slugParam, {
         tenant: data.tenant as TenantConfig,
         marketplaceSettings: (data.marketplaceSettings as MarketplaceSettings) ?? null,
+        raffleSettings: (data.raffleSettings as RaffleSettings) ?? null,
       })
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load tenant'
       tenant.value = null
       marketplaceSettings.value = null
+      raffleSettings.value = null
     } finally {
       loading.value = false
     }
@@ -56,6 +64,7 @@ export const useTenantStore = defineStore('tenant', () => {
   function clearTenant() {
     tenant.value = null
     marketplaceSettings.value = null
+    raffleSettings.value = null
     slug.value = null
     error.value = null
   }
@@ -68,15 +77,20 @@ export const useTenantStore = defineStore('tenant', () => {
     marketplaceSettings.value = settings
   }
 
+  function setRaffleSettings(settings: RaffleSettings | null) {
+    raffleSettings.value = settings
+  }
+
   function setSlug(slugParam: string | null) {
     slug.value = slugParam
   }
 
   /** Apply fetched tenant context (used by SSR and after fetch). No document access. */
-  function applyTenantContext(slugParam: string, data: { tenant: TenantConfig; marketplaceSettings?: MarketplaceSettings | null }) {
+  function applyTenantContext(slugParam: string, data: { tenant: TenantConfig; marketplaceSettings?: MarketplaceSettings | null; raffleSettings?: RaffleSettings | null }) {
     slug.value = slugParam
     tenant.value = data.tenant
     marketplaceSettings.value = data.marketplaceSettings ?? null
+    raffleSettings.value = data.raffleSettings ?? null
     error.value = null
     const themeStore = useThemeStore()
     themeStore.loadTheme(data.tenant.branding?.theme ?? {}, {
@@ -90,6 +104,7 @@ export const useTenantStore = defineStore('tenant', () => {
     tenant,
     tenantId,
     marketplaceSettings,
+    raffleSettings,
     slug,
     loading,
     error,
@@ -99,6 +114,7 @@ export const useTenantStore = defineStore('tenant', () => {
     clearTenant,
     setTenant,
     setMarketplaceSettings,
+    setRaffleSettings,
     setSlug,
   }
 })

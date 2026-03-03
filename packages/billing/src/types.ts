@@ -20,6 +20,10 @@ export interface PriceResult {
   recurringYearly: number
   appliedYearlyDiscount: number | null
   selectedTierId: string | null
+  /** Fee for adding one unit on the selected tier (tiered_with_one_time_per_unit only). */
+  oneTimePerUnitForSelectedTier?: number
+  /** Display label for the one-time unit (e.g. "Per raffle"). */
+  oneTimeUnitName?: string
 }
 
 /* ------------------------------------------------------------------ */
@@ -33,6 +37,8 @@ export interface TierDefinition {
   /** Limits/features included in this tier, keyed by condition name. */
   included: Record<string, number | boolean>
   features?: string[]
+  /** One-time fee per unit when adding on this tier (tiered_with_one_time_per_unit only). */
+  oneTimePerUnit?: number
 }
 
 export interface AddonDefinition {
@@ -48,6 +54,16 @@ export interface TieredAddonsPricing {
   addons: AddonDefinition[]
   yearlyDiscountPercent: number
   conditionKeys: string[]
+}
+
+export interface TieredWithOneTimePerUnitPricing {
+  modelType: 'tiered_with_one_time_per_unit'
+  conditionKeys: string[]
+  tiers: TierDefinition[]
+  addons: AddonDefinition[]
+  yearlyDiscountPercent: number
+  /** Display name for the one-time unit (e.g. "Per raffle"). */
+  oneTimeUnitName?: string
 }
 
 export interface OneTimePerUnitPricing {
@@ -83,6 +99,7 @@ export interface FlatOneTimePricing {
 
 export type PricingModel =
   | TieredAddonsPricing
+  | TieredWithOneTimePerUnitPricing
   | OneTimePerUnitPricing
   | AddUnitPricing
   | FlatRecurringPricing

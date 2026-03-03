@@ -5,6 +5,8 @@ import type { Wallet } from './types.js'
 export interface SendAndConfirmOptions {
   /** Run simulation before sending; throw on simulation error. Default true. */
   simulate?: boolean
+  /** Called with status updates during the transaction lifecycle. */
+  onStatus?: (status: 'signing' | 'sending' | 'confirming') => void
 }
 
 /**
@@ -19,7 +21,7 @@ export async function sendAndConfirmTransaction(
   feePayer: PublicKey,
   options: SendAndConfirmOptions = {}
 ): Promise<string> {
-  const { simulate = true } = options
+  const { simulate = true, onStatus } = options
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
   transaction.recentBlockhash = blockhash
   transaction.feePayer = feePayer
@@ -28,6 +30,7 @@ export async function sendAndConfirmTransaction(
       lastValidBlockHeight
   }
 
+  onStatus?.('signing')
   const signed = await wallet.signTransaction(transaction)
   if (simulate) {
     const sim = await connection.simulateTransaction(signed)
@@ -40,7 +43,9 @@ export async function sendAndConfirmTransaction(
     }
   }
   try {
+    onStatus?.('sending')
     const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false })
+    onStatus?.('confirming')
     await connection.confirmTransaction(sig)
     return sig
   } catch (sendErr: unknown) {

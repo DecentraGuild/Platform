@@ -90,12 +90,15 @@
       </div>
     </template>
 
-    <template v-else-if="price?.billable && isAddUnit">
+    <template v-else-if="price?.billable && (isAddUnit || isTieredWithOneTime)">
       <div class="pricing-widget__tier">
-        <span class="pricing-widget__tier-name">{{ addUnitName }}</span>
-        <span class="pricing-widget__tier-price">{{ formatUsdc(price.oneTimeTotal) }} USDC</span>
+        <span class="pricing-widget__tier-name">{{ isTieredWithOneTime ? (price.oneTimeUnitName ?? 'Per unit') : addUnitName }}</span>
+        <span class="pricing-widget__tier-price">{{ formatUsdc(isTieredWithOneTime ? (price.oneTimePerUnitForSelectedTier ?? 0) : price.oneTimeTotal) }} USDC</span>
       </div>
-      <p class="pricing-widget__add-unit-hint">One-time fee per new list.</p>
+      <p v-if="isTieredWithOneTime" class="pricing-widget__add-unit-hint">
+        {{ price.oneTimeUnitName ?? 'Per unit' }}: {{ formatUsdc(price.oneTimePerUnitForSelectedTier ?? 0) }} USDC when creating on {{ selectedTier?.name ?? 'this' }} tier.
+      </p>
+      <p v-else class="pricing-widget__add-unit-hint">One-time fee per new list.</p>
     </template>
 
     <template v-else-if="price?.billable && moduleId === 'slug'">
@@ -127,7 +130,7 @@
     <div v-if="error" class="pricing-widget__error">{{ error }}</div>
 
     <div class="pricing-widget__actions">
-      <div v-if="price?.billable && !periodLocked && !yearlyOnly && !isAddUnit" class="pricing-widget__period-toggle">
+      <div v-if="price?.billable && !periodLocked && !yearlyOnly && !isAddUnit && (!isTieredWithOneTime || upgradeRecurringAmount > 0)" class="pricing-widget__period-toggle">
         <button
           class="pricing-widget__period-btn"
           :class="{ 'pricing-widget__period-btn--active': selectedPeriod === 'monthly' }"
@@ -167,9 +170,18 @@
         {{ deployLabel }}
       </Button>
 
-      <p v-else-if="moduleState === 'active' && isAddUnit" class="pricing-widget__hint">
-        Create new lists from the form above ({{ formatUsdc(chargeAmount) }} USDC each).
+      <p v-else-if="moduleState === 'active' && (isAddUnit || isTieredWithOneTime)" class="pricing-widget__hint">
+        {{ isTieredWithOneTime ? `Create raffles from the form above (${formatUsdc(chargeAmount)} USDC each on Base tier).` : `Create new lists from the form above (${formatUsdc(chargeAmount)} USDC each).` }}
       </p>
+
+      <Button
+        v-if="moduleState === 'active' && isTieredWithOneTime"
+        variant="primary"
+        :disabled="saving"
+        @click="$emit('save', selectedPeriod)"
+      >
+        {{ saving ? 'Saving...' : upgradeRecurringAmount > 0 ? `Upgrade for ${formatUsdc(upgradeRecurringAmount)} USDC${selectedPeriod === 'yearly' ? '/yr' : '/mo'}` : 'Save' }}
+      </Button>
 
       <Button
         v-else-if="moduleState === 'deactivating'"
@@ -205,7 +217,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { ModuleState } from '@decentraguild/core'
-import type { BillingPeriod, PriceResult, ConditionSet, TieredAddonsPricing, TierDefinition } from '@decentraguild/billing'
+import type { BillingPeriod, PriceResult, ConditionSet, TieredAddonsPricing, TieredWithOneTimePerUnitPricing, TierDefinition } from '@decentraguild/billing'
 import { computePrice } from '@decentraguild/billing'
 import { getModuleCatalogEntry } from '@decentraguild/config'
 import { Button } from '@decentraguild/ui/components'
@@ -232,6 +244,7 @@ const CONDITION_LABELS: Record<string, string> = {
   baseCurrenciesCount: 'Base currencies',
   customCurrenciesCount: 'Custom currencies',
   monetizeStorefront: 'Monetize storefront',
+  raffleSlotsUsed: 'Raffle slots',
 }
 
 export interface SubscriptionInfo {
@@ -304,8 +317,10 @@ const catalogEntry = computed(() => getModuleCatalogEntry(props.moduleId))
 
 const pricingModel = computed(() => {
   const p = catalogEntry.value?.pricing
-  if (!p || p.modelType !== 'tiered_addons') return null
-  return p as TieredAddonsPricing
+  if (!p) return null
+  if (p.modelType === 'tiered_addons') return p as TieredAddonsPricing
+  if (p.modelType === 'tiered_with_one_time_per_unit') return p as TieredWithOneTimePerUnitPricing
+  return null
 })
 
 const conditions = computed((): ConditionSet | null => {
@@ -324,7 +339,8 @@ const price = computed((): PriceResult | null => {
 
 const selectedTier = computed((): TierDefinition | null => {
   if (!pricingModel.value || !price.value?.selectedTierId) return null
-  return pricingModel.value.tiers.find((t) => t.id === price.value!.selectedTierId) ?? null
+  const tiers = (pricingModel.value as TieredAddonsPricing | TieredWithOneTimePerUnitPricing).tiers
+  return tiers.find((t) => t.id === price.value!.selectedTierId) ?? null
 })
 
 const yearlyDiscountLabel = computed(() => {
@@ -341,6 +357,14 @@ const yearlyDiscountLabel = computed(() => {
 const chargeAmount = computed(() => {
   if (!price.value?.billable) return 0
   if (isAddUnit.value) return price.value.oneTimeTotal
+  if (isTieredWithOneTime.value) return price.value.oneTimePerUnitForSelectedTier ?? 0
+  return selectedPeriod.value === 'yearly'
+    ? price.value.recurringYearly
+    : price.value.recurringMonthly
+})
+
+const upgradeRecurringAmount = computed(() => {
+  if (!price.value?.billable || !isTieredWithOneTime.value) return 0
   return selectedPeriod.value === 'yearly'
     ? price.value.recurringYearly
     : price.value.recurringMonthly
@@ -378,8 +402,8 @@ type UsageRow = NumericUsageRow | BooleanUsageRow
 
 const usageRows = computed((): UsageRow[] => {
   if (!pricingModel.value || !conditions.value || !selectedTier.value) return []
-
-  return pricingModel.value.conditionKeys.map((key) => {
+  const pm = pricingModel.value as TieredAddonsPricing | TieredWithOneTimePerUnitPricing
+  return pm.conditionKeys.map((key) => {
     const condVal = conditions.value![key]
     const inclVal = selectedTier.value!.included[key]
     const label = CONDITION_LABELS[key] ?? key
@@ -410,6 +434,11 @@ const addonComponents = computed(() => {
 const isAddUnit = computed(() => {
   const p = catalogEntry.value?.pricing
   return p != null && 'modelType' in p && p.modelType === 'add_unit'
+})
+
+const isTieredWithOneTime = computed(() => {
+  const p = catalogEntry.value?.pricing
+  return p != null && 'modelType' in p && p.modelType === 'tiered_with_one_time_per_unit'
 })
 
 const addUnitName = computed(() => {

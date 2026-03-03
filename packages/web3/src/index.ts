@@ -87,3 +87,32 @@ export type {
   BuildRemoveFromWhitelistParams,
   BuildDeleteWhitelistParams,
 } from './whitelist/index.js'
+
+export {
+  deriveRafflePda,
+  deriveTicketsPda,
+  deriveTicketVaultPda,
+  derivePrizeVaultPda,
+  getRaffleProgram,
+  getRaffleProgramReadOnly,
+  buildInitializeRaffleTransaction,
+  buildPrepareRaffleTransaction,
+  buildCloseRaffleTransaction,
+  buildEnableRaffleTransaction,
+  buildDisableRaffleTransaction,
+  buildEditRaffleTransaction,
+  buildRevealWinnersTransaction,
+  buildClaimPrizeTransaction,
+  buildClaimTicketsTransaction,
+  buildBuyTicketsTransaction,
+  fetchRaffleChainData,
+  isRaffleVisibleToUsers,
+  USER_VISIBLE_STATES,
+} from './raffle/index.js'
+export type {
+  BuildInitializeRaffleParams,
+  BuildPrepareRaffleParams,
+  BuildBuyTicketsParams,
+  RaffleChainData,
+  RaffleState,
+} from './raffle/index.js'
