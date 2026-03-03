@@ -10,7 +10,8 @@ function getSlugFromHost(host: string): string | null {
   const hostLower = host.toLowerCase()
   if (!hostLower.endsWith(TENANT_DOMAIN)) return null
   const subdomain = hostLower.slice(0, -TENANT_DOMAIN.length).replace(/\.$/, '')
-  if (subdomain === 'www' || subdomain === '') return null
+  // www = platform; api = API host (tenant-context is called with ?slug=; Host is api.dguild.org)
+  if (subdomain === 'www' || subdomain === '' || subdomain === 'api') return null
   return subdomain
 }
 

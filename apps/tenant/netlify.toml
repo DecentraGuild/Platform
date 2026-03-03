@@ -1,11 +1,13 @@
 # Tenant app (*.dguild.org)
-# Netlify: set Base directory to "apps/tenant" for this site so this file is used.
-# Publish path is relative to base (apps/tenant).
+# REQUIRED: In Netlify UI, set Base directory to "apps/tenant". Otherwise Netlify
+# uses repo root, looks for .output/public at root (tenant outputs to apps/tenant/.output/public),
+# and deploy fails with "Deploy directory '.output/public' does not exist".
+# Publish path below is relative to base (apps/tenant).
 
 [build]
   base = "."
   command = "pnpm run build:tenant"
-  publish = ".output/public"
+  publish = "output/public"
 
 [build.environment]
   NODE_VERSION = "20"

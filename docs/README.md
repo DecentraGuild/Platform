@@ -26,3 +26,5 @@ Essential reference so we don't make mistakes. For repo layout and running local
 | [Config layout](config-layout.md) | Tenant config source of truth (DB vs file), module catalog, and config paths. |
 | [Architecture (agent)](../.cursor/memory/) | Flows, tenant resolution, API routes, DB tables. See `.cursor/index.md` and `memory/` quick refs. |
 | [Security notes](security-audit.md) | What was fixed (tenant takeover, path traversal), rate limits, debug off in prod |
+| [Netlify setup](netlify-setup.md) | Tenant and platform sites: base dir, build, publish, env, custom domains |
+| [Tenant publish checklist](tenant-publish-checklist.md) | Fix "Site not found" / "Tenant not found": Netlify domains, API seed, verification, diagnostics |
