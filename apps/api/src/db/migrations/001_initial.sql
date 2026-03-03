@@ -1,4 +1,4 @@
--- Initial schema (merged from migrations 001-019). Fresh DB only.
+-- Initial schema (single migration). Fresh DB only.
 -- Note: tenant_slug columns store tenant id (canonical) or slug; id is canonical, slug/custom domain are layers on top.
 
 -- Tenant config
@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS tenant_config (
   modules JSONB DEFAULT '[]',
   admins JSONB DEFAULT '[]',
   treasury TEXT,
+  discord_server_invite_link TEXT,
+  default_whitelist JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -94,7 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_discord_role_rules_guild ON discord_role_rules(di
 CREATE TABLE IF NOT EXISTS discord_role_conditions (
   id SERIAL PRIMARY KEY,
   role_rule_id INTEGER NOT NULL REFERENCES discord_role_rules(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('SPL', 'NFT', 'TRAIT', 'DISCORD')),
+  type TEXT NOT NULL CHECK (type IN ('SPL', 'NFT', 'TRAIT', 'DISCORD', 'WHITELIST')),
   payload JSONB NOT NULL DEFAULT '{}',
   logic_to_next TEXT CHECK (logic_to_next IS NULL OR logic_to_next IN ('AND', 'OR')),
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -207,7 +209,7 @@ CREATE TABLE IF NOT EXISTS billing_payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_slug TEXT NOT NULL,
   module_id TEXT NOT NULL,
-  payment_type TEXT NOT NULL CHECK (payment_type IN ('initial', 'upgrade_prorate', 'renewal', 'extend')),
+  payment_type TEXT NOT NULL CHECK (payment_type IN ('initial', 'upgrade_prorate', 'renewal', 'extend', 'registration', 'add_unit')),
   amount_usdc NUMERIC(12,6) NOT NULL,
   billing_period TEXT NOT NULL CHECK (billing_period IN ('monthly', 'yearly')),
   period_start TIMESTAMPTZ NOT NULL,
@@ -227,3 +229,26 @@ CREATE INDEX IF NOT EXISTS idx_billing_payments_tenant ON billing_payments(tenan
 CREATE INDEX IF NOT EXISTS idx_billing_payments_status ON billing_payments(status);
 CREATE INDEX IF NOT EXISTS idx_billing_payments_expires_at ON billing_payments(expires_at);
 CREATE INDEX IF NOT EXISTS idx_billing_payments_tx_signature ON billing_payments(tx_signature);
+
+-- Raffle list per tenant (platform-created raffles; used for slot count)
+CREATE TABLE IF NOT EXISTS tenant_raffles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_slug TEXT NOT NULL,
+  raffle_pubkey TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  closed_at TIMESTAMPTZ,
+  UNIQUE (tenant_slug, raffle_pubkey)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenant_raffles_tenant ON tenant_raffles(tenant_slug);
+CREATE INDEX IF NOT EXISTS idx_tenant_raffles_closed ON tenant_raffles(tenant_slug, closed_at) WHERE closed_at IS NULL;
+
+-- Raffle module settings per tenant
+CREATE TABLE IF NOT EXISTS raffle_settings (
+  tenant_slug TEXT PRIMARY KEY,
+  tenant_id TEXT,
+  settings JSONB DEFAULT '{}',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_raffle_settings_tenant ON raffle_settings(tenant_slug);

@@ -24,6 +24,8 @@ const TABLES = [
   'mint_metadata',
   'tenant_config',
   'auth_nonce',
+  'tenant_raffles',
+  'raffle_settings',
 ] as const
 
 async function main() {
@@ -37,7 +39,15 @@ async function main() {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    await client.query(`TRUNCATE TABLE ${TABLES.join(', ')} RESTART IDENTITY CASCADE`)
+    for (const table of TABLES) {
+      const r = await client.query(
+        `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`,
+        [table]
+      )
+      if (r.rows.length > 0) {
+        await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`)
+      }
+    }
     await client.query('COMMIT')
     console.log('Database cleared.')
   } catch (e) {
