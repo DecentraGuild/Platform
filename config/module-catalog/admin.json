@@ -5,7 +5,7 @@
   "icon": "mdi:cog",
   "image": null,
   "shortDescription": "Manage your dGuild settings, modules and branding.",
-  "longDescription": "The Admin module is the control center for your dGuild. Configure branding and theming, enable or disable modules, mmanage their settings.",
+  "longDescription": "The Admin module is the control center for your dGuild. Configure branding and theming, enable or disable modules, manage their settings.",
   "keyInfo": ["Configure branding, logos, and theme colors", "Enable, disable, and configure modules", "Manage marketplace and Discord settings", "Control admin access and permissions"],
   "routePath": "/admin",
   "order": 1,
