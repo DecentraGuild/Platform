@@ -33,19 +33,19 @@
         "name": "Base",
         "recurringPrice": 0,
         "included": { "raffleSlotsUsed": 1 },
-        "oneTimePerUnit": 5
+        "oneTimePerUnit": 0.0005
       },
       {
         "id": "grow",
         "name": "Grow",
-        "recurringPrice": 15,
+        "recurringPrice": 0.0015,
         "included": { "raffleSlotsUsed": 3 },
         "oneTimePerUnit": 0
       },
       {
         "id": "pro",
         "name": "Pro",
-        "recurringPrice": 25,
+        "recurringPrice": 0.0025,
         "included": { "raffleSlotsUsed": 999 },
         "oneTimePerUnit": 0
       }

@@ -31,19 +31,19 @@
       {
         "id": "tier1",
         "name": "Starter",
-        "recurringPrice": 0.015,
+        "recurringPrice": 0.0015,
         "included": { "mintsCount": 3 }
       },
       {
         "id": "tier2",
         "name": "Growth",
-        "recurringPrice": 0.019,
+        "recurringPrice": 0.0019,
         "included": { "mintsCount": 5 }
       },
       {
         "id": "tier3",
         "name": "Pro",
-        "recurringPrice": 0.029,
+        "recurringPrice": 0.0029,
         "included": { "mintsCount": 10 }
       }
     ],
