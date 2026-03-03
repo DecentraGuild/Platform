@@ -7,7 +7,7 @@
     "dev": "turbo run dev --concurrency 15",
     "lint": "pnpm exec eslint apps packages",
     "build:platform": "pnpm exec turbo run build --filter=./packages/* && pnpm --filter platform generate",
-    "build:tenant": "pnpm exec turbo run build --filter=./packages/* && pnpm --filter tenant generate"
+    "build:tenant": "pnpm exec turbo run build --filter=./packages/* --filter=./config && pnpm --filter tenant generate"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
