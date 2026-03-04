@@ -25,7 +25,7 @@ Market and Discord use tiered pricing: Starter, Growth, Pro. Each tier has limit
 
 ## Add-ons
 
-- **Custom slug** — Claim a memorable subdomain (e.g. `skull.dguild.org`). Billed yearly.
+- **Custom slug** — Claim a memorable subdomain (e.g. `your-slug.dguild.org`). Billed yearly.
 - **Extra mints** — Additional collections or role rules beyond the tier limit.
 
 Configure add-ons in Admin. The pricing widget displays all costs.
@@ -33,4 +33,3 @@ Configure add-ons in Admin. The pricing widget displays all costs.
 ## Yearly discount
 
 Many modules offer a discount for yearly billing. The discount is shown in the pricing widget.
-t is shown in the pricing widget.

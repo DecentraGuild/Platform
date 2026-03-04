@@ -15,6 +15,7 @@ import {
 } from '../billing/service.js'
 import { getPaymentById, listPayments } from '../db/billing.js'
 import { getSubscription } from '../db/billing.js'
+import { getModuleBillingState } from '../db/module-billing-state.js'
 
 export async function registerBillingPaymentRoutes(app: FastifyInstance) {
   app.post<{
@@ -224,17 +225,36 @@ export async function registerBillingPaymentRoutes(app: FastifyInstance) {
       return reply.status(503).send(apiError('Database required for billing', ErrorCode.SERVICE_UNAVAILABLE))
     }
 
-    const sub = await getSubscription(tenantBillingKey(result.tenant), request.params.moduleId)
-    if (!sub) {
-      return { subscription: null }
+    const billingKey = tenantBillingKey(result.tenant)
+    const moduleId = request.params.moduleId
+    const sub = await getSubscription(billingKey, moduleId)
+    if (sub) {
+      const selectedTierId =
+        sub.priceSnapshot && typeof sub.priceSnapshot === 'object' && 'selectedTierId' in sub.priceSnapshot
+          ? (sub.priceSnapshot as { selectedTierId?: string }).selectedTierId
+          : undefined
+      return {
+        subscription: {
+          billingPeriod: sub.billingPeriod,
+          periodEnd: sub.periodEnd.toISOString(),
+          recurringAmountUsdc: sub.recurringAmountUsdc,
+          periodStart: sub.periodStart.toISOString(),
+          ...(selectedTierId != null ? { selectedTierId } : {}),
+        },
+      }
     }
 
+    const state = await getModuleBillingState(billingKey, moduleId)
+    if (!state) {
+      return { subscription: null }
+    }
     return {
       subscription: {
-        billingPeriod: sub.billingPeriod,
-        periodEnd: sub.periodEnd.toISOString(),
-        recurringAmountUsdc: sub.recurringAmountUsdc,
-        periodStart: sub.periodStart.toISOString(),
+        billingPeriod: 'monthly',
+        periodEnd: state.periodEnd ? state.periodEnd.toISOString() : new Date(0).toISOString(),
+        recurringAmountUsdc: 0,
+        periodStart: state.periodEnd ? state.periodEnd.toISOString() : new Date(0).toISOString(),
+        ...(state.selectedTierId != null ? { selectedTierId: state.selectedTierId } : {}),
       },
     }
   })

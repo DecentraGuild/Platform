@@ -9,18 +9,26 @@ import { API_V1, normalizeApiBase } from '~/utils/apiBase'
 
 export default defineNuxtPlugin(async () => {
   const config = useRuntimeConfig()
-  const devDefaultSlug = (config.public.devTenantSlug as string) || 'skull'
+  const devDefaultSlug = (config.public.devTenantSlug as string)?.trim() || ''
 
   const event = useRequestEvent()
   const req = event?.node?.req
   if (!req?.headers?.host) return
 
-  const host = req.headers.host as string
+  const host = (req.headers.host as string).toLowerCase()
   const url = req.url ?? ''
   const parsed = new URL(url.startsWith('/') ? `http://${host}${url}` : url)
   const searchParams = parsed.searchParams
+  const singleHost = ((config.public as { tenantSingleHost?: string }).tenantSingleHost ?? 'dapp.dguild.org').toLowerCase()
+  const isSingleHost = singleHost && host === singleHost
+  const hasTenantInQuery = Boolean(searchParams.get('tenant')?.trim())
+
+  // On the single-host entry (e.g. dapp.dguild.org), tenant must come from ?tenant=.
+  // If the request has no query param, do not set slug from host (would be "dapp"); let the client use cached last tenant.
+  if (isSingleHost && !hasTenantInQuery) return
+
   let slug = getTenantSlugFromHost(host, searchParams)
-  if (!slug && (host.includes('localhost') || host.includes('127.0.0.1'))) {
+  if (!slug && (host.includes('localhost') || host.includes('127.0.0.1')) && devDefaultSlug) {
     slug = devDefaultSlug
   }
 

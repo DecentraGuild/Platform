@@ -73,7 +73,7 @@
           >
             <Icon icon="mdi:arrow-up-bold" class="raffle-slot-card__upgrade-icon" />
             <span class="raffle-slot-card__upgrade-label">Upgrade tier</span>
-            <span class="raffle-slot-card__upgrade-hint">More slots</span>
+            <span class="raffle-slot-card__upgrade-hint">More included slots</span>
           </button>
         </div>
       </div>
@@ -105,20 +105,26 @@
           <button
             type="button"
             class="raffle-upgrade-option"
-            @click="selectUpgradeTier('grow')"
+            :class="{ 'raffle-upgrade-option--current': effectiveTierId === 'grow', 'raffle-upgrade-option--disabled': effectiveTierId === 'grow' }"
+            :disabled="effectiveTierId === 'grow'"
+            @click="effectiveTierId !== 'grow' && selectUpgradeTier('grow')"
           >
             <span class="raffle-upgrade-option__name">Grow</span>
             <span class="raffle-upgrade-option__slots">3 slots</span>
             <span class="raffle-upgrade-option__price">15 USDC/mo</span>
+            <span v-if="effectiveTierId === 'grow'" class="raffle-upgrade-option__badge">Current</span>
           </button>
           <button
             type="button"
             class="raffle-upgrade-option"
-            @click="selectUpgradeTier('pro')"
+            :class="{ 'raffle-upgrade-option--current': effectiveTierId === 'pro', 'raffle-upgrade-option--disabled': effectiveTierId === 'pro' }"
+            :disabled="effectiveTierId === 'pro'"
+            @click="effectiveTierId !== 'pro' && selectUpgradeTier('pro')"
           >
             <span class="raffle-upgrade-option__name">Pro</span>
-            <span class="raffle-upgrade-option__slots">Unlimited</span>
-            <span class="raffle-upgrade-option__price">25 USDC/mo</span>
+            <span class="raffle-upgrade-option__slots">10 slots included</span>
+            <span class="raffle-upgrade-option__price">25 USDC/mo + 5 USDC/mo per extra active slot</span>
+            <span v-if="effectiveTierId === 'pro'" class="raffle-upgrade-option__badge">Current</span>
           </button>
         </div>
         <p class="raffle-upgrade-modal__note">Scroll down to select monthly/yearly and pay.</p>
@@ -302,10 +308,10 @@ import type { RaffleChainData } from '@decentraguild/web3'
 import { useSolanaConnection } from '~/composables/useSolanaConnection'
 import { API_V1 } from '~/utils/apiBase'
 
-defineProps<{
+const props = defineProps<{
   slug: string
   moduleState: ModuleState
-  subscription: { periodEnd?: string } | null
+  subscription: { periodEnd?: string; selectedTierId?: string } | null
   saving?: boolean
   deploying?: boolean
   saveError?: string | null
@@ -334,8 +340,6 @@ interface SlotCard {
 }
 
 const conditions = ref<ConditionSet | null>(null)
-const slotLimit = ref<number>(1)
-const isPro = ref(false)
 const raffles = ref<RaffleItem[]>([])
 const slotsLoading = ref(true)
 const showCreateModal = ref(false)
@@ -382,26 +386,31 @@ watch(apiConditions, (c) => {
   conditions.value = c
 }, { immediate: true })
 
-watch(price, (p) => {
-  if (p?.selectedTierId) {
-    const tid = p.selectedTierId
-    isPro.value = tid === 'pro'
-    slotLimit.value = tid === 'pro' ? 999 : tid === 'grow' ? 3 : 1
-  }
-}, { immediate: true })
+/** Current tier from subscription (paid tier) or price preview (e.g. before upgrade). */
+const effectiveTierId = computed(() => {
+  const fromSub = props.subscription?.selectedTierId
+  if (fromSub) return fromSub
+  const fromPrice = price.value?.selectedTierId
+  return fromPrice ?? 'base'
+})
+
+/** Included slot count from tier: Base 1, Grow 3, Pro 10. */
+const slotLimit = computed(() =>
+  effectiveTierId.value === 'pro' ? 10 : effectiveTierId.value === 'grow' ? 3 : 1,
+)
 
 const activeRaffles = computed(() => raffles.value.filter((r) => !r.closedAt))
 
 const chainDataByRaffle = ref<Record<string, RaffleChainData | null>>({})
 const mintMetadataByTicketMint = ref<Record<string, { symbol: string; name: string }>>({})
 
+/** Always show exactly slotLimit slots: filled or empty create buttons. */
 const slotCards = computed((): SlotCard[] => {
   const active = activeRaffles.value
   const limit = slotLimit.value
-  const count = isPro.value ? Math.max(active.length + 1, 1) : limit
   const chain = chainDataByRaffle.value
   const cards: SlotCard[] = []
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < limit; i++) {
     const r = i < active.length ? active[i] : null
     cards.push({
       key: r ? r.rafflePubkey : `empty-${i}`,
@@ -448,8 +457,8 @@ function selectUpgradeTier(tier: 'grow' | 'pro') {
 }
 
 const canCreateMore = computed(() => {
-  const used = (conditions.value?.raffleSlotsUsed as number) ?? 0
-  return used < slotLimit.value || isPro.value
+  const used = (conditions.value?.raffleSlotsUsed as number) ?? activeRaffles.value.length
+  return used < slotLimit.value
 })
 
 const raffleSettings = computed(() => tenantStore.raffleSettings)
@@ -1118,6 +1127,22 @@ defineExpose({
 .raffle-upgrade-option:hover {
   border-color: var(--theme-primary);
   background: var(--theme-bg-secondary, rgba(0, 0, 0, 0.02));
+}
+.raffle-upgrade-option--disabled,
+.raffle-upgrade-option--disabled:hover {
+  cursor: default;
+  opacity: 0.7;
+  border-color: var(--theme-border);
+  background: var(--theme-bg-card);
+}
+.raffle-upgrade-option--current .raffle-upgrade-option__price {
+  color: var(--theme-text-secondary);
+}
+.raffle-upgrade-option__badge {
+  font-size: var(--theme-font-xs);
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  text-transform: uppercase;
 }
 .raffle-upgrade-option__name {
   font-size: var(--theme-font-lg);

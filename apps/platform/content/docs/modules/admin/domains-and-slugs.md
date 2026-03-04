@@ -11,4 +11,4 @@ Each dGuild is served on a subdomain in the form `{slug}.dguild.org`. The **slug
 
 ## Custom slug
 
-The **Custom slug** add-on lets you claim a memorable subdomain (e.g. `skull.dguild.org`). Slugs must be unique. Check availability in Admin and claim. The add-on is billed yearly. See [Billing](/docs/general/billing-overview).
+The **Custom slug** add-on lets you claim a memorable subdomain (e.g. `your-slug.dguild.org`). Slugs must be unique. Check availability in Admin and claim. The add-on is billed yearly. See [Billing](/docs/general/billing-overview).

@@ -4,6 +4,8 @@
  * we fetch the new tenant. Refetches when navigating to a module route so module
  * state (e.g. after cron) is fresh. Optional 60s poll when on a module page and
  * tab visible (configurable via NUXT_PUBLIC_TENANT_CONTEXT_POLL_SECONDS, 0 = off).
+ * On the single host (e.g. dapp.dguild.org), when URL has no ?tenant= we use
+ * the last-visited tenant from localStorage so refresh keeps the same org.
  */
 import { getTenantSlugFromHost } from '@decentraguild/core'
 import { useThemeStore } from '@decentraguild/ui'
@@ -14,17 +16,49 @@ const MODULE_PATHS = Array.from(IMPLEMENTED_MODULES)
   .map((id) => MODULE_NAV[id]?.path)
   .filter((path): path is string => Boolean(path))
 
+const LAST_TENANT_STORAGE_KEY = 'dg_last_tenant'
+
+function getCachedTenantSlug(): string | null {
+  if (import.meta.server || typeof localStorage === 'undefined') return null
+  try {
+    const s = localStorage.getItem(LAST_TENANT_STORAGE_KEY)
+    return s?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+function setCachedTenantSlug(slug: string): void {
+  if (import.meta.server || typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(LAST_TENANT_STORAGE_KEY, slug)
+  } catch {
+    /* ignore */
+  }
+}
+
 function getSlugFromUrl(): string | null {
   if (import.meta.server) return null
   const config = useRuntimeConfig()
-  const devDefaultSlug = (config.public.devTenantSlug as string) || 'skull'
-  const host = window.location.hostname
+  const devDefaultSlug = (config.public.devTenantSlug as string)?.trim() || ''
+  const singleHost = ((config.public as { tenantSingleHost?: string }).tenantSingleHost ?? 'dapp.dguild.org').toLowerCase()
+  const host = window.location.hostname.toLowerCase()
   const searchParams = new URL(window.location.href).searchParams
+  const querySlug = searchParams.get('tenant')?.trim() || null
+
+  if (querySlug) return querySlug
+
+  const isSingleHost = singleHost && host === singleHost
+  if (isSingleHost) {
+    const cached = getCachedTenantSlug()
+    if (cached) return cached
+  }
+
   let slug = getTenantSlugFromHost(host, searchParams)
-  if (!slug && (host === 'localhost' || host === '127.0.0.1')) {
+  if (!slug && (host === 'localhost' || host === '127.0.0.1') && devDefaultSlug) {
     slug = devDefaultSlug
   }
-  return slug
+  return slug || null
 }
 
 function isModulePath(path: string): boolean {
@@ -37,6 +71,7 @@ export default defineNuxtPlugin(async () => {
   const tenantStore = useTenantStore()
   const themeStore = useThemeStore()
   const route = useRoute()
+  const router = useRouter()
   const config = useRuntimeConfig()
   const pollSeconds = Number((config.public as { tenantContextPollSeconds?: number }).tenantContextPollSeconds ?? 60)
 
@@ -48,10 +83,31 @@ export default defineNuxtPlugin(async () => {
     await tenantStore.fetchTenantContext(slug)
   }
 
+  function persistTenantToCache() {
+    const t = tenantStore.tenant
+    const s = tenantStore.slug
+    if (t && s) setCachedTenantSlug(t.slug ?? t.id)
+  }
+
   const initialSlug = getSlugFromUrl()
   await ensureTenantContext(initialSlug)
+  persistTenantToCache()
+
+  // When on single host with no ?tenant= we used cache; sync URL so refresh keeps the tenant.
+  const singleHost = ((config.public as { tenantSingleHost?: string }).tenantSingleHost ?? 'dapp.dguild.org').toLowerCase()
+  const host = window.location.hostname.toLowerCase()
+  const searchParams = new URL(window.location.href).searchParams
+  if (singleHost && host === singleHost && !searchParams.get('tenant') && tenantStore.slug && router) {
+    router.replace({ path: route.path, query: { ...route.query, tenant: tenantStore.slug } })
+  }
 
   themeStore.applyThemeToDocument()
+
+  watch(
+    () => tenantStore.tenant,
+    () => persistTenantToCache(),
+    { deep: true }
+  )
 
   watch(
     () => [route.fullPath, route.query?.tenant],

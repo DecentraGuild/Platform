@@ -16,4 +16,4 @@ Verify links a member’s wallet to their Discord account. Once linked, role rul
 3. Member opens the link on your dGuild’s site, connects wallet, signs
 4. The platform records the wallet–Discord link
 
-The link includes a token that ties the request to their Discord account. It opens the verify page on your dGuild’s domain (e.g. `skull.dguild.org/verify?token=...`). Without a token, they see a message to use the link from Discord.
+The link includes a token that ties the request to their Discord account. It opens the verify page on your dGuild’s domain (e.g. `your-slug.dguild.org/verify?token=...`). Without a token, they see a message to use the link from Discord.

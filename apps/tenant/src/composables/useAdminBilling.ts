@@ -16,6 +16,7 @@ import { useTenantStore } from '~/stores/tenant'
 import { useSolanaConnection } from '~/composables/useSolanaConnection'
 import { API_V1 } from '~/utils/apiBase'
 import type { Ref } from 'vue'
+import { useTransactionNotificationsStore } from '~/stores/transactionNotifications'
 
 interface PaymentIntentResponse {
   noPaymentRequired: boolean
@@ -42,6 +43,7 @@ export function useAdminBilling(opts: {
   const apiBase = useApiBase()
   const { connection } = useSolanaConnection()
   const slug = computed(() => tenantStore.slug)
+  const txNotifications = useTransactionNotificationsStore()
 
   async function handleBillingPayment(
     moduleId: string,
@@ -87,41 +89,64 @@ export function useAdminBilling(opts: {
     const wallet = getEscrowWalletFromConnector()
     if (!wallet?.publicKey) throw new Error('Wallet not connected')
 
-    const tx = buildBillingTransfer({
-      payer: wallet.publicKey,
-      amountUsdc: intent.amountUsdc,
-      recipientAta: new PublicKey(intent.recipientAta),
-      memo: intent.memo,
-      connection: connection.value,
+    const notificationId = `billing-${moduleId}-${intent.paymentId}`
+    txNotifications.add(notificationId, {
+      status: 'pending',
+      message: 'Processing payment. Confirm the transaction in your wallet.',
+      signature: null,
     })
 
-    const txSignature = await sendAndConfirmTransaction(
-      connection.value,
-      tx,
-      wallet,
-      wallet.publicKey,
-    )
+    try {
+      const tx = buildBillingTransfer({
+        payer: wallet.publicKey,
+        amountUsdc: intent.amountUsdc,
+        recipientAta: new PublicKey(intent.recipientAta),
+        memo: intent.memo,
+        connection: connection.value,
+      })
 
-    const confirmRes = await fetch(`${base}${API_V1}/tenant/${s}/billing/confirm-payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ paymentId: intent.paymentId, txSignature }),
-    })
+      const txSignature = await sendAndConfirmTransaction(
+        connection.value,
+        tx,
+        wallet,
+        wallet.publicKey,
+      )
 
-    if (!confirmRes.ok) {
-      const data = (await confirmRes.json().catch(() => ({}))) as { error?: string }
-      throw new Error(data.error ?? 'Payment confirmation failed')
+      const confirmRes = await fetch(`${base}${API_V1}/tenant/${s}/billing/confirm-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ paymentId: intent.paymentId, txSignature }),
+      })
+
+      if (!confirmRes.ok) {
+        const data = (await confirmRes.json().catch(() => ({}))) as { error?: string }
+        throw new Error(data.error ?? 'Payment confirmation failed')
+      }
+
+      const confirmData = (await confirmRes.json()) as {
+        tenant?: Record<string, unknown>
+      }
+      if (confirmData.tenant) {
+        tenantStore.setTenant(confirmData.tenant)
+      }
+
+      txNotifications.update(notificationId, {
+        status: 'success',
+        message: 'Payment confirmed.',
+        signature: txSignature,
+      })
+
+      return true
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Payment failed'
+      txNotifications.update(notificationId, {
+        status: 'error',
+        message: msg,
+        signature: null,
+      })
+      throw e
     }
-
-    const confirmData = (await confirmRes.json()) as {
-      tenant?: Record<string, unknown>
-    }
-    if (confirmData.tenant) {
-      tenantStore.setTenant(confirmData.tenant)
-    }
-
-    return true
   }
 
   async function deployModule(
@@ -282,42 +307,65 @@ export function useAdminBilling(opts: {
       const wallet = getEscrowWalletFromConnector()
       if (!wallet?.publicKey) throw new Error('Wallet not connected')
 
-      const tx = buildBillingTransfer({
-        payer: wallet.publicKey,
-        amountUsdc: intent.amountUsdc,
-        recipientAta: new PublicKey(intent.recipientAta),
-        memo: intent.memo,
-        connection: connection.value,
+      const notificationId = `billing-extend-${moduleId}-${intent.paymentId}`
+      txNotifications.add(notificationId, {
+        status: 'pending',
+        message: 'Extending subscription. Confirm the transaction in your wallet.',
+        signature: null,
       })
-      const txSignature = await sendAndConfirmTransaction(
-        connection.value,
-        tx,
-        wallet,
-        wallet.publicKey,
-      )
 
-      const confirmRes = await fetch(
-        `${base}${API_V1}/tenant/${slug.value}/billing/confirm-payment`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ paymentId: intent.paymentId, txSignature }),
-        },
-      )
-      if (!confirmRes.ok) {
-        const data = (await confirmRes.json().catch(() => ({}))) as {
-          error?: string
+      try {
+        const tx = buildBillingTransfer({
+          payer: wallet.publicKey,
+          amountUsdc: intent.amountUsdc,
+          recipientAta: new PublicKey(intent.recipientAta),
+          memo: intent.memo,
+          connection: connection.value,
+        })
+        const txSignature = await sendAndConfirmTransaction(
+          connection.value,
+          tx,
+          wallet,
+          wallet.publicKey,
+        )
+
+        const confirmRes = await fetch(
+          `${base}${API_V1}/tenant/${slug.value}/billing/confirm-payment`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ paymentId: intent.paymentId, txSignature }),
+          },
+        )
+        if (!confirmRes.ok) {
+          const data = (await confirmRes.json().catch(() => ({}))) as {
+            error?: string
+          }
+          throw new Error(data.error ?? 'Extension confirmation failed')
         }
-        throw new Error(data.error ?? 'Extension confirmation failed')
+        const confirmData = (await confirmRes.json()) as {
+          tenant?: Record<string, unknown>
+        }
+        if (confirmData.tenant) {
+          tenantStore.setTenant(confirmData.tenant)
+        }
+        await fetchSubscription(moduleId)
+
+        txNotifications.update(notificationId, {
+          status: 'success',
+          message: 'Subscription extended.',
+          signature: txSignature,
+        })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Extension failed'
+        txNotifications.update(notificationId, {
+          status: 'error',
+          message: msg,
+          signature: null,
+        })
+        throw e
       }
-      const confirmData = (await confirmRes.json()) as {
-        tenant?: Record<string, unknown>
-      }
-      if (confirmData.tenant) {
-        tenantStore.setTenant(confirmData.tenant)
-      }
-      await fetchSubscription(moduleId)
     } catch (e) {
       saveError.value = e instanceof Error ? e.message : 'Extend failed'
     } finally {

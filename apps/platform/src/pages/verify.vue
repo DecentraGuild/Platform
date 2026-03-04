@@ -33,7 +33,7 @@ onMounted(() => {
   }
 
   message.value =
-    "The verify page runs on your community's site (e.g. skull.dguild.org), not here. Use the link from your Discord server."
+    "The verify page runs on your community's site (e.g. your-slug.dguild.org), not here. Use the link from your Discord server."
 })
 </script>
 

@@ -1,6 +1,6 @@
 # Tenant app (dGuild portal)
 
-The single app that serves **all** dGuild subdomains (e.g. skull.decentraguild.com). Tenant is resolved from the subdomain (or later from on-chain config).
+The single app that serves **all** dGuild subdomains (e.g. your-slug.dguild.org). Tenant is resolved from the subdomain (or later from on-chain config).
 
 - **layouts/** – Shell layout per tenant (branding, nav).
 - **router/** – Routes; tenant context from subdomain.

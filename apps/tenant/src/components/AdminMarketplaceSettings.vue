@@ -527,21 +527,73 @@ async function addCollection() {
   newCollectionMint.value = ''
   const idx = form.collectionMints.length - 1
   try {
-    const res = await fetch(`${apiBase.value}${API_V1}/marketplace/asset-preview/collection/${encodeURIComponent(mint)}`)
-    if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { message?: string }
-      throw new Error(data.message ?? `HTTP ${res.status}`)
+    const collectionUrl = `${apiBase.value}${API_V1}/marketplace/asset-preview/collection/${encodeURIComponent(mint)}`
+    const res = await fetch(collectionUrl)
+    if (res.ok) {
+      const data = (await res.json()) as {
+        name?: string
+        image?: string
+        sellerFeeBasisPoints?: number
+        collectionSize?: number
+        uniqueTraitCount?: number
+        traitTypes?: string[]
+      }
+      form.collectionMints[idx] = {
+        mint,
+        name: data.name ?? undefined,
+        image: data.image ?? undefined,
+        sellerFeeBasisPoints: data.sellerFeeBasisPoints ?? undefined,
+        collectionSize: data.collectionSize ?? 0,
+        uniqueTraitCount: data.uniqueTraitCount ?? 0,
+        traitTypes: data.traitTypes ?? [],
+      }
+      return
     }
-    const data = (await res.json()) as { name?: string; image?: string; sellerFeeBasisPoints?: number; collectionSize?: number; uniqueTraitCount?: number; traitTypes?: string[] }
-    form.collectionMints[idx] = {
-      mint,
-      name: data.name ?? undefined,
-      image: data.image ?? undefined,
-      sellerFeeBasisPoints: data.sellerFeeBasisPoints ?? undefined,
-      collectionSize: data.collectionSize ?? 0,
-      uniqueTraitCount: data.uniqueTraitCount ?? 0,
-      traitTypes: data.traitTypes ?? [],
+
+    // If the collection endpoint does not recognise this mint, try the SPL preview.
+    const baseErrorData = (await res.json().catch(() => ({}))) as { message?: string; error?: string }
+    let message =
+      baseErrorData.message ?? baseErrorData.error ?? 'Mint is not supported as an NFT collection. Contact DecentraGuild for support.'
+
+    try {
+      const splUrl = `${apiBase.value}${API_V1}/marketplace/asset-preview/spl/${encodeURIComponent(mint)}`
+      const splRes = await fetch(splUrl)
+      if (splRes.ok) {
+        const splData = (await splRes.json()) as {
+          name?: string
+          symbol?: string
+          image?: string
+          decimals?: number
+          sellerFeeBasisPoints?: number
+        }
+        const confirmMove = window.confirm(
+          'This mint looks like an SPL token, not an NFT collection. Move it to SPL assets instead?'
+        )
+        if (confirmMove) {
+          // Remove provisional collection entry and add to SPL assets instead.
+          form.collectionMints.splice(idx, 1)
+          form.splAssetMints.push({
+            mint,
+            name: splData.name ?? undefined,
+            symbol: splData.symbol ?? undefined,
+            image: splData.image ?? undefined,
+            decimals: splData.decimals ?? undefined,
+            sellerFeeBasisPoints: splData.sellerFeeBasisPoints ?? undefined,
+          })
+          return
+        }
+        message = 'Mint is an SPL token, not an NFT collection. Contact DecentraGuild for support.'
+      } else {
+        const splErrorData = (await splRes.json().catch(() => ({}))) as { message?: string; error?: string }
+        if (splErrorData.message || splErrorData.error) {
+          message = splErrorData.message ?? splErrorData.error ?? message
+        }
+      }
+    } catch {
+      // Fall back to the base message if SPL lookup fails for any reason.
     }
+
+    throw new Error(message)
   } catch (e) {
     form.collectionMints[idx] = { ...item, _loading: false, _error: e instanceof Error ? e.message : 'Failed to load' }
   }
@@ -571,20 +623,73 @@ async function addSpl() {
   newSplMint.value = ''
   const idx = form.splAssetMints.length - 1
   try {
-    const res = await fetch(`${apiBase.value}${API_V1}/marketplace/asset-preview/spl/${encodeURIComponent(mint)}`)
-    if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { message?: string }
-      throw new Error(data.message ?? `HTTP ${res.status}`)
+    const splUrl = `${apiBase.value}${API_V1}/marketplace/asset-preview/spl/${encodeURIComponent(mint)}`
+    const res = await fetch(splUrl)
+    if (res.ok) {
+      const data = (await res.json()) as {
+        name?: string
+        symbol?: string
+        image?: string
+        decimals?: number
+        sellerFeeBasisPoints?: number
+      }
+      form.splAssetMints[idx] = {
+        mint,
+        name: data.name ?? undefined,
+        symbol: data.symbol ?? undefined,
+        image: data.image ?? undefined,
+        decimals: data.decimals ?? undefined,
+        sellerFeeBasisPoints: data.sellerFeeBasisPoints ?? undefined,
+      }
+      return
     }
-    const data = (await res.json()) as { name?: string; symbol?: string; image?: string; decimals?: number; sellerFeeBasisPoints?: number }
-    form.splAssetMints[idx] = {
-      mint,
-      name: data.name ?? undefined,
-      symbol: data.symbol ?? undefined,
-      image: data.image ?? undefined,
-      decimals: data.decimals ?? undefined,
-      sellerFeeBasisPoints: data.sellerFeeBasisPoints ?? undefined,
+
+    // If the SPL endpoint does not recognise this mint, try the collection preview.
+    const baseErrorData = (await res.json().catch(() => ({}))) as { message?: string; error?: string }
+    let message =
+      baseErrorData.message ?? baseErrorData.error ?? 'Mint is not supported as an SPL asset. Contact DecentraGuild for support.'
+
+    try {
+      const collectionUrl = `${apiBase.value}${API_V1}/marketplace/asset-preview/collection/${encodeURIComponent(mint)}`
+      const colRes = await fetch(collectionUrl)
+      if (colRes.ok) {
+        const colData = (await colRes.json()) as {
+          name?: string
+          image?: string
+          sellerFeeBasisPoints?: number
+          collectionSize?: number
+          uniqueTraitCount?: number
+          traitTypes?: string[]
+        }
+        const confirmMove = window.confirm(
+          'This mint looks like an NFT collection. Add it under NFT collections instead?'
+        )
+        if (confirmMove) {
+          // Remove provisional SPL entry and add to NFT collections instead.
+          form.splAssetMints.splice(idx, 1)
+          form.collectionMints.push({
+            mint,
+            name: colData.name ?? undefined,
+            image: colData.image ?? undefined,
+            sellerFeeBasisPoints: colData.sellerFeeBasisPoints ?? undefined,
+            collectionSize: colData.collectionSize ?? 0,
+            uniqueTraitCount: colData.uniqueTraitCount ?? 0,
+            traitTypes: colData.traitTypes ?? [],
+          })
+          return
+        }
+        message = 'Mint is an NFT collection, not a single SPL asset. Contact DecentraGuild for support.'
+      } else {
+        const colErrorData = (await colRes.json().catch(() => ({}))) as { message?: string; error?: string }
+        if (colErrorData.message || colErrorData.error) {
+          message = colErrorData.message ?? colErrorData.error ?? message
+        }
+      }
+    } catch {
+      // Fall back to the base message if collection lookup fails for any reason.
     }
+
+    throw new Error(message)
   } catch (e) {
     form.splAssetMints[idx] = { ...item, _loading: false, _error: e instanceof Error ? e.message : 'Failed to load' }
   }

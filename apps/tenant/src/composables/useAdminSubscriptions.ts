@@ -10,6 +10,8 @@ export interface SubscriptionInfo {
   billingPeriod: BillingPeriod
   periodEnd: string
   recurringAmountUsdc: number
+  /** Set for tiered modules (e.g. raffles); used for slot limit and pricing widget. */
+  selectedTierId?: string
 }
 
 export function useAdminSubscriptions() {

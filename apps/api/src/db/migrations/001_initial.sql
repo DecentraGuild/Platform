@@ -1,5 +1,5 @@
--- Initial schema (single migration). Fresh DB only.
--- Note: tenant_slug columns store tenant id (canonical) or slug; id is canonical, slug/custom domain are layers on top.
+-- Consolidated schema for fresh deploy. Single migration; no test data.
+-- tenant_slug columns store tenant id (canonical). Slug is optional display/subdomain layer.
 
 -- Tenant config
 CREATE TABLE IF NOT EXISTS tenant_config (
@@ -7,12 +7,12 @@ CREATE TABLE IF NOT EXISTS tenant_config (
   slug TEXT UNIQUE,
   name TEXT NOT NULL,
   description TEXT,
+  discord_server_invite_link TEXT,
+  default_whitelist JSONB,
   branding JSONB DEFAULT '{}',
   modules JSONB DEFAULT '[]',
   admins JSONB DEFAULT '[]',
   treasury TEXT,
-  discord_server_invite_link TEXT,
-  default_whitelist JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -230,7 +230,7 @@ CREATE INDEX IF NOT EXISTS idx_billing_payments_status ON billing_payments(statu
 CREATE INDEX IF NOT EXISTS idx_billing_payments_expires_at ON billing_payments(expires_at);
 CREATE INDEX IF NOT EXISTS idx_billing_payments_tx_signature ON billing_payments(tx_signature);
 
--- Raffle list per tenant (platform-created raffles; used for slot count)
+-- Raffle list per tenant (platform-created raffles only)
 CREATE TABLE IF NOT EXISTS tenant_raffles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_slug TEXT NOT NULL,
@@ -252,3 +252,15 @@ CREATE TABLE IF NOT EXISTS raffle_settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_raffle_settings_tenant ON raffle_settings(tenant_slug);
+
+-- Per-tenant, per-module billing state (recovery fallback)
+CREATE TABLE IF NOT EXISTS tenant_module_billing_state (
+  tenant_slug TEXT NOT NULL,
+  module_id TEXT NOT NULL,
+  selected_tier_id TEXT,
+  period_end TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (tenant_slug, module_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenant_module_billing_state_tenant ON tenant_module_billing_state(tenant_slug);

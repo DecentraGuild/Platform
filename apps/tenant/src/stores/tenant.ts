@@ -14,7 +14,7 @@ export const useTenantStore = defineStore('tenant', () => {
   const tenant = ref<TenantConfig | null>(null)
   const marketplaceSettings = ref<MarketplaceSettings | null>(null)
   const raffleSettings = ref<RaffleSettings | null>(null)
-  /** Route identifier from URL (subdomain or ?tenant=). Can be id (dg_xxx) or slug. API accepts both. */
+  /** Route identifier from URL (subdomain or ?tenant=). Can be id (e.g. 0000000) or slug. API accepts both. */
   const slug = ref<string | null>(null)
   /** Canonical tenant id when tenant is loaded. Use for display of permanent identity. */
   const tenantId = computed(() => tenant.value?.id ?? null)

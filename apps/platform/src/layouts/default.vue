@@ -61,12 +61,16 @@
     <main class="platform-main">
       <slot />
     </main>
+    <ClientOnly>
+      <TransactionToastContainer />
+    </ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { AuthWidget } from '@decentraguild/auth'
+import TransactionToastContainer from '~/components/TransactionToastContainer.vue'
 
 const route = useRoute()
 const mobileNavOpen = ref(false)

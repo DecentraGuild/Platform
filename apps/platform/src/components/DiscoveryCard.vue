@@ -44,7 +44,7 @@
         </ul>
 
         <a
-          :href="tenantUrl(tenant.slug ?? tenant.id)"
+          :href="tenantUrl(tenant.id)"
           target="_blank"
           rel="noopener"
           class="discovery-card__visit"

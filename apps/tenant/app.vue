@@ -1,7 +1,7 @@
 <template>
   <div v-if="tenantStore.loading && !tenantStore.tenant" class="loading">Loading...</div>
   <div v-else-if="!tenantStore.tenant" class="no-tenant">
-    No tenant. Use ?tenant=<slug> for local development (default: {{ devTenantSlug }}).
+    No tenant. Use <code>?tenant=&lt;id&gt;</code> for local development (e.g. 0000000 or decentraguild). Set NUXT_PUBLIC_DEV_TENANT or add ?tenant= to the URL.
   </div>
   <NuxtLayout v-else>
     <NuxtPage />
@@ -13,7 +13,7 @@ import { useTenantStore } from '~/stores/tenant'
 
 const tenantStore = useTenantStore()
 const config = useRuntimeConfig()
-const devTenantSlug = (config.public.devTenantSlug as string) || 'skull'
+const devTenantSlug = (config.public.devTenantSlug as string) ?? ''
 </script>
 
 <style scoped>

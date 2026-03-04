@@ -44,11 +44,13 @@ import {
 } from '@decentraguild/web3'
 import { PageSection, Card, TextInput, Button, ConnectWalletModal } from '@decentraguild/ui/components'
 import type { WalletConnectorId } from '@solana/connector/headless'
+import { useTransactionNotificationsStore } from '~/stores/transactionNotifications'
 
 const auth = useAuth()
 const apiBase = useApiBase()
 const { rpcUrl, hasRpc } = useRpc()
 const showConnectModal = ref(false)
+const txNotifications = useTransactionNotificationsStore()
 
 onMounted(() => {
   auth.fetchMe()
@@ -92,6 +94,7 @@ async function submit() {
 
   saving.value = true
   error.value = null
+  let notificationId: string | null = null
   try {
     const base = apiBase.value
     const branding = { logo: form.logo.trim() }
@@ -124,6 +127,12 @@ async function submit() {
     const wallet = getEscrowWalletFromConnector()
     if (!wallet?.publicKey) throw new Error('Wallet not connected')
     const connection = new Connection(rpcUrl.value)
+    notificationId = `create-org-${intent.paymentId}`
+    txNotifications.add(notificationId, {
+      status: 'pending',
+      message: 'Creating organisation. Confirm the transaction in your wallet.',
+      signature: null,
+    })
     const tx = buildBillingTransfer({
       payer: wallet.publicKey,
       amountUsdc: intent.amountUsdc,
@@ -137,6 +146,14 @@ async function submit() {
       wallet,
       wallet.publicKey,
     )
+
+    if (notificationId) {
+      txNotifications.update(notificationId, {
+        status: 'success',
+        message: 'Organisation created. Redirecting to your dGuild.',
+        signature: txSignature,
+      })
+    }
 
     const confirmRes = await fetch(`${base}/api/v1/register/confirm`, {
       method: 'POST',
@@ -163,7 +180,15 @@ async function submit() {
       window.location.href = `https://${tenantAppHost}/admin?tenant=${encodeURIComponent(identifier)}`
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to create org'
+    const msg = e instanceof Error ? e.message : 'Failed to create org'
+    error.value = msg
+    if (notificationId) {
+      txNotifications.update(notificationId, {
+        status: 'error',
+        message: msg,
+        signature: null,
+      })
+    }
   } finally {
     saving.value = false
   }

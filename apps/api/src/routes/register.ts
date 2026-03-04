@@ -19,12 +19,14 @@ import {
 } from '../db/billing.js'
 import { upsertTenant } from '../db/tenant.js'
 import { verifyBillingPayment, BILLING_WALLET, BILLING_WALLET_ATA } from '../billing/verify-payment.js'
+import { RESERVED_BASE_TENANT_ID } from '../validate-slug.js'
 
-const ALPHANUM = 'abcdefghijklmnopqrstuvwxyz0123456789'
-
+/** 7-digit numeric id (0000001–9999999). Never returns RESERVED_BASE_TENANT_ID (0000000). */
 function generateTenantId(): string {
-  const bytes = randomBytes(8)
-  return 'dg_' + Array.from(bytes).map((b) => ALPHANUM[b % ALPHANUM.length]).join('')
+  const max = 9_999_999
+  const min = 1
+  const n = min + (randomBytes(4).readUInt32BE(0) % (max - min + 1))
+  return String(n).padStart(7, '0')
 }
 
 export async function registerRegisterRoutes(app: FastifyInstance) {
@@ -76,6 +78,7 @@ export async function registerRegisterRoutes(app: FastifyInstance) {
       let tenantId = ''
       for (let attempts = 0; attempts < 20; attempts++) {
         const candidate = generateTenantId()
+        if (candidate === RESERVED_BASE_TENANT_ID) continue
         const existingDb = await getTenantById(candidate)
         const existingFile = await loadTenantByIdOrSlug(candidate)
         if (!existingDb && !existingFile) {
@@ -84,6 +87,10 @@ export async function registerRegisterRoutes(app: FastifyInstance) {
         }
       }
       if (!tenantId) tenantId = generateTenantId()
+      if (tenantId === RESERVED_BASE_TENANT_ID) {
+        const fallback = generateTenantId()
+        tenantId = fallback === RESERVED_BASE_TENANT_ID ? '0000001' : fallback
+      }
 
       await expireStalePendingPayments().catch(() => {})
 

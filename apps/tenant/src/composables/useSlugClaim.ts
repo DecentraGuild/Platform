@@ -13,6 +13,7 @@ import { useTenantStore } from '~/stores/tenant'
 import { useSolanaConnection } from '~/composables/useSolanaConnection'
 import { API_V1 } from '~/utils/apiBase'
 import type { Ref } from 'vue'
+import { useTransactionNotificationsStore } from '~/stores/transactionNotifications'
 
 export function useSlugClaim(opts: {
   slug: Ref<string | null>
@@ -35,6 +36,7 @@ export function useSlugClaim(opts: {
   const tenantStore = useTenantStore()
   const apiBase = useApiBase()
   const { connection } = useSolanaConnection()
+  const txNotifications = useTransactionNotificationsStore()
 
   const showSlugUnlock = ref(false)
   const desiredSlug = ref('')
@@ -136,45 +138,68 @@ export function useSlugClaim(opts: {
       const wallet = getEscrowWalletFromConnector()
       if (!wallet?.publicKey) throw new Error('Wallet not connected')
 
-      const tx = buildBillingTransfer({
-        payer: wallet.publicKey,
-        amountUsdc: intent.amountUsdc,
-        recipientAta: new PublicKey(intent.recipientAta),
-        memo: intent.memo,
-        connection: connection.value,
+      const notificationId = `slug-extend-${intent.paymentId}`
+      txNotifications.add(notificationId, {
+        status: 'pending',
+        message: 'Extending slug. Confirm the transaction in your wallet.',
+        signature: null,
       })
-      const txSignature = await sendAndConfirmTransaction(
-        connection.value,
-        tx,
-        wallet,
-        wallet.publicKey,
-      )
 
-      const confirmRes = await fetch(
-        `${base}${API_V1}/tenant/${slug.value}/billing/confirm-payment`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            paymentId: intent.paymentId,
-            txSignature,
-          }),
-        },
-      )
-      if (!confirmRes.ok) {
-        const data = (await confirmRes.json().catch(() => ({}))) as {
-          error?: string
+      try {
+        const tx = buildBillingTransfer({
+          payer: wallet.publicKey,
+          amountUsdc: intent.amountUsdc,
+          recipientAta: new PublicKey(intent.recipientAta),
+          memo: intent.memo,
+          connection: connection.value,
+        })
+        const txSignature = await sendAndConfirmTransaction(
+          connection.value,
+          tx,
+          wallet,
+          wallet.publicKey,
+        )
+
+        const confirmRes = await fetch(
+          `${base}${API_V1}/tenant/${slug.value}/billing/confirm-payment`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              paymentId: intent.paymentId,
+              txSignature,
+            }),
+          },
+        )
+        if (!confirmRes.ok) {
+          const data = (await confirmRes.json().catch(() => ({}))) as {
+            error?: string
+          }
+          throw new Error(data.error ?? 'Extension confirmation failed')
         }
-        throw new Error(data.error ?? 'Extension confirmation failed')
+        const confirmData = (await confirmRes.json()) as {
+          tenant?: Record<string, unknown>
+        }
+        if (confirmData.tenant) {
+          tenantStore.setTenant(confirmData.tenant)
+        }
+        await fetchSubscription('slug')
+
+        txNotifications.update(notificationId, {
+          status: 'success',
+          message: 'Slug subscription extended.',
+          signature: txSignature,
+        })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Extension failed'
+        txNotifications.update(notificationId, {
+          status: 'error',
+          message: msg,
+          signature: null,
+        })
+        throw e
       }
-      const confirmData = (await confirmRes.json()) as {
-        tenant?: Record<string, unknown>
-      }
-      if (confirmData.tenant) {
-        tenantStore.setTenant(confirmData.tenant)
-      }
-      await fetchSubscription('slug')
     } catch (e) {
       saveError.value = e instanceof Error ? e.message : 'Extend failed'
     } finally {

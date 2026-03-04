@@ -1,5 +1,6 @@
 import { query, getPool, withTransaction } from './client.js'
 import type { ConditionSet, PriceResult, BillingPeriod } from '@decentraguild/billing'
+import { upsertModuleBillingState } from './module-billing-state.js'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -369,6 +370,15 @@ export async function confirmPaymentAndActivate(params: {
        updated_at = NOW()
        WHERE slug = $3 OR id = $3`,
       [params.moduleId, params.periodEnd.toISOString(), params.tenantSlug],
+    )
+
+    const selectedTierId =
+      (params.priceSnapshot && (params.priceSnapshot as PriceResult).selectedTierId) ?? null
+    await upsertModuleBillingState(
+      params.tenantSlug,
+      params.moduleId,
+      { selectedTierId, periodEnd: params.periodEnd },
+      client,
     )
 
     return {

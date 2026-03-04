@@ -16,7 +16,7 @@ A **dGuild Custom** is your organisation on the platform. (We often shorten this
 Your dGuild has:
 
 - Branding (logo, colours, theme)
-- A dedicated subdomain (e.g. `skull.dguild.org`)
+- A dedicated subdomain (e.g. `your-slug.dguild.org`)
 - Modules you enable (Market, Discord, Admin)
 - Your treasury and fee settings
 - Admin access

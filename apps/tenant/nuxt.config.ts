@@ -75,8 +75,8 @@ export default defineNuxtConfig({
       // In dev, default to local API so CORS and auth work without setting env. No trailing slash.
       apiUrl: (process.env.NUXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === 'production' ? 'https://api.dguild.org' : 'http://localhost:3001')).replace(/\/$/, ''),
       heliusRpc: process.env.NUXT_PUBLIC_HELIUS_RPC ?? '',
-      // Default tenant slug when running on localhost without subdomain. Override via NUXT_PUBLIC_DEV_TENANT.
-      devTenantSlug: process.env.NUXT_PUBLIC_DEV_TENANT ?? 'skull',
+      // Default tenant when running on localhost without subdomain (e.g. 0000000 or decentraguild). Set NUXT_PUBLIC_DEV_TENANT or use ?tenant=.
+      devTenantSlug: process.env.NUXT_PUBLIC_DEV_TENANT ?? '',
       // When true, Deploy sets deactivatedate to now+2m so cron moves active->deactivating after 2 mins (testing).
       moduleLifecycleTestTiming: process.env.NUXT_PUBLIC_MODULE_LIFECYCLE_TEST_TIMING === 'true',
       // Poll tenant context every N seconds when on a module page and tab visible (0 = disable). Default 60.
@@ -87,6 +87,8 @@ export default defineNuxtConfig({
       explorerTokenUrl: process.env.NUXT_PUBLIC_EXPLORER_TOKEN_URL ?? 'https://solscan.io/token',
       platformDocsUrl: process.env.NUXT_PUBLIC_PLATFORM_DOCS_URL ?? 'https://dguild.org/docs',
       platformBaseUrl: process.env.NUXT_PUBLIC_PLATFORM_BASE_URL ?? (process.env.NODE_ENV === 'production' ? 'https://dguild.org' : 'http://localhost:3000'),
+      // Single host for ?tenant= entry (e.g. dapp.dguild.org). When on this host and URL has no ?tenant=, we use cached last tenant so refresh keeps the same org.
+      tenantSingleHost: process.env.NUXT_PUBLIC_TENANT_SINGLE_HOST ?? 'dapp.dguild.org',
     },
   },
 })

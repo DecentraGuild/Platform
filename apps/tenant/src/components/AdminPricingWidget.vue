@@ -93,10 +93,10 @@
     <template v-else-if="price?.billable && (isAddUnit || isTieredWithOneTime)">
       <div class="pricing-widget__tier">
         <span class="pricing-widget__tier-name">{{ isTieredWithOneTime ? (price.oneTimeUnitName ?? 'Per unit') : addUnitName }}</span>
-        <span class="pricing-widget__tier-price">{{ formatUsdc(isTieredWithOneTime ? (price.oneTimePerUnitForSelectedTier ?? 0) : price.oneTimeTotal) }} USDC</span>
+        <span class="pricing-widget__tier-price">{{ formatUsdc(isTieredWithOneTime ? oneTimePerUnitEffective : price.oneTimeTotal) }} USDC</span>
       </div>
       <p v-if="isTieredWithOneTime" class="pricing-widget__add-unit-hint">
-        {{ price.oneTimeUnitName ?? 'Per unit' }}: {{ formatUsdc(price.oneTimePerUnitForSelectedTier ?? 0) }} USDC when creating on {{ selectedTier?.name ?? 'this' }} tier.
+        {{ price.oneTimeUnitName ?? 'Per unit' }}: {{ formatUsdc(oneTimePerUnitEffective) }} USDC when creating on {{ selectedTier?.name ?? 'this' }} tier.
       </p>
       <p v-else class="pricing-widget__add-unit-hint">One-time fee per new list.</p>
     </template>
@@ -171,7 +171,7 @@
       </Button>
 
       <p v-else-if="moduleState === 'active' && (isAddUnit || isTieredWithOneTime)" class="pricing-widget__hint">
-        {{ isTieredWithOneTime ? `Create raffles from the form above (${formatUsdc(chargeAmount)} USDC each on Base tier).` : `Create new lists from the form above (${formatUsdc(chargeAmount)} USDC each).` }}
+        {{ isTieredWithOneTime ? `Create raffles from the form above (${formatUsdc(chargeAmount)} USDC each on ${selectedTier?.name ?? 'current'} tier).` : `Create new lists from the form above (${formatUsdc(chargeAmount)} USDC each).` }}
       </p>
 
       <Button
@@ -218,7 +218,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ModuleState } from '@decentraguild/core'
 import type { BillingPeriod, PriceResult, ConditionSet, TieredAddonsPricing, TieredWithOneTimePerUnitPricing, TierDefinition } from '@decentraguild/billing'
-import { computePrice } from '@decentraguild/billing'
+import { computePrice, getOneTimePerUnitForTier } from '@decentraguild/billing'
 import { getModuleCatalogEntry } from '@decentraguild/config'
 import { Button } from '@decentraguild/ui/components'
 import { Icon } from '@iconify/vue'
@@ -251,6 +251,8 @@ export interface SubscriptionInfo {
   billingPeriod: BillingPeriod
   periodEnd: string
   recurringAmountUsdc: number
+  /** Tier id for tiered modules (e.g. raffles); used to show current tier and per-unit price. */
+  selectedTierId?: string
 }
 
 const props = withDefaults(
@@ -337,10 +339,23 @@ const price = computed((): PriceResult | null => {
   return apiPrice.value
 })
 
+/** Prefer subscription tier (paid) so widget shows correct tier after upgrade. */
 const selectedTier = computed((): TierDefinition | null => {
-  if (!pricingModel.value || !price.value?.selectedTierId) return null
+  if (!pricingModel.value) return null
   const tiers = (pricingModel.value as TieredAddonsPricing | TieredWithOneTimePerUnitPricing).tiers
-  return tiers.find((t) => t.id === price.value!.selectedTierId) ?? null
+  const tierId = props.subscription?.selectedTierId ?? price.value?.selectedTierId
+  if (!tierId) return null
+  return tiers.find((t) => t.id === tierId) ?? null
+})
+
+/** Per-unit amount for tiered_with_one_time: use subscription tier when present so Grow/Pro show 0. */
+const oneTimePerUnitEffective = computed(() => {
+  if (!isTieredWithOneTime.value) return price.value?.oneTimePerUnitForSelectedTier ?? 0
+  const tierId = props.subscription?.selectedTierId ?? price.value?.selectedTierId
+  if (tierId && catalogEntry.value?.pricing) {
+    return getOneTimePerUnitForTier(catalogEntry.value.pricing, tierId)
+  }
+  return price.value?.oneTimePerUnitForSelectedTier ?? 0
 })
 
 const yearlyDiscountLabel = computed(() => {
@@ -357,7 +372,7 @@ const yearlyDiscountLabel = computed(() => {
 const chargeAmount = computed(() => {
   if (!price.value?.billable) return 0
   if (isAddUnit.value) return price.value.oneTimeTotal
-  if (isTieredWithOneTime.value) return price.value.oneTimePerUnitForSelectedTier ?? 0
+  if (isTieredWithOneTime.value) return oneTimePerUnitEffective.value
   return selectedPeriod.value === 'yearly'
     ? price.value.recurringYearly
     : price.value.recurringMonthly

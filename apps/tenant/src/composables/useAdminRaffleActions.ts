@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { getEscrowWalletFromConnector, sendAndConfirmTransaction } from '@decentraguild/web3'
 import type { Connection } from '@solana/web3.js'
 import type { Transaction } from '@solana/web3.js'
+import { useTransactionNotificationsStore } from '~/stores/transactionNotifications'
 
 const TX_STATUS_LABELS: Record<string, string> = {
   signing: 'Signing...',
@@ -24,6 +25,7 @@ export function useAdminRaffleActions(options: AdminRaffleActionsOptions) {
   const actionTxStatus = ref<string | null>(null)
   const actionError = ref<string | null>(null)
   const actionErrorRaffle = ref<string | null>(null)
+  const txNotifications = useTransactionNotificationsStore()
 
   function clearActionError(rafflePubkey?: string) {
     actionError.value = null
@@ -38,11 +40,41 @@ export function useAdminRaffleActions(options: AdminRaffleActionsOptions) {
     wallet: { publicKey: import('@solana/web3.js').PublicKey; signTransaction: (tx: Transaction) => Promise<Transaction> },
     feePayer: import('@solana/web3.js').PublicKey
   ): Promise<string> {
-    return sendAndConfirmTransaction(conn, tx, wallet, feePayer, {
-      onStatus: (s) => {
-        actionTxStatus.value = TX_STATUS_LABELS[s] ?? s
-      },
+    const notificationId = `raffle-${Date.now()}`
+    txNotifications.add(notificationId, {
+      status: 'pending',
+      message: 'Raffle transaction. Confirm the transaction in your wallet.',
+      signature: null,
     })
+
+    try {
+      const sig = await sendAndConfirmTransaction(conn, tx, wallet, feePayer, {
+        onStatus: (s) => {
+          const label = TX_STATUS_LABELS[s] ?? s
+          actionTxStatus.value = label
+          txNotifications.update(notificationId, {
+            status: 'pending',
+            message: `Raffle transaction: ${label}`,
+          })
+        },
+      })
+
+      txNotifications.update(notificationId, {
+        status: 'success',
+        message: 'Raffle transaction confirmed.',
+        signature: sig,
+      })
+
+      return sig
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Transaction failed'
+      txNotifications.update(notificationId, {
+        status: 'error',
+        message: msg,
+        signature: null,
+      })
+      throw e
+    }
   }
 
   async function runRaffleAction(

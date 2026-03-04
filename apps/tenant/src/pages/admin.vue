@@ -120,6 +120,7 @@
       :model-value="showActivationModal"
       :module-id="activationModalModuleId"
       @update:model-value="showActivationModal = $event; if (!$event) activationModalModuleId = null"
+      @activate="confirmModuleActivate"
     />
 
     <Modal
@@ -286,10 +287,11 @@ const pendingDeactivateModuleId = ref<string | null>(null)
 function onModuleToggle(id: string, on: boolean) {
   if (on) {
     const entry = getModuleCatalogEntry(id)
-    form.modulesById[id] = entry?.goActiveImmediately === true ? 'active' : 'staging'
-    if (!entry?.goActiveImmediately && entry?.pricing) {
+    if (entry?.pricing) {
       activationModalModuleId.value = id
       showActivationModal.value = true
+    } else {
+      form.modulesById[id] = entry?.goActiveImmediately === true ? 'active' : 'staging'
     }
   } else {
     const current = form.modulesById[id] ?? 'off'
@@ -383,6 +385,15 @@ function startExtend(moduleId: string) {
 async function confirmExtend(moduleId: string) {
   await extendModule(moduleId, extendPeriod.value)
   extendingModuleId.value = null
+}
+
+function confirmModuleActivate() {
+  const id = activationModalModuleId.value
+  if (!id) return
+  const entry = getModuleCatalogEntry(id)
+  form.modulesById[id] = entry?.goActiveImmediately === true ? 'active' : 'staging'
+  showActivationModal.value = false
+  activationModalModuleId.value = null
 }
 </script>
 

@@ -6,7 +6,12 @@
   >
     <div class="activation-modal">
       <p class="activation-modal__staging">
-        This module enters a <strong>staging phase</strong>. Configure it exactly how you want, review pricing, and pay when ready. Deploy only when you are satisfied.
+        <span v-if="goesActiveImmediately">
+          This module becomes <strong>active immediately</strong> after activation. Configure it in its Admin tab and review any per-use or per-list costs before launching live flows.
+        </span>
+        <span v-else>
+          This module enters a <strong>staging phase</strong>. Configure it exactly how you want, review pricing, and pay when ready. Deploy only when you are satisfied.
+        </span>
       </p>
 
       <div v-if="instructions" class="activation-modal__content">
@@ -22,8 +27,11 @@
       </div>
 
       <div class="activation-modal__actions">
-        <Button variant="primary" @click="$emit('update:modelValue', false)">
-          Got it
+        <Button variant="secondary" @click="$emit('update:modelValue', false)">
+          Cancel
+        </Button>
+        <Button variant="primary" @click="$emit('activate')">
+          Activate module
         </Button>
       </div>
     </div>
@@ -39,8 +47,9 @@ const props = defineProps<{
   moduleId: string | null
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  activate: []
 }>()
 
 const moduleEntry = computed(() =>
@@ -48,6 +57,9 @@ const moduleEntry = computed(() =>
 )
 
 const instructions = computed(() => moduleEntry.value?.activationInstructions)
+const goesActiveImmediately = computed(
+  () => moduleEntry.value?.goActiveImmediately === true
+)
 </script>
 
 <style scoped>

@@ -1,7 +1,7 @@
 /**
  * Whether to append ?tenant= to internal links and share URLs.
- * When the tenant is already encoded in the host (subdomain, e.g. skull.dguild.org),
- * we do not add ?tenant= to avoid redundant URLs like skull.dguild.org/market?tenant=skull.
+ * When the tenant is already encoded in the host (subdomain, e.g. your-slug.dguild.org),
+ * we do not add ?tenant= to avoid redundant URLs like your-slug.dguild.org/market?tenant=your-slug.
  * When the app is served from the single-tenant host (e.g. dapp.dguild.org), we must add
  * ?tenant= so the next navigation still resolves the tenant.
  */

@@ -1,10 +1,16 @@
 import type { FastifyInstance } from 'fastify'
 import { getPool } from '../db/client.js'
 import { isValidDiscordSnowflake } from '../validate-discord.js'
-import { getDiscordServerByTenantSlug, linkDiscordServer, disconnectDiscordServer } from '../db/discord-servers.js'
+import {
+  getDiscordServerByTenantSlug,
+  getDiscordServerByGuildId,
+  linkDiscordServer,
+  disconnectDiscordServer,
+} from '../db/discord-servers.js'
 import { logDiscordAudit } from '../db/discord-audit.js'
 import { requireTenantAdmin } from './tenant-settings.js'
 import { apiError, ErrorCode } from '../api-errors.js'
+import { resolveTenant } from '../db/tenant.js'
 
 // Minimal permissions: Manage Roles (268435456) + Use Application Commands (2147483648) for /verify
 const DISCORD_INVITE_PERMISSIONS = '2415919104'
@@ -63,6 +69,18 @@ export async function registerDiscordServerRoutes(app: FastifyInstance) {
       }
       const guildName = request.body?.guild_name?.trim() ?? null
       try {
+        const existing = await getDiscordServerByGuildId(discordGuildId)
+        if (existing && existing.tenant_slug !== result.tenant.id) {
+          const existingTenant = await resolveTenant(existing.tenant_slug)
+          const existingTenantSlug = existingTenant?.slug ?? existingTenant?.id ?? existing.tenant_slug
+          const existingTenantName = existingTenant?.name ?? null
+          return reply.status(409).send(
+            apiError('Discord server is already linked to another dGuild', ErrorCode.CONFLICT, {
+              existingTenantSlug,
+              existingTenantName,
+            })
+          )
+        }
         await linkDiscordServer({
           tenant_slug: result.tenant.id,
           discord_guild_id: discordGuildId,

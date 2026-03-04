@@ -7,8 +7,11 @@ import 'dotenv/config'
 import { initPool } from '../src/db/client.js'
 
 const TABLES = [
+  'tenant_module_billing_state',
   'billing_payments',
   'billing_subscriptions',
+  'tenant_raffles',
+  'raffle_settings',
   'marketplace_mint_scope',
   'marketplace_settings',
   'discord_guild_mints',

@@ -378,7 +378,13 @@ export async function createRafflePaymentIntent(
   const price = computePrice('raffles', conditions, pricing, { billingPeriod: 'monthly' })
 
   const subscription = await getSubscription(billingKey, 'raffles')
-  const selectedTierId = subscription?.priceSnapshot?.selectedTierId ?? price.selectedTierId ?? 'base'
+  const { getModuleBillingState } = await import('../db/module-billing-state.js')
+  const fallbackState = !subscription ? await getModuleBillingState(billingKey, 'raffles') : null
+  const selectedTierId =
+    subscription?.priceSnapshot?.selectedTierId ??
+    fallbackState?.selectedTierId ??
+    price.selectedTierId ??
+    'base'
   const oneTimeAmount = getOneTimePerUnitForTier(pricing, selectedTierId)
 
   if (oneTimeAmount <= 0) {

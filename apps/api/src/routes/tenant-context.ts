@@ -13,20 +13,22 @@ const CACHE_MAX_AGE_SECONDS = 60
 
 export async function registerTenantContextRoutes(app: FastifyInstance) {
   app.get('/api/v1/tenant-context', async (request, reply) => {
-    const host = request.headers.host ?? ''
-    const query = request.query as { slug?: string; debug?: string }
-    const urlSearchParams = new URL(request.url, 'http://localhost').searchParams
-    // Prefer Fastify's parsed query (works behind proxies that strip query from request.url)
-    const slugParam = query.slug?.trim() || urlSearchParams.get('slug') || null
-    const debug = query.debug === '1' || query.debug === 'true' || urlSearchParams.get('debug') === '1' || urlSearchParams.get('debug') === 'true'
+    const { searchParams } = new URL(request.url, 'http://localhost')
+    const slugParam = searchParams.get('slug')?.trim() || null
+    const host = (request.headers.host ?? '') as string
+    const debug = searchParams.get('debug') === '1' || searchParams.get('debug') === 'true'
 
-    const searchParams = urlSearchParams
-    const slugFromHost = getTenantSlugFromHost(host, searchParams) ?? null
-    // In production, prefer Host-based resolution; fall back to explicit slug when Host does not encode tenant.
+    // In production, use Host-only resolution on normal tenant subdomains to avoid
+    // enumerating tenant configs by slug. For a dedicated single-host entrypoint
+    // (e.g. dapp.dguild.org), allow the ?slug=/?tenant= identifier to select the tenant.
+    const singleHost = process.env.TENANT_SINGLE_HOST?.toLowerCase()
+    const hostLower = host.toLowerCase()
+    const isSingleHost = singleHost && hostLower === singleHost
+
     const rawSlug =
-      process.env.NODE_ENV === 'production'
-        ? (slugFromHost ?? (slugParam || null))
-        : (slugParam ?? slugFromHost)
+      process.env.NODE_ENV === 'production' && !isSingleHost
+        ? getTenantSlugFromHost(host) ?? null
+        : (slugParam ?? getTenantSlugFromHost(host, searchParams))
     const slug = rawSlug ? normalizeTenantIdentifier(rawSlug) : null
 
     if (!slug) {
@@ -35,7 +37,7 @@ export async function registerTenantContextRoutes(app: FastifyInstance) {
 
     const tenant = await resolveTenant(slug)
     if (!tenant) {
-      request.log.warn({ slug, slugParam, slugFromHost }, 'Tenant not found')
+      request.log.warn({ slug, slugParam }, 'Tenant not found')
       const body = apiError('Tenant not found', ErrorCode.TENANT_NOT_FOUND)
       if (debug && process.env.NODE_ENV !== 'production') {
         (body as { diagnostic?: TenantConfigDiagnostic }).diagnostic = await loadTenantBySlugDiagnostic(slug)

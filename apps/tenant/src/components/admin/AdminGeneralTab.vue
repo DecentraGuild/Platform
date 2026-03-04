@@ -31,7 +31,7 @@
           <TextInput
             :model-value="desiredSlug"
             label="Desired slug"
-            placeholder="e.g. skull"
+            placeholder="e.g. my-community"
             @update:model-value="$emit('update:desiredSlug', $event)"
             @blur="$emit('slug-check-blur')"
           />
