@@ -1,10 +1,11 @@
-# Tenant app (*.dguild.org)
-# Netlify UI: leave Base directory unset (repo root). Set Package directory to "apps/tenant".
-# Build runs from root; publish path is relative to base (repo root).
+# Platform app (www.dguild.org / dguild.org)
+# Netlify: set Base directory to "apps/platform" for this site so this file is used.
+# Publish path is relative to base (apps/platform).
 
 [build]
-  command = "pnpm run build:tenant"
-  publish = "apps/tenant/.output/public"
+  base = "."
+  command = "pnpm run build:platform"
+  publish = ".output/public"
 
 [build.environment]
   NODE_VERSION = "20"
