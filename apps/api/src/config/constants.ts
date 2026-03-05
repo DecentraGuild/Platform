@@ -38,7 +38,7 @@ export const DEFAULT_RATE_LIMIT_ADMIN_WRITE_MAX = 60
 export const RATE_LIMIT_STRICT_WINDOW_MS = 60 * 1000
 
 /** Worker: Discord sync interval in minutes. 0 = disabled. Override with DISCORD_SYNC_INTERVAL_MINUTES. */
-export const DEFAULT_DISCORD_SYNC_INTERVAL_MINUTES = 0
+export const DEFAULT_DISCORD_SYNC_INTERVAL_MINUTES = 15
 
 /** Worker: module lifecycle job interval in minutes. 0 = disabled. Override with MODULE_LIFECYCLE_INTERVAL_MINUTES. */
 export const DEFAULT_MODULE_LIFECYCLE_INTERVAL_MINUTES = 0

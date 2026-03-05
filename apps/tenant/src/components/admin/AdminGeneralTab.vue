@@ -25,7 +25,13 @@
         <div v-if="tenant?.id" class="admin__tenant-id">
           <span class="admin__tenant-id-label">Tenant ID</span>
           <code>{{ tenant.id }}</code>
-          <span class="admin__tenant-id-hint">Use as <code>?tenant={{ tenant.slug ?? tenant.id }}</code> on localhost</span>
+          <span class="admin__tenant-id-hint">
+            Your dGuild lives at
+            <code>{{ (tenant.slug ?? tenant.id) }}.dguild.org</code>.
+            On localhost you can still use
+            <code>?tenant={{ tenant.slug ?? tenant.id }}</code>
+            in the URL.
+          </span>
         </div>
         <div v-if="showSlugUnlock && !tenant?.slug" class="admin__slug-unlock">
           <TextInput

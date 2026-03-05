@@ -194,6 +194,18 @@ export function useMarketBrowseData(options: UseMarketBrowseDataOptions) {
     return null
   }
 
+  function getDisplayImage(asset: {
+    metadata?: { image?: string | null } | null
+    collectionMint?: string | null
+    mint?: string
+  }): string | null {
+    if (asset.metadata?.image) return asset.metadata.image
+    const mint = asset.collectionMint ?? asset.mint
+    if (!mint) return null
+    const info = getMintInfoFromSettings(mint, marketplaceSettings.value)
+    return info.image ?? null
+  }
+
   return {
     slug,
     marketplaceSettings,
@@ -222,5 +234,6 @@ export function useMarketBrowseData(options: UseMarketBrowseDataOptions) {
     assetCards,
     emptyGridMessage,
     getDisplaySymbol,
+    getDisplayImage,
   }
 }

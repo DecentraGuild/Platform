@@ -352,7 +352,6 @@ async function onMarketplaceSaved(settings: Record<string, unknown>) {
         }
       : null
   )
-  await tenantStore.refetchTenantContext()
 }
 onMounted(() => {
   const q = route.query.tab

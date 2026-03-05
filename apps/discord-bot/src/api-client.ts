@@ -124,11 +124,17 @@ export interface VerifySessionResponse {
   tenant_slug: string
 }
 
+export interface BotContextResponse {
+  tenantSlug: string
+  discordGuildId: string
+  discordModuleState?: string | null
+}
+
 export async function getBotContext(
   baseUrl: string,
   botSecret: string,
   discordGuildId: string
-): Promise<{ tenantSlug: string; discordGuildId: string }> {
+): Promise<BotContextResponse> {
   return apiRequest(baseUrl, '/api/v1/discord/bot/context', botSecret, discordGuildId, {
     method: 'GET',
     parseJson: true,

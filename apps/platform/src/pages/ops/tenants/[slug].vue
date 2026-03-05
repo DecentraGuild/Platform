@@ -171,6 +171,7 @@
 definePageMeta({ title: 'Tenant detail' })
 
 import type { TenantConfig } from '@decentraguild/core'
+import { getModuleCatalogList } from '@decentraguild/config'
 import { PageSection, Button } from '@decentraguild/ui/components'
 import { useApiBase } from '~/composables/useApiBase'
 
@@ -213,6 +214,7 @@ const router = useRouter()
 const apiBase = useApiBase()
 
 const tenant = ref<TenantConfig | null>(null)
+const catalogModules = getModuleCatalogList()
 const stats = ref<TenantStats | null>(null)
 const subscriptions = ref<Record<string, SubscriptionSummary | null>>({})
 const payments = ref<BillingPayment[]>([])
@@ -228,8 +230,10 @@ const tenantIdentifier = computed(() => {
 })
 
 const moduleRows = computed(() =>
-  Object.entries(tenant.value?.modules ?? {}).map(([id, entry]) => {
-    const state = ((entry as { state?: string }).state ?? 'off') as string
+  catalogModules.map((entry) => {
+    const id = entry.id
+    const tenantEntry = (tenant.value?.modules ?? {})[id] as { state?: string } | undefined
+    const state = ((tenantEntry?.state ?? 'off') as string) || 'off'
     const sub = subscriptions.value[id] ?? null
     return {
       id,

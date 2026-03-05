@@ -34,7 +34,21 @@
     <template v-else>
       <div class="discord-server-card__connect">
         <p class="discord-server-card__step">
-          1. Enable Developer Mode in Discord (User Settings → App Settings → Advanced), then right‑click your server name and choose "Copy Server ID".
+          1. Invite the DecentraGuild bot to your Discord server.
+        </p>
+        <p v-if="inviteUrl" class="discord-server-card__invite">
+          <a :href="inviteUrl" target="_blank" rel="noopener">
+            Invite bot to server
+          </a>
+        </p>
+        <p v-if="inviteUrl" class="discord-server-card__permissions-hint">
+          This link requests only two permissions: Manage Roles (to assign/remove roles) and Use Application Commands (for /verify). After inviting the bot, move it above the roles you want it to assign and create any new roles you plan to use.
+        </p>
+        <p v-else class="discord-server-card__hint">
+          Invite URL not configured. Set DISCORD_CLIENT_ID on the API.
+        </p>
+        <p class="discord-server-card__step">
+          2. Enable Developer Mode in Discord (User Settings → App Settings → Advanced), then right‑click your server name and choose "Copy Server ID".
         </p>
         <div class="discord-server-card__link-row">
           <TextInput
@@ -52,19 +66,8 @@
             Link server
           </Button>
         </div>
-        <p class="discord-server-card__step">
-          2. Invite the bot to your Discord server (the bot will sync roles when it joins):
-        </p>
-        <p v-if="inviteUrl" class="discord-server-card__invite">
-          <a :href="inviteUrl" target="_blank" rel="noopener">
-            Invite bot to server
-          </a>
-        </p>
-        <p v-if="inviteUrl" class="discord-server-card__permissions-hint">
-          This link requests only two permissions: Manage Roles (to assign/remove roles) and Use Application Commands (for /verify). If you already added the bot with more permissions, remove it from the server and use this link to re-add it with minimal access.
-        </p>
-        <p v-else class="discord-server-card__hint">
-          Invite URL not configured. Set DISCORD_CLIENT_ID on the API.
+        <p class="discord-server-card__permissions-hint">
+          Holder snapshots and role checks run on a schedule (around every 15 minutes for typical collections). After changing roles or bot position, allow up to 15 minutes for updates to take effect.
         </p>
       </div>
     </template>
