@@ -14,6 +14,9 @@
             class="modules__card"
             :class="{ 'modules__card--expanded': expandedModuleId === entry.id }"
           >
+            <span class="modules__card-bg-icon" aria-hidden="true">
+              <Icon :icon="entry.icon" height="none" class="modules__card-bg-icon-svg" />
+            </span>
             <button
               type="button"
               class="modules__card-trigger"
@@ -23,15 +26,11 @@
               @click="toggleModule(entry.id)"
             >
               <span class="modules__card-header">
-                <span class="modules__card-icon-wrap" aria-hidden="true">
-                  <span class="modules__card-icon-bg">
-                    <Icon :icon="entry.icon" class="modules__card-icon modules__card-icon--background" />
-                  </span>
-                  <Icon :icon="entry.icon" class="modules__card-icon modules__card-icon--foreground" />
-                  <span v-if="entry.status === 'coming_soon'" class="modules__card-badge">Coming soon</span>
-                </span>
                 <span class="modules__card-heading">
-                  <span class="modules__card-name">{{ entry.name }}</span>
+                  <span class="modules__card-name-row">
+                    <span class="modules__card-name">{{ entry.name }}</span>
+                    <span v-if="entry.status === 'coming_soon'" class="modules__card-badge">Coming soon</span>
+                  </span>
                   <span v-if="getFromPrice(entry)" class="modules__card-pill">
                     From {{ getFromPrice(entry) }}
                   </span>
@@ -195,6 +194,7 @@ const displayModules = computed(() =>
 }
 
 .modules__card {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 55%),
@@ -204,6 +204,32 @@ const displayModules = computed(() =>
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.modules__card-bg-icon {
+  position: absolute;
+  right: 10;
+  bottom: -2;
+  width: 150%;
+  height: 150%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.modules__card-bg-icon-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: var(--theme-primary);
+  opacity: 0.12;
+}
+
+.modules__card-bg-icon-svg :deep(svg) {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .modules__card--expanded {
@@ -216,6 +242,8 @@ const displayModules = computed(() =>
 }
 
 .modules__card-trigger {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -252,22 +280,14 @@ const displayModules = computed(() =>
   min-width: 0;
 }
 
-.modules__card-icon-wrap {
-  position: relative;
-  display: inline-flex;
+.modules__card-name-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  flex-shrink: 0;
-  overflow: hidden;
+  gap: var(--theme-space-xs);
+  flex-wrap: wrap;
 }
 
 .modules__card-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
   font-size: 0.6rem;
   line-height: 1.2;
   color: var(--theme-text-muted);
@@ -276,28 +296,6 @@ const displayModules = computed(() =>
   padding: 2px 4px;
   border-radius: var(--theme-radius-sm);
   white-space: nowrap;
-}
-
-.modules__card-icon-bg {
-  position: absolute;
-  inset: -12px;
-  opacity: 0.25;
-  filter: blur(4px);
-}
-
-.modules__card-icon {
-  position: relative;
-  z-index: 1;
-}
-
-.modules__card-icon--background {
-  font-size: 2.75rem;
-  color: var(--theme-primary);
-}
-
-.modules__card-icon--foreground {
-  font-size: 1.5rem;
-  color: var(--theme-primary);
 }
 
 .modules__card-name {
@@ -344,6 +342,8 @@ const displayModules = computed(() =>
 }
 
 .modules__card-detail {
+  position: relative;
+  z-index: 1;
   padding: 0 var(--theme-space-md) var(--theme-space-md);
   border-top: 1px solid var(--theme-border);
 }

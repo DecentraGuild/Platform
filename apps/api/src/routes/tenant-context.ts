@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { getTenantSlugFromHost, isModuleVisibleToMembers, getModuleState, getModuleWhitelistFromTenant } from '@decentraguild/core'
+import { isModuleVisibleToMembers, getModuleState, getModuleWhitelistFromTenant } from '@decentraguild/core'
 import type { TenantConfigDiagnostic } from '../config/registry.js'
 import { normalizeTenantIdentifier } from '../validate-slug.js'
 import { loadTenantBySlugDiagnostic } from '../config/registry.js'
@@ -11,24 +11,19 @@ import { apiError, ErrorCode } from '../api-errors.js'
 
 const CACHE_MAX_AGE_SECONDS = 60
 
+/**
+ * Tenant-context is always called with the tenant in the request: the API has a single host
+ * (api.dguild.org), so Host-based resolution does not apply. The tenant app (dapp.dguild.org or
+ * tenant.dguild.org) resolves tenant from its own URL and passes ?slug= when calling this endpoint.
+ */
 export async function registerTenantContextRoutes(app: FastifyInstance) {
   app.get('/api/v1/tenant-context', async (request, reply) => {
     const { searchParams } = new URL(request.url, 'http://localhost')
     const slugParam = searchParams.get('slug')?.trim() || null
-    const host = (request.headers.host ?? '') as string
+    const headerSlug = (request.headers['x-tenant'] as string)?.trim() || null
     const debug = searchParams.get('debug') === '1' || searchParams.get('debug') === 'true'
 
-    // In production, use Host-only resolution on normal tenant subdomains to avoid
-    // enumerating tenant configs by slug. For a dedicated single-host entrypoint
-    // (e.g. dapp.dguild.org), allow the ?slug=/?tenant= identifier to select the tenant.
-    const singleHost = process.env.TENANT_SINGLE_HOST?.toLowerCase()
-    const hostLower = host.toLowerCase()
-    const isSingleHost = singleHost && hostLower === singleHost
-
-    const rawSlug =
-      process.env.NODE_ENV === 'production' && !isSingleHost
-        ? getTenantSlugFromHost(host) ?? null
-        : (slugParam ?? getTenantSlugFromHost(host, searchParams))
+    const rawSlug = slugParam ?? headerSlug
     const slug = rawSlug ? normalizeTenantIdentifier(rawSlug) : null
 
     if (!slug) {
