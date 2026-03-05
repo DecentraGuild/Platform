@@ -2,9 +2,9 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "npm install -g pnpm && pnpm install && pnpm exec turbo run build --filter=api --filter=discord-bot"
+    "buildCommand": "pnpm install && pnpm exec turbo run build --filter=api"
   },
   "deploy": {
-    "startCommand": "sh -lc \"case \\\"$SERVICE_ROLE\\\" in worker) pnpm --filter api worker ;; bot) pnpm --filter discord-bot start ;; *) pnpm --filter api start ;; esac\""
+    "startCommand": "sh -lc \"case \\\"$SERVICE_ROLE\\\" in worker) pnpm --filter api worker ;; *) pnpm --filter api start ;; esac\""
   }
 }

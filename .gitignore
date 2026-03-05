@@ -40,3 +40,6 @@ coverage/
 
 # Reference only; do not commit (implement in apps/packages)
 _integrate/
+
+# Local copy of standalone Discord bot (source for external repo)
+discordbot/
