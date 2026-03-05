@@ -1,5 +1,5 @@
 /**
- * Load apps/api/.env so the worker finds DATABASE_URL etc. when run from repo root (pnpm --filter api worker:dev).
+ * Load apps/api/.env so the worker finds DATABASE_URL etc when run from repo root (pnpm --filter api worker:dev).
  */
 
 import path from 'node:path'

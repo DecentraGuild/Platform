@@ -29,7 +29,7 @@ pnpm dev    # from repo root: runs with api + tenant
 pnpm --filter discord-bot dev
 ```
 
-The bot waits 5 seconds after connecting so the API can be ready when running with `pnpm dev`.
+The bot waits 5 seconds after connecting so the API can be  ready when running with `pnpm dev`.
 
 ## Env (see .env.example)
 
