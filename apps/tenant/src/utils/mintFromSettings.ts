@@ -98,7 +98,7 @@ export function getMarketplaceAssetFromSettings(
       metadata: {
         name: curr.name ?? null,
         symbol: curr.symbol ?? null,
-        image: null,
+        image: curr.image ?? null,
         decimals: curr.decimals ?? null,
       },
     }

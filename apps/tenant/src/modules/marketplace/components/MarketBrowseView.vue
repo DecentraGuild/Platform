@@ -76,6 +76,7 @@
         :asset-cards="assetCards"
         v-model:grid-scale-rem="gridScaleRem"
         :get-display-symbol="getDisplaySymbol"
+        :get-display-image="getDisplayImage"
         @select="onAssetSelect"
       />
     </div>
@@ -139,6 +140,7 @@ const {
   assetCards,
   emptyGridMessage,
   getDisplaySymbol,
+  getDisplayImage,
 } = useMarketBrowseData({
   selectedNode: selectedNodeRef,
   descendantAssetNodes: descendantAssetNodesRef,

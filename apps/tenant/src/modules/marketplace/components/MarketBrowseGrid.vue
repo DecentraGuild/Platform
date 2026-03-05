@@ -24,7 +24,7 @@
         :asset-type="asset.assetType"
         :name="asset.metadata?.name ?? null"
         :symbol="getDisplaySymbol(asset)"
-        :image="asset.metadata?.image ?? null"
+        :image="getDisplayImage(asset)"
         :offer-count="asset.offerCount"
         :request-count="asset.requestCount"
         :collection-mint="asset.collectionMint"
@@ -46,6 +46,7 @@ const props = withDefaults(
     assetCards: AssetWithCounts[]
     gridScaleRem: number
     getDisplaySymbol: (asset: AssetWithCounts) => string | null
+    getDisplayImage: (asset: AssetWithCounts) => string | null
   }>(),
   {}
 )

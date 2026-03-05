@@ -6,6 +6,7 @@ import { computeEligiblePerRole } from '../discord/rule-engine.js'
 import { scheduleRemovalsBatch, getAndClaimDueRemovals } from '../db/discord-removal-queue.js'
 import { logDiscordAudit } from '../db/discord-audit.js'
 import { apiError, ErrorCode } from '../api-errors.js'
+import { resolveTenant } from '../db/tenant.js'
 
 /**
  * Routes called by the Discord bot with server-to-server auth.
@@ -18,7 +19,19 @@ export async function registerDiscordBotRoutes(app: FastifyInstance) {
     { preHandler: [requireDiscordBotAuth] },
     async (request, _reply) => {
       const ctx = request.discordContext!
-      return { tenantSlug: ctx.tenantSlug, discordGuildId: ctx.discordGuildId }
+      let discordModuleState: string | null = null
+      try {
+        const tenant = await resolveTenant(ctx.tenantSlug)
+        const state = tenant?.modules?.discord?.state
+        discordModuleState = typeof state === 'string' ? state : null
+      } catch {
+        discordModuleState = null
+      }
+      return {
+        tenantSlug: ctx.tenantSlug,
+        discordGuildId: ctx.discordGuildId,
+        discordModuleState,
+      }
     }
   )
 

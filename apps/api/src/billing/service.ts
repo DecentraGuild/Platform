@@ -242,7 +242,7 @@ export async function confirmPayment(params: ConfirmPaymentParams): Promise<Conf
   let subscription: BillingSubscription | null = null
   let tenantRes = await resolveTenant(tenant.id)
 
-  if (payment.moduleId === 'slug') {
+  if (payment.moduleId === 'slug' && payment.paymentType !== 'extend') {
     const slugToClaim = (conditions as Record<string, unknown>).slugToClaim
     if (typeof slugToClaim !== 'string' || !slugToClaim) {
       await failPayment(paymentId)

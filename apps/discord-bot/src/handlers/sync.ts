@@ -71,7 +71,8 @@ export async function runRoleSyncForGuild(guild: Guild): Promise<void> {
   const { removals } = await getPendingRemovals(API_BASE_URL, DISCORD_BOT_API_SECRET!, guild.id)
   for (const { discord_user_id, discord_role_id } of removals) {
     try {
-      const member = memberMap.get(discord_user_id) ?? (await guild.members.fetch(discord_user_id).catch(() => null))
+      const member =
+        memberMap.get(discord_user_id) ?? (await guild.members.fetch(discord_user_id).catch(() => null))
       if (member) await member.roles.remove(discord_role_id)
     } catch {
       // Skip
@@ -82,7 +83,7 @@ export async function runRoleSyncForGuild(guild: Guild): Promise<void> {
 export async function syncLinkedGuild(guild: Guild): Promise<void> {
   if (!hasBotSecret()) return
   try {
-    await getBotContext(API_BASE_URL, DISCORD_BOT_API_SECRET!, guild.id)
+    const ctx = await getBotContext(API_BASE_URL, DISCORD_BOT_API_SECRET!, guild.id)
     const roles = guild.roles.cache
       .filter((r) => !r.managed && r.id !== guild.id)
       .map((r) => ({
@@ -95,8 +96,17 @@ export async function syncLinkedGuild(guild: Guild): Promise<void> {
       }))
     const me = guild.members.me
     const botRolePosition = me?.roles?.cache?.reduce((max, r) => Math.max(max, r.position), -1) ?? -1
-    await syncGuildRoles(API_BASE_URL, DISCORD_BOT_API_SECRET!, guild.id, roles, botRolePosition >= 0 ? botRolePosition : undefined)
-    await runRoleSyncForGuild(guild)
+    await syncGuildRoles(
+      API_BASE_URL,
+      DISCORD_BOT_API_SECRET!,
+      guild.id,
+      roles,
+      botRolePosition >= 0 ? botRolePosition : undefined,
+    )
+
+    if (ctx.discordModuleState === 'active') {
+      await runRoleSyncForGuild(guild)
+    }
   } catch (err) {
     if (err instanceof ApiError && (err.code === GUILD_NOT_LINKED_CODE || err.status === 404)) return
     throw err

@@ -3,8 +3,5 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "pnpm install && pnpm exec turbo run build --filter=api"
-  },
-  "deploy": {
-    "startCommand": "pnpm --filter api start"
   }
 }

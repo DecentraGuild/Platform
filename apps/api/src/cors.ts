@@ -8,7 +8,28 @@ import { DEFAULT_CORS_ORIGIN } from './config/constants.js'
 
 function getTenantDomain(): string {
   const env = process.env.CORS_TENANT_DOMAIN?.trim()
-  if (env) return env.startsWith('.') ? env : `.${env}`
+  if (env) {
+    // Be forgiving: operators sometimes paste wildcard origins or full URLs here.
+    // Accept: "dguild.org", ".dguild.org", "*.dguild.org", "https://*.dguild.org", "https://our.dguild.org".
+    const candidates = env
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
+    for (const raw of candidates) {
+      let host = raw
+      try {
+        if (raw.includes('://')) host = new URL(raw).hostname
+      } catch {
+        // keep raw as-is
+      }
+
+      host = host.toLowerCase()
+      if (host.startsWith('*.')) host = host.slice(1) // "*.dguild.org" -> ".dguild.org"
+      if (host.startsWith('.')) return host
+      if (host) return `.${host}`
+    }
+  }
   return TENANT_DOMAIN
 }
 

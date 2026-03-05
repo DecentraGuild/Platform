@@ -55,14 +55,25 @@ export function useAdminForm(subscriptions: Record<string, { periodEnd?: string 
   const saving = ref(false)
   const saveError = ref<string | null>(null)
 
-  watch(
-    tenant,
-    (t) => {
+  const dirty = ref(false)
+  const lastTenantId = ref<string | null>(null)
+  let suppressDirty = 0
+
+  function setFormFromTenant(t: TenantConfig | null) {
+    suppressDirty++
+    try {
       if (!t) {
+        form.name = ''
+        form.description = ''
+        form.discordServerInviteLink = ''
+        form.defaultWhitelist = null
         form.modulesById = Object.fromEntries(moduleIds.value.map((id) => [id, 'off']))
         form.branding = buildBrandingForm(null)
+        dirty.value = false
+        lastTenantId.value = null
         return
       }
+
       form.name = t.name ?? ''
       form.description = t.description ?? ''
       form.discordServerInviteLink = t.discordServerInviteLink ?? ''
@@ -72,6 +83,35 @@ export function useAdminForm(subscriptions: Record<string, { periodEnd?: string 
       form.modulesById = Object.fromEntries(
         moduleIds.value.map((id) => [id, (mods[id]?.state ?? 'off') as ModuleState]),
       )
+      dirty.value = false
+      lastTenantId.value = t.id ?? null
+    } finally {
+      suppressDirty--
+    }
+  }
+
+  watch(
+    form,
+    () => {
+      if (suppressDirty > 0) return
+      dirty.value = true
+    },
+    { deep: true },
+  )
+
+  watch(
+    tenant,
+    (t) => {
+      if (!t) {
+        setFormFromTenant(null)
+        return
+      }
+
+      // Tenant context can refetch in the background (poll / route change). Don’t wipe in-progress edits.
+      const tenantChanged = Boolean(lastTenantId.value && t.id && t.id !== lastTenantId.value)
+      if (tenantChanged || !dirty.value) {
+        setFormFromTenant(t)
+      }
     },
     { immediate: true },
   )
