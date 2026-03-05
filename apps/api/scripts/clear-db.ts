@@ -1,6 +1,6 @@
 /**
  * Truncates all tenant and application data. Use for MVP reset.
- * Requires DATABASE_URL. Run: pnpm run db:clear (from apps/api)
+ * Requires DATABASE_URL. Run: pnpm run db:clear (from apps/api )
  */
 
 import 'dotenv/config'
