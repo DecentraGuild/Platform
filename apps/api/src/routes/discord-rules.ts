@@ -24,6 +24,7 @@ import {
   getDiscordMintsByGuildId,
   createDiscordMint,
   getDiscordMintById,
+  updateDiscordMintTraitIndex,
   isAssetUsedInRules,
   deleteDiscordMint,
   type DiscordGuildMintKind,
@@ -683,6 +684,70 @@ export async function registerDiscordRulesRoutes(app: FastifyInstance) {
         trait_keys: traitIndexOut?.trait_keys ?? null,
         trait_options: traitIndexOut?.trait_options ?? null,
       })
+    }
+  )
+
+  app.patch<{ Params: { tenantId: string; id: string } }>(
+    '/api/v1/tenant/:tenantId/discord/mints/:id/refresh-traits',
+    { preHandler: [adminWriteRateLimit] },
+    async (request, reply) => {
+      const result = await requireTenantAdminWithDiscordServer(request, reply, request.params.tenantId)
+      if (!result) return
+      if (!getPool()) {
+        return reply.status(503).send(apiError('Database not available', ErrorCode.SERVICE_UNAVAILABLE))
+      }
+      const { server } = result
+      const id = Number(request.params.id)
+      if (!Number.isInteger(id)) {
+        return reply.status(400).send(apiError('Invalid mint id', ErrorCode.BAD_REQUEST))
+      }
+      const mintRow = await getDiscordMintById(id, server.discord_guild_id)
+      if (!mintRow) {
+        return reply.status(404).send(apiError('Mint not found', ErrorCode.NOT_FOUND))
+      }
+      if (mintRow.kind !== 'NFT') {
+        return reply.status(400).send(apiError('Refresh traits is only for NFT/collection mints', ErrorCode.BAD_REQUEST))
+      }
+      try {
+        const collection = await buildCollectionPreview(mintRow.asset_id, request.log, {
+          traitsOnly: true,
+          maxItems: 2500,
+        })
+        const traitIndex = {
+          trait_keys: collection.trait_keys ?? [],
+          trait_options: collection.trait_options ?? {},
+        }
+        const updated = await updateDiscordMintTraitIndex(
+          id,
+          server.discord_guild_id,
+          traitIndex.trait_keys.length > 0 ? traitIndex : null
+        )
+        if (!updated) {
+          return reply.status(500).send(apiError('Failed to update mint', ErrorCode.INTERNAL_ERROR))
+        }
+        const meta = await getMintMetadata(updated.asset_id).catch(() => null)
+        const traitIndexOut = updated.trait_index ?? null
+        return reply.send({
+          id: updated.id,
+          asset_id: updated.asset_id,
+          kind: updated.kind,
+          label: updated.label,
+          symbol: meta?.symbol ?? null,
+          image: meta?.image ?? null,
+          decimals: meta?.decimals ?? null,
+          trait_keys: traitIndexOut?.trait_keys ?? null,
+          trait_options: traitIndexOut?.trait_options ?? null,
+        })
+      } catch (err) {
+        const isNotFound = err instanceof Error && err.message === 'Asset not found'
+        if (isNotFound) {
+          return reply.status(404).send(apiError('Asset not found', ErrorCode.NOT_FOUND, { mint: mintRow.asset_id }))
+        }
+        request.log.error({ err, mint: mintRow.asset_id }, 'Refresh traits failed')
+        return reply.status(500).send(
+          apiError(err instanceof Error ? err.message : 'Failed to load collection traits', ErrorCode.INTERNAL_ERROR)
+        )
+      }
     }
   )
 

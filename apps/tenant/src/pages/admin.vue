@@ -366,6 +366,7 @@ async function onMarketplaceSaved(settings: Record<string, unknown>) {
         }
       : null
   )
+  await fetchSubscription('marketplace')
 }
 onMounted(() => {
   const q = route.query.tab

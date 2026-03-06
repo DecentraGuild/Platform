@@ -48,6 +48,18 @@
             </td>
             <td class="discord-mint-catalog__actions">
               <Button
+                v-if="mint.kind === 'NFT' && !hasTraits(mint)"
+                variant="ghost"
+                size="small"
+                :disabled="refreshTraitsPending[mint.id]"
+                title="Fetch collection traits for rule dropdowns"
+                @click="onRefreshTraits(mint.id)"
+              >
+                <Icon v-if="refreshTraitsPending[mint.id]" icon="mdi:loading" class="discord-mint-catalog__btn-spin" />
+                <Icon v-else icon="mdi:refresh" />
+                <span class="discord-mint-catalog__action-label">Load traits</span>
+              </Button>
+              <Button
                 variant="ghost"
                 size="small"
                 :disabled="deletePending[mint.id]"
@@ -134,6 +146,31 @@ const createError = ref<string | null>(null)
 const newMint = ref('')
 const newKind = ref<'auto' | 'SPL' | 'NFT'>('auto')
 const deletePending = ref<Record<number, boolean>>({})
+const refreshTraitsPending = ref<Record<number, boolean>>({})
+
+function hasTraits(mint: CatalogMint): boolean {
+  const keys = mint.trait_keys
+  return Array.isArray(keys) && keys.length > 0
+}
+
+async function onRefreshTraits(id: number) {
+  refreshTraitsPending.value = { ...refreshTraitsPending.value, [id]: true }
+  createError.value = null
+  try {
+    const res = await fetch(
+      `${apiBase.value}${API_V1}/tenant/${tenantId.value}/discord/mints/${id}/refresh-traits`,
+      { method: 'PATCH', credentials: 'include' }
+    )
+    const data = (await res.json().catch(() => ({}))) as { error?: string } & CatalogMint
+    if (!res.ok) {
+      createError.value = data.error ?? `Failed to load traits (${res.status})`
+      return
+    }
+    emit('mints-changed')
+  } finally {
+    refreshTraitsPending.value = { ...refreshTraitsPending.value, [id]: false }
+  }
+}
 
 const canSubmit = computed(
   () => newMint.value.trim().length >= 32 && !creating.value
@@ -264,6 +301,23 @@ async function onDelete(id: number) {
 
 .discord-mint-catalog__table thead {
   border-bottom: 1px solid var(--theme-border, #eee);
+}
+
+.discord-mint-catalog__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--theme-space-xs);
+  flex-wrap: wrap;
+}
+
+.discord-mint-catalog__action-label {
+  margin-left: var(--theme-space-xs);
+}
+
+@media (max-width: 480px) {
+  .discord-mint-catalog__action-label {
+    display: none;
+  }
 }
 
 .discord-mint-catalog__label-cell {

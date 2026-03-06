@@ -63,6 +63,21 @@ export async function getDiscordMintById(
   return rows[0] ?? null
 }
 
+export async function updateDiscordMintTraitIndex(
+  id: number,
+  discordGuildId: string,
+  traitIndex: DiscordGuildMintTraitIndex | null
+): Promise<DiscordGuildMintRow | null> {
+  const traitIndexJson = traitIndex != null ? JSON.stringify(traitIndex) : null
+  const { rows } = await query<DiscordGuildMintRow>(
+    `UPDATE discord_guild_mints SET trait_index = $1::jsonb, updated_at = NOW()
+     WHERE id = $2 AND discord_guild_id = $3
+     RETURNING id, discord_guild_id, asset_id, kind, label, trait_index, created_at, updated_at`,
+    [traitIndexJson, id, discordGuildId]
+  )
+  return rows[0] ?? null
+}
+
 /** True if any condition in this guild references the given asset_id (payload.mint or payload.collection_or_mint). */
 export async function isAssetUsedInRules(
   discordGuildId: string,

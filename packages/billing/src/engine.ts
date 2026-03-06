@@ -43,10 +43,25 @@ function booleanCondition(value: number | boolean | undefined): boolean {
   return value === true
 }
 
+/** Per-condition-key max included value across all tiers. Add-ons only apply on the top tier for that key. */
+function maxIncludedByKey(tiers: TierDefinition[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const tier of tiers) {
+    for (const [key, val] of Object.entries(tier.included)) {
+      if (typeof val === 'number') {
+        const current = out[key]
+        if (current === undefined || val > current) out[key] = val
+      }
+    }
+  }
+  return out
+}
+
 function evaluateTier(
   tier: TierDefinition,
   conditions: ConditionSet,
   addons: AddonDefinition[],
+  maxIncluded: Record<string, number>,
 ): TierCandidate | null {
   const components: PriceComponent[] = []
   let recurringTotal = tier.recurringPrice
@@ -72,6 +87,11 @@ function evaluateTier(
     const includedNum = numericCondition(included)
     const excess = required - includedNum
     if (excess <= 0) continue
+
+    const topTierIncluded = maxIncluded[key]
+    if (topTierIncluded === undefined || includedNum < topTierIncluded) {
+      return null
+    }
 
     const addon = addons.find((a) => a.conditionKey === key)
     if (!addon) {
@@ -100,9 +120,10 @@ function computeTieredAddons(
   billingPeriod: BillingPeriod,
 ): PriceResult {
   const candidates: TierCandidate[] = []
+  const maxIncluded = maxIncludedByKey(pricing.tiers)
 
   for (const tier of pricing.tiers) {
-    const candidate = evaluateTier(tier, conditions, pricing.addons)
+    const candidate = evaluateTier(tier, conditions, pricing.addons, maxIncluded)
     if (candidate) candidates.push(candidate)
   }
 

@@ -123,7 +123,7 @@
           >
             <span class="raffle-upgrade-option__name">Pro</span>
             <span class="raffle-upgrade-option__slots">10 slots included</span>
-            <span class="raffle-upgrade-option__price">25 USDC/mo + 5 USDC/mo per extra active slot</span>
+            <span class="raffle-upgrade-option__price">25 USDC/mo</span>
             <span v-if="effectiveTierId === 'pro'" class="raffle-upgrade-option__badge">Current</span>
           </button>
         </div>
@@ -450,7 +450,7 @@ function openUpgradeModal() {
 }
 
 function selectUpgradeTier(tier: 'grow' | 'pro') {
-  upgradeConditionsOverride.value = { raffleSlotsUsed: tier === 'pro' ? 999 : 3 }
+  upgradeConditionsOverride.value = { raffleSlotsUsed: tier === 'pro' ? 10 : 3 }
   showUpgradeModal.value = false
   nextTick(() => {
     document.getElementById('raffle-pricing-widget')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })

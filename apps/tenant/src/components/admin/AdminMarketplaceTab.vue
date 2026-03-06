@@ -6,6 +6,7 @@
         :slug="slug"
         :settings="settings"
         @saved="onSaved"
+        @saving="marketplaceSaving = $event"
       />
     </div>
     <AdminPricingWidget
@@ -14,7 +15,7 @@
       :module-state="moduleState"
       :conditions="liveConditions"
       :subscription="subscription"
-      :saving="saving"
+      :saving="marketplaceSaving"
       :deploying="deploying"
       :save-error="saveError"
       @save="onSave"
@@ -57,6 +58,7 @@ type MarketplaceSettingsComputed = {
 }
 
 const settingsRef = ref<InstanceType<typeof AdminMarketplaceSettings> | null>(null)
+const marketplaceSaving = ref(false)
 
 const liveConditions = computed(() => {
   const f = settingsRef.value?.form

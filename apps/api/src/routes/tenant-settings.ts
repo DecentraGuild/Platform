@@ -268,29 +268,30 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
         ],
         (e, mint) => request.log.warn({ err: e, mint }, 'Mint metadata upsert skipped')
       )
-      try {
-        await expandAndSaveScope(tenantId, config, request.log)
-      } catch (e) {
-        request.log.warn({ err: e, tenantId }, 'Scope expansion failed; scope may be stale')
-      }
-      await Promise.race([
-        syncMarketplaceWhitelistToTenant(result.tenant, config.whitelist),
-        new Promise<void>((_, reject) => setTimeout(() => reject(new Error('sync timeout')), 8000)),
-      ]).catch((e) => {
-        request.log.warn({ err: e, tenantId }, 'Marketplace whitelist sync to tenant failed or timed out')
-      })
       const updated = await resolveMarketplaceEnriched(tenantId)
-      return {
-        settings: updated
-          ? {
-              collectionMints: updated.collectionMints,
-              currencyMints: updated.currencyMints,
-              splAssetMints: updated.splAssetMints ?? [],
-              whitelist: updated.whitelist,
-              shopFee: updated.shopFee,
-            }
-          : {},
-      }
+      const responsePayload = updated
+        ? {
+            collectionMints: updated.collectionMints,
+            currencyMints: updated.currencyMints,
+            splAssetMints: updated.splAssetMints ?? [],
+            whitelist: updated.whitelist,
+            shopFee: updated.shopFee,
+          }
+        : {}
+
+      setImmediate(() => {
+        expandAndSaveScope(tenantId, config, request.log)
+          .catch((e) => request.log.warn({ err: e, tenantId }, 'Scope expansion failed; scope may be stale'))
+          .then(() =>
+            Promise.race([
+              syncMarketplaceWhitelistToTenant(result.tenant, config.whitelist),
+              new Promise<void>((_, reject) => setTimeout(() => reject(new Error('sync timeout')), 8000)),
+            ])
+          )
+          .catch((e) => request.log.warn({ err: e, tenantId }, 'Marketplace whitelist sync to tenant failed or timed out'))
+      })
+
+      return { settings: responsePayload }
     }
 
     const configDir = getMarketplaceConfigDir()
@@ -299,20 +300,20 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
     }
     try {
       await writeMarketplaceBySlug(tenantId, config)
-      try {
-        await expandAndSaveScope(tenantId, config, request.log)
-      } catch (e) {
-        request.log.warn({ err: e, tenantId }, 'Scope expansion failed; scope may be stale')
-      }
     } catch (e) {
       request.log.warn({ err: e, tenantId }, 'Failed to write marketplace config file')
       return reply.status(503).send(apiError('Failed to save marketplace settings', ErrorCode.SERVICE_UNAVAILABLE))
     }
-    await Promise.race([
-      syncMarketplaceWhitelistToTenant(result.tenant, config.whitelist),
-      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('sync timeout')), 8000)),
-    ]).catch((e) => {
-      request.log.warn({ err: e, tenantId }, 'Marketplace whitelist sync to tenant failed or timed out')
+    setImmediate(() => {
+      expandAndSaveScope(tenantId, config, request.log)
+        .catch((e) => request.log.warn({ err: e, tenantId }, 'Scope expansion failed; scope may be stale'))
+        .then(() =>
+          Promise.race([
+            syncMarketplaceWhitelistToTenant(result.tenant, config.whitelist),
+            new Promise<void>((_, reject) => setTimeout(() => reject(new Error('sync timeout')), 8000)),
+          ])
+        )
+        .catch((e) => request.log.warn({ err: e, tenantId }, 'Marketplace whitelist sync to tenant failed or timed out'))
     })
     return {
       settings: {

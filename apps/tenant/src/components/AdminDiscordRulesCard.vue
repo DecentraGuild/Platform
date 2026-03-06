@@ -401,6 +401,7 @@ function removeCondition(idx: number) {
   form.conditions.splice(idx, 1)
   if (idx > 0 && form.conditions[idx - 1]) form.conditions[idx - 1]!.logic_to_next = 'AND'
   if (form.conditions.length === 1) form.conditions[0]!.logic_to_next = null
+  if (form.conditions.length === 0) addCondition()
 }
 function resetForm() {
   form.discord_role_id = ''
@@ -773,19 +774,39 @@ onMounted(() => {
   align-items: center;
   gap: var(--theme-space-sm);
   margin-bottom: var(--theme-space-xs);
+  min-height: var(--theme-input-height);
+}
+
+.discord-rules-card__condition-row > select,
+.discord-rules-card__condition-row > .discord-rules-card__amount-input,
+.discord-rules-card__condition-row > .discord-rules-card__trait-input {
+  height: var(--theme-input-height);
+  min-height: var(--theme-input-height);
+  box-sizing: border-box;
 }
 
 .discord-rules-card__condition-row .discord-rules-card__amount-input,
 .discord-rules-card__condition-row .discord-rules-card__trait-input {
   display: flex;
-  align-items: stretch;
-  height: var(--theme-input-height);
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.discord-rules-card__condition-row .discord-rules-card__amount-input :deep(.text-input),
+.discord-rules-card__condition-row .discord-rules-card__trait-input :deep(.text-input) {
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .discord-rules-card__condition-row .discord-rules-card__amount-input :deep(.text-input__field),
 .discord-rules-card__condition-row .discord-rules-card__trait-input :deep(.text-input__field) {
-  height: 100%;
+  height: var(--theme-input-height);
+  min-height: var(--theme-input-height);
   box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: var(--theme-input-height);
 }
 
 .discord-rules-card__mint-preview {
@@ -826,6 +847,7 @@ onMounted(() => {
   font-size: var(--theme-font-sm);
   color: var(--theme-text-muted);
   margin-top: var(--theme-space-xs);
+  order: 10;
 }
 
 .discord-rules-card__mint-input,

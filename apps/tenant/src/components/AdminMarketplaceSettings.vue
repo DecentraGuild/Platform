@@ -349,6 +349,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   saved: [settings: Record<string, unknown>]
+  saving: [value: boolean]
 }>()
 
 const tenantId = computed(() => useTenantStore().tenantId)
@@ -785,6 +786,7 @@ const SAVE_TIMEOUT_MS = 30000
 async function save() {
   if (!props.slug || !canSave.value) return
   saving.value = true
+  emit('saving', true)
   saveError.value = null
   saveSuccess.value = false
   try {
@@ -817,6 +819,7 @@ async function save() {
     }
   } finally {
     saving.value = false
+    emit('saving', false)
   }
 }
 
