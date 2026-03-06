@@ -254,7 +254,7 @@ export async function registerTenantSettingsRoutes(app: FastifyInstance) {
     const config = normalizeToMarketplaceConfig(body, tenantId, result.tenant.id)
 
     if (getPool()) {
-      await upsertMarketplace(tenantId, result.tenant.id, {
+      await upsertMarketplace(tenantId, {
         collectionMints: config.collectionMints,
         currencyMints: config.currencyMints,
         splAssetMints: config.splAssetMints ?? [],

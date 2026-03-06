@@ -6,7 +6,7 @@ export async function extractMarketplaceConditions(tenantId: string): Promise<Co
   const config = await resolveMarketplace(tenantId)
   if (!config) return { mintsCount: 0, baseCurrenciesCount: 0, customCurrenciesCount: 0, monetizeStorefront: false }
 
-  const mintsCount = config.collectionMints.length
+  const mintsCount = config.collectionMints.length + (config.splAssetMints?.length ?? 0)
   const baseCurrenciesCount = config.currencyMints.filter((c) => BASE_CURRENCY_MINT_ADDRESSES.has(c.mint)).length
   const customCurrenciesCount = config.currencyMints.length - baseCurrenciesCount
 

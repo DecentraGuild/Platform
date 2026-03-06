@@ -61,7 +61,7 @@ const settingsRef = ref<InstanceType<typeof AdminMarketplaceSettings> | null>(nu
 const liveConditions = computed(() => {
   const f = settingsRef.value?.form
   if (!f) return null
-  const mintsCount = f.collectionMints.length
+  const mintsCount = f.collectionMints.length + (f.splAssetMints?.length ?? 0)
   const baseCurrenciesCount = f.currencyMints.filter((c: { mint: string }) => BASE_CURRENCY_MINT_ADDRESSES.has(c.mint)).length
   const customCurrenciesCount = f.currencyMints.length - baseCurrenciesCount
   const fee = f.shopFee

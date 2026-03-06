@@ -171,13 +171,14 @@ async function submit() {
     const confirmData = (await confirmRes.json()) as { tenant?: { id: string; slug?: string | null } }
     const tenant = confirmData.tenant
     if (!tenant) throw new Error('No tenant returned')
-    const identifier = tenant.slug ?? tenant.id
+    // Always use tenant id so the tenant app loads this org; new=1 so it forces this tenant (no cache).
+    const tenantId = tenant.id
     const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     if (isLocal) {
-      window.location.href = `http://localhost:3002/admin?tenant=${encodeURIComponent(identifier)}`
+      window.location.href = `http://localhost:3002/admin?tenant=${encodeURIComponent(tenantId)}&new=1`
     } else {
       const tenantAppHost = config.public.tenantAppHost as string
-      window.location.href = `https://${tenantAppHost}/admin?tenant=${encodeURIComponent(identifier)}`
+      window.location.href = `https://${tenantAppHost}/admin?tenant=${encodeURIComponent(tenantId)}&new=1`
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to create org'

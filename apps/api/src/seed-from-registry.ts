@@ -84,7 +84,13 @@ export async function runSeedFromRegistry(log: SeedLog): Promise<void> {
     const tenant = await loadTenantByIdOrSlug(idOrSlug)
     if (tenant) await upsertTenant(tenant)
     const tenantId = tenant?.id ?? config.tenantId ?? idOrSlug
-    await upsertMarketplace(tenantId, config.tenantId ?? tenantId, config)
+    await upsertMarketplace(tenantId, {
+      collectionMints: config.collectionMints,
+      currencyMints: config.currencyMints,
+      splAssetMints: config.splAssetMints ?? [],
+      whitelist: config.whitelist,
+      shopFee: config.shopFee,
+    })
     try {
       await seedMintMetadataFromConfig(config, log)
     } catch (e) {

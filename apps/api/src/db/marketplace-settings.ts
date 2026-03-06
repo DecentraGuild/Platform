@@ -34,23 +34,33 @@ export async function getMarketplaceBySlug(slug: string): Promise<MarketplaceCon
   return rowToMarketplaceConfig(rows[0])
 }
 
-/** Resolve marketplace config by tenant id.
+/** Get marketplace config by canonical tenant id. Preferred over slug for ops and subscription. */
+export async function getMarketplaceByTenantId(tenantId: string): Promise<MarketplaceConfig | null> {
+  const { rows } = await query<Record<string, unknown>>(
+    'SELECT tenant_slug, tenant_id, settings FROM marketplace_settings WHERE tenant_id = $1',
+    [tenantId]
+  )
+  if (rows.length === 0) return null
+  return rowToMarketplaceConfig(rows[0])
+}
+
+/** Resolve marketplace config by tenant id (canonical). Tries tenant_id first, then tenant_slug for legacy rows.
  * Production: DB only (no file fallback).
  * Local (non-production): DB if available, else file.
  */
 export async function resolveMarketplace(tenantId: string): Promise<MarketplaceConfig | null> {
   const pool = getPool()
   if (!pool) {
-    // In production, require DB; in local dev, fall back to file configs.
     if (isProduction()) return null
     return loadMarketplaceBySlug(tenantId)
   }
 
   try {
-    const c = await getMarketplaceBySlug(tenantId)
-    if (c) return c
+    const byId = await getMarketplaceByTenantId(tenantId)
+    if (byId) return byId
+    const bySlug = await getMarketplaceBySlug(tenantId)
+    if (bySlug) return bySlug
   } catch {
-    /* DB query failed */
     if (isProduction()) return null
   }
 
@@ -58,7 +68,9 @@ export async function resolveMarketplace(tenantId: string): Promise<MarketplaceC
   return loadMarketplaceBySlug(tenantId)
 }
 
-export async function upsertMarketplace(slug: string, tenantId: string | undefined, settings: Omit<MarketplaceConfig, 'tenantSlug' | 'tenantId'>): Promise<void> {
+/** Upsert marketplace settings. Uses tenant_id as canonical key: updates existing row by tenant_id, else inserts.
+ * Ensures one row per tenant (no duplicate when row was keyed by slug). */
+export async function upsertMarketplace(tenantId: string, settings: Omit<MarketplaceConfig, 'tenantSlug' | 'tenantId'>): Promise<void> {
   const payload = JSON.stringify({
     collectionMints: settings.collectionMints,
     currencyMints: settings.currencyMints,
@@ -66,13 +78,18 @@ export async function upsertMarketplace(slug: string, tenantId: string | undefin
     whitelist: settings.whitelist,
     shopFee: settings.shopFee,
   })
+  const { rowCount } = await query(
+    `UPDATE marketplace_settings SET tenant_slug = $1, settings = $2::jsonb, updated_at = NOW() WHERE tenant_id = $1`,
+    [tenantId, payload]
+  )
+  if ((rowCount ?? 0) > 0) return
   await query(
     `INSERT INTO marketplace_settings (tenant_slug, tenant_id, settings, updated_at)
      VALUES ($1, $2, $3::jsonb, NOW())
      ON CONFLICT (tenant_slug) DO UPDATE SET
-       tenant_id = COALESCE(EXCLUDED.tenant_id, marketplace_settings.tenant_id),
+       tenant_id = EXCLUDED.tenant_id,
        settings = EXCLUDED.settings,
        updated_at = NOW()`,
-    [slug, tenantId ?? null, payload]
+    [tenantId, tenantId, payload]
   )
 }
