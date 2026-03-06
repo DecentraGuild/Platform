@@ -274,6 +274,8 @@
 import { API_V1 } from '~/utils/apiBase'
 import { Icon } from '@iconify/vue'
 import { BASE_CURRENCY_MINTS } from '@decentraguild/core'
+import { getModuleCatalogEntry } from '@decentraguild/config'
+import type { TieredAddonsPricing } from '@decentraguild/config'
 import { Card, TextInput, Button } from '@decentraguild/ui/components'
 import AdminCollectionDetailModal from './AdminCollectionDetailModal.vue'
 import { reactive, ref, watch, computed, nextTick } from 'vue'
@@ -334,6 +336,21 @@ const DEFAULT_WHITELIST: WhitelistSettings = {
 
 type WhitelistFormValue = WhitelistSettings | null | 'use-default'
 
+const MARKETPLACE_UI_MINT_CAP_MULTIPLIER = 4
+
+function getMarketplaceUiMintsCap(): number {
+  const marketplace = getModuleCatalogEntry('marketplace')
+  const pricing = marketplace?.pricing
+  if (!pricing || pricing.modelType !== 'tiered_addons') return 1000
+
+  const tiers = (pricing as TieredAddonsPricing).tiers ?? []
+  const maxTierIncludedMints = tiers.reduce((max, t) => Math.max(max, (t.included as { mintsCount?: number } | undefined)?.mintsCount ?? 0), 0)
+  const base = Math.max(1, maxTierIncludedMints)
+  return base * MARKETPLACE_UI_MINT_CAP_MULTIPLIER
+}
+
+const MARKETPLACE_UI_MINTS_CAP = getMarketplaceUiMintsCap()
+
 interface MarketplaceForm {
   collectionMints: CollectionMint[]
   splAssetMints: SplAssetMint[]
@@ -368,6 +385,8 @@ const form = reactive<MarketplaceForm>({
   },
   whitelist: 'use-default' as WhitelistFormValue,
 })
+
+const totalMintsCount = computed(() => form.collectionMints.length + form.splAssetMints.length)
 
 const customCurrencies = computed(() => {
   const baseMints = new Set(BASE_CURRENCY_MINTS.map((b) => b.mint))
@@ -519,8 +538,8 @@ async function addCollection() {
     addCollectionError.value = 'Collection already added'
     return
   }
-  if (form.collectionMints.length >= 250) {
-    addCollectionError.value = 'Maximum 250 collections'
+  if (totalMintsCount.value >= MARKETPLACE_UI_MINTS_CAP) {
+    addCollectionError.value = `Maximum ${MARKETPLACE_UI_MINTS_CAP} mints (collections + SPL assets)`
     return
   }
   addCollectionError.value = ''
@@ -574,6 +593,10 @@ async function addCollection() {
         if (confirmMove) {
           // Remove provisional collection entry and add to SPL assets instead.
           form.collectionMints.splice(idx, 1)
+          if (totalMintsCount.value >= MARKETPLACE_UI_MINTS_CAP) {
+            addSplError.value = `Maximum ${MARKETPLACE_UI_MINTS_CAP} mints (collections + SPL assets)`
+            return
+          }
           form.splAssetMints.push({
             mint,
             name: splData.name ?? undefined,
@@ -615,8 +638,8 @@ async function addSpl() {
     addSplError.value = 'Mint already added'
     return
   }
-  if (form.splAssetMints.length >= 250) {
-    addSplError.value = 'Maximum 250 SPL assets'
+  if (totalMintsCount.value >= MARKETPLACE_UI_MINTS_CAP) {
+    addSplError.value = `Maximum ${MARKETPLACE_UI_MINTS_CAP} mints (collections + SPL assets)`
     return
   }
   addSplError.value = ''
@@ -783,8 +806,8 @@ function buildPayload(): Record<string, unknown> {
 
 const SAVE_TIMEOUT_MS = 30000
 
-async function save() {
-  if (!props.slug || !canSave.value) return
+async function save(): Promise<boolean> {
+  if (!props.slug || !canSave.value) return false
   saving.value = true
   emit('saving', true)
   saveError.value = null
@@ -811,12 +834,14 @@ async function save() {
     saveSuccess.value = true
     setTimeout(() => { saveSuccess.value = false }, 3000)
     emit('saved', data.settings ?? {})
+    return true
   } catch (e) {
     if ((e as Error)?.name === 'AbortError') {
       saveError.value = 'Request timed out. Check the server and try again.'
     } else {
       saveError.value = e instanceof Error ? e.message : 'Failed to save'
     }
+    return false
   } finally {
     saving.value = false
     emit('saving', false)

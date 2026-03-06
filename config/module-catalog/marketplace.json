@@ -36,19 +36,19 @@
         "id": "tier1",
         "name": "Starter",
         "recurringPrice": 0.0019,
-        "included": { "mintsCount": 5, "baseCurrenciesCount": 4, "customCurrenciesCount": 0, "monetizeStorefront": false }
+        "included": { "mintsCount": 25, "baseCurrenciesCount": 4, "customCurrenciesCount": 0, "monetizeStorefront": false }
       },
       {
         "id": "tier2",
         "name": "Growth",
         "recurringPrice": 0.0029,
-        "included": { "mintsCount": 50, "baseCurrenciesCount": 4, "customCurrenciesCount": 1, "monetizeStorefront": false }
+        "included": { "mintsCount": 100, "baseCurrenciesCount": 4, "customCurrenciesCount": 1, "monetizeStorefront": false }
       },
       {
         "id": "tier3",
         "name": "Pro",
         "recurringPrice": 0.0039,
-        "included": { "mintsCount": 250, "baseCurrenciesCount": 4, "customCurrenciesCount": 2, "monetizeStorefront": true }
+        "included": { "mintsCount": 300, "baseCurrenciesCount": 4, "customCurrenciesCount": 2, "monetizeStorefront": true }
       }
     ],
     "addons": [

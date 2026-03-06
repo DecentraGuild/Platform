@@ -120,7 +120,7 @@ async function submit() {
       recipientAta: string
       tenantId: string
     }
-    if (!intent.paymentId || !intent.amountUsdc || !intent.memo || !intent.recipientAta) {
+    if (!intent.paymentId || !intent.amountUsdc || !intent.memo || !intent.recipientAta || !intent.tenantId?.trim()) {
       throw new Error('Invalid payment intent response')
     }
 
@@ -170,9 +170,10 @@ async function submit() {
     }
     const confirmData = (await confirmRes.json()) as { tenant?: { id: string; slug?: string | null } }
     const tenant = confirmData.tenant
-    if (!tenant) throw new Error('No tenant returned')
-    // Always use tenant id so the tenant app loads this org; new=1 so it forces this tenant (no cache).
-    const tenantId = tenant.id
+    // Always use tenant id so the tenant app loads this org; new=1 forces the tenant (no cache).
+    // Fallback to intent.tenantId so the redirect never drops the tenant param.
+    const tenantId = (tenant?.id ?? '').trim() || intent.tenantId
+    if (!tenantId?.trim()) throw new Error('No tenant id returned')
     const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     if (isLocal) {
       window.location.href = `http://localhost:3002/admin?tenant=${encodeURIComponent(tenantId)}&new=1`

@@ -86,11 +86,11 @@
       :module-state="moduleState"
       :conditions="liveConditions"
       :subscription="subscription"
-      :saving="saving"
+      :saving="Boolean(savingWhitelist || saving)"
       :deploying="deploying"
       :save-error="saveError"
-      @save="(p: BillingPeriod) => emit('save', p, upgradeConditionsOverride ?? undefined)"
-      @deploy="(p: BillingPeriod) => emit('deploy', p, upgradeConditionsOverride ?? undefined)"
+      @save="onSave"
+      @deploy="onDeploy"
     />
     </div>
 
@@ -488,7 +488,7 @@ function onWhitelistUpdate(value: { programId: string; account: string } | null 
   tenantStore.setRaffleSettings(next)
 }
 
-async function saveWhitelist() {
+async function saveWhitelist(): Promise<boolean> {
   savingWhitelist.value = true
   whitelistSaveError.value = null
   whitelistSaveSuccess.value = false
@@ -511,11 +511,31 @@ async function saveWhitelist() {
     tenantStore.setRaffleSettings(data.settings ?? {})
     initialWhitelist.value = whitelistFormValue.value === 'use-default' ? '__use_default__' : (whitelistFormValue.value && typeof whitelistFormValue.value === 'object' ? whitelistFormValue.value.account : null)
     whitelistSaveSuccess.value = true
+    return true
   } catch (e) {
     whitelistSaveError.value = e instanceof Error ? e.message : 'Failed to save'
+    return false
   } finally {
     savingWhitelist.value = false
   }
+}
+
+async function ensureRaffleSettingsSaved(): Promise<boolean> {
+  if (savingWhitelist.value) return false
+  if (!whitelistDirty.value) return true
+  return saveWhitelist()
+}
+
+async function onSave(period: BillingPeriod) {
+  const ok = await ensureRaffleSettingsSaved()
+  if (!ok) return
+  emit('save', period, upgradeConditionsOverride.value ?? undefined)
+}
+
+async function onDeploy(period: BillingPeriod) {
+  const ok = await ensureRaffleSettingsSaved()
+  if (!ok) return
+  emit('deploy', period, upgradeConditionsOverride.value ?? undefined)
 }
 
 function openCreateModal(_slotIndex: number) {

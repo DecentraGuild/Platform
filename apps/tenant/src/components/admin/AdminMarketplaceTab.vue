@@ -19,7 +19,7 @@
       :deploying="deploying"
       :save-error="saveError"
       @save="onSave"
-      @deploy="(p: BillingPeriod) => emit('deploy', p)"
+      @deploy="onDeploy"
       @reactivate="(p: BillingPeriod) => emit('reactivate', p)"
     />
   </div>
@@ -74,8 +74,15 @@ const liveConditions = computed(() => {
 const pricingRef = ref<InstanceType<typeof AdminPricingWidget> | null>(null)
 
 async function onSave(period: BillingPeriod) {
-  await settingsRef.value?.save()
+  const ok = await settingsRef.value?.save()
+  if (!ok) return
   emit('save', period)
+}
+
+async function onDeploy(period: BillingPeriod) {
+  const ok = await settingsRef.value?.save()
+  if (!ok) return
+  emit('deploy', period)
 }
 
 function onSaved(payload: Record<string, unknown>) {
@@ -83,5 +90,5 @@ function onSaved(payload: Record<string, unknown>) {
   emit('saved', payload)
 }
 
-defineExpose({ settingsRef, pricingRef, save: () => settingsRef.value?.save() })
+defineExpose({ settingsRef, pricingRef, save: () => settingsRef.value?.save() ?? Promise.resolve(false) })
 </script>
