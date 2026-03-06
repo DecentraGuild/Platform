@@ -13,6 +13,7 @@
 
 import 'dotenv/config'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { initPool } from '../src/db/client.js'
 import { runMigrations } from '../src/db/run-migrations.js'
 import { ensureConfigPaths } from '../src/config/ensure-paths.js'
@@ -20,16 +21,30 @@ import { runSeedFromRegistry } from '../src/seed-from-registry.js'
 import { getTenantConfigDir } from '../src/config/registry.js'
 import { getMarketplaceConfigDir } from '../src/config/marketplace-registry.js'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/** Monorepo root: from apps/api/scripts go up to repo root. */
+function getRepoRoot(): string {
+  return path.resolve(__dirname, '../../..')
+}
+
+/** Resolve path: if relative, resolve against repo root so configs/tenants always means repo configs. */
+function resolveSeedPath(relativeOrAbsolute: string): string {
+  const p = relativeOrAbsolute.trim()
+  if (path.isAbsolute(p)) return path.resolve(p)
+  return path.resolve(getRepoRoot(), p)
+}
+
 const log: { warn: (obj: unknown, msg?: string) => void } = {
   warn: (obj, msg) => console.warn(msg ?? 'Warn', obj),
 }
 
 async function main() {
   if (process.env.SEED_TENANTS_PATH) {
-    process.env.TENANT_CONFIG_PATH = path.resolve(process.env.SEED_TENANTS_PATH)
+    process.env.TENANT_CONFIG_PATH = resolveSeedPath(process.env.SEED_TENANTS_PATH)
   }
   if (process.env.SEED_MARKETPLACE_PATH) {
-    process.env.MARKETPLACE_CONFIG_PATH = path.resolve(process.env.SEED_MARKETPLACE_PATH)
+    process.env.MARKETPLACE_CONFIG_PATH = resolveSeedPath(process.env.SEED_MARKETPLACE_PATH)
   }
   ensureConfigPaths()
 

@@ -27,8 +27,6 @@ const TABLES = [
   'mint_metadata',
   'tenant_config',
   'auth_nonce',
-  'tenant_raffles',
-  'raffle_settings',
 ] as const
 
 async function main() {
